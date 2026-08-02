@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { primaryNav } from "@/config/navigation";
 import {
@@ -11,9 +12,8 @@ import {
   BellRing,
   Timer,
 } from "lucide-react";
-import Dock from "@/components/Dock";
 
-const iconMap: Record<string, React.ComponentType<{ className?: string; size?: number }>> = {
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   "layout-dashboard": LayoutDashboard,
   calendar: Calendar,
   "check-square": CheckSquare,
@@ -22,7 +22,6 @@ const iconMap: Record<string, React.ComponentType<{ className?: string; size?: n
 };
 
 export function BottomNav() {
-  const router = useRouter();
   const pathname = usePathname();
   const items = primaryNav;
 
@@ -54,40 +53,54 @@ export function BottomNav() {
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
 
-  const dockItems = items.map((item) => {
-    const Icon = iconMap[item.icon] || Calendar;
-    const active =
-      pathname === item.href || pathname.startsWith(item.href + "/");
-    return {
-      icon: (
-        <Icon
-          size={18}
-          className={active ? "text-primary" : "text-muted-foreground"}
-        />
-      ),
-      label: item.label.split(" ")[0] ?? "",
-      onClick: () => router.push(item.href),
-      className: active ? "dock-item-active" : undefined,
-    };
-  });
-
   return (
-    <div
+    <nav
+      aria-label="Primary"
       className={cn(
         "fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 transition-transform duration-300 ease-out md:hidden",
         hidden
-          ? "pointer-events-none translate-y-[calc(100%+1.5rem)] opacity-0"
+          ? "pointer-events-none translate-y-[calc(100%+0.5rem)] opacity-0"
           : "translate-y-0 opacity-100"
       )}
-      style={{ paddingBottom: "calc(0.5rem + var(--sab))" }}
+      style={{ paddingBottom: "calc(1rem + var(--sab))" }}
     >
-      <Dock
-        items={dockItems}
-        panelHeight={30}
-        baseItemSize={40}
-        magnification={70}
-        dockHeight={200}
-      />
-    </div>
+      <div className="bottom-nav flex w-full max-w-md items-stretch justify-around gap-1 rounded-full border border-border/70 bg-card/95 px-2 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.18)] backdrop-blur-md">
+        {items.map((item) => {
+          const Icon = iconMap[item.icon] || Calendar;
+          const active =
+            pathname === item.href || pathname.startsWith(item.href + "/");
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "relative flex min-h-[48px] min-w-[52px] flex-1 flex-col items-center justify-center gap-1 rounded-full px-2 py-1.5 transition-colors",
+                active
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <span
+                className={cn(
+                  "flex h-8 w-12 items-center justify-center rounded-full transition-all duration-200",
+                  active && "bg-primary/12"
+                )}
+              >
+                <Icon className="h-[22px] w-[22px]" />
+              </span>
+              <span
+                className={cn(
+                  "text-[11px] font-medium leading-none tracking-tight",
+                  active ? "font-semibold" : "font-normal"
+                )}
+              >
+                {item.label.split(" ")[0]}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
