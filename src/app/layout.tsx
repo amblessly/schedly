@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Warmup } from "@/components/warmup";
+import { CopyProtection } from "@/components/copy-protection";
+import { InstallPrompt } from "@/components/install-prompt";
 import { ThemeProvider } from "@/features/theme";
 import "./globals.css";
 
@@ -55,6 +57,8 @@ export default async function RootLayout({
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <Warmup />
+        <CopyProtection />
+        <InstallPrompt />
         <ThemeProvider initialThemeId={initialThemeId}>{children}</ThemeProvider>
       </body>
     </html>

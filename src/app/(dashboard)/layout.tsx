@@ -60,7 +60,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className="relative flex h-screen overflow-hidden"
+      className="relative flex h-screen overflow-hidden md:h-auto md:min-h-screen md:overflow-visible"
       style={{
         ...themeVars,
         backgroundColor: "var(--background)",
@@ -103,11 +103,11 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </button>
       )}
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden md:overflow-visible">
         <main
           onClick={() => setOpen(false)}
           className={[
-            "flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-x-none",
+            "flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-x-none md:overflow-visible",
             isImmersive
               ? "p-0 md:p-6 md:pt-20"
               : "p-4 pt-16 pb-28 sm:p-6 sm:pt-16 md:pt-20 md:pb-4",

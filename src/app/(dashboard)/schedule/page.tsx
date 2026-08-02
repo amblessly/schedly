@@ -188,7 +188,11 @@ export default function SchedulePage() {
   };
 
   const handleSaved = async (_scheduleId: string) => {
+    // Leave the review phase FIRST so the sessionStorage persist effect
+    // (reviewReady -> false) can never re-save the review after we clear it.
+    setPhase("list");
     setValidationIssues([]);
+    resetUpload();
     clearReviewState(userId);
     const data = await getUserSchedules();
     const schedules = data as ScheduleData[];
@@ -197,7 +201,7 @@ export default function SchedulePage() {
       schedules.find((s) => s.classes.length > 0) ??
       null;
     publishScheduleToWidget(active);
-    router.push("/dashboard");
+    router.push("/schedule");
   };
 
   const handleBackToList = () => {

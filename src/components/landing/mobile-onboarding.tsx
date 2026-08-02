@@ -106,18 +106,14 @@ function Mascot({ size = "lg" }: { size?: "lg" | "sm" }) {
         }`}
       />
       <div
-        className={`relative flex items-center justify-center bg-gradient-to-br from-[#EC4899] to-[#F472B6] shadow-[0_24px_60px_rgba(236,72,153,0.35)] ${
+        className={`relative flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#EC4899] to-[#F472B6] shadow-[0_24px_60px_rgba(236,72,153,0.35)] ${
           big ? "h-32 w-32 rounded-[36px]" : "h-20 w-20 rounded-[22px]"
         }`}
       >
         <img
           src="/images/logo.jpg"
           alt="Schedly"
-          className={
-            big
-              ? "h-[86px] w-[86px] rounded-[28px] object-cover"
-              : "h-[54px] w-[54px] rounded-2xl object-cover"
-          }
+          className="h-full w-full"
         />
       </div>
       <Sparkles className={`animate-twinkle absolute -right-4 -top-3 text-[#F472B6] ${big ? "h-6 w-6" : "h-4 w-4"}`} />
@@ -158,12 +154,16 @@ function SplashScreen({
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center gap-9">
+      <div className="flex flex-1 flex-col items-center justify-center gap-8">
         <ScreenContent active={active}>
           <Mascot />
         </ScreenContent>
 
         <ScreenContent active={active} delay={120} className="flex flex-col items-center gap-4 text-center">
+          <span className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-gradient-to-br from-[#EC4899] to-[#F472B6]" />
+            <span className="text-sm font-bold tracking-wide text-[#111827]">SCHEDLY</span>
+          </span>
           <h1 className="text-[36px] font-bold leading-[1.12] tracking-tight text-[#111827]">
             Your classes,{" "}
             <span className="bg-gradient-to-r from-[#EC4899] to-[#FDA4AF] bg-clip-text text-transparent">
@@ -171,7 +171,8 @@ function SplashScreen({
             </span>
           </h1>
           <p className="max-w-[300px] text-[15px] leading-relaxed text-[#6B7280]">
-            Snap a photo of your class schedule. Schedly extracts, organizes, and reminds you automatically.
+            Snap a photo of your class schedule — Schedly extracts, organizes, and
+            reminds you. Automatically.
           </p>
         </ScreenContent>
       </div>
@@ -192,21 +193,21 @@ const MOBILE_FEATURES = [
   {
     icon: Camera,
     title: "Snap & Extract",
-    description: "Upload your timetable and let AI read everything automatically.",
+    description: "Snap a photo and let AI read your whole timetable in seconds.",
     bg: "bg-[#FCE7F3]",
     color: "text-[#EC4899]",
   },
   {
     icon: Bell,
     title: "Smart Reminders",
-    description: "Receive reminders before every class.",
+    description: "Never miss a class — get reminded before every one.",
     bg: "bg-[#EEF2FF]",
     color: "text-[#4F46E5]",
   },
   {
     icon: CalendarDays,
     title: "Weekly Schedule",
-    description: "View your timetable in a beautiful organized layout.",
+    description: "Your week at a glance, in a clean and beautiful timetable.",
     bg: "bg-[#FEF3C7]",
     color: "text-[#B45309]",
   },
@@ -292,7 +293,7 @@ function AuthScreen({ active }: { active: boolean }) {
             Join Schedly
           </h2>
           <p className="max-w-[280px] text-sm leading-relaxed text-[#6B7280]">
-            Sign in to start organizing your class schedule.
+            Sign in and start organizing your class schedule in seconds.
           </p>
         </ScreenContent>
 

@@ -28,7 +28,7 @@ function isStopword(w: string): boolean {
 }
 
 function abbreviateWord(word: string): string {
-  const w = word.trim();
+  const w = word.trim().replace(/[^a-zA-Z0-9]/g, "");
   if (!w) return "";
   if (w.length <= 4) return w;
   // Keep internal capitals when present (e.g. "McGraw") — fall back to first 4.
@@ -39,12 +39,19 @@ function abbreviateWord(word: string): string {
   return w.slice(0, 4) + ".";
 }
 
+/** Alphanumerics only — lets "(Lec/Lab)" be handled as "LecLab" without stray punctuation. */
+function significantWord(w: string): string {
+  return w.replace(/[^a-z0-9]/gi, "");
+}
+
 export function generateShortName(subject: string | null | undefined): string {
   if (!subject || !subject.trim()) return "";
   const raw = subject.trim().replace(/\s+/g, " ");
   const words = raw.split(" ");
 
-  const significant = words.filter((w) => !isStopword(w) && w.trim() !== "");
+  const significant = words.filter(
+    (w) => !isStopword(w) && significantWord(w).length > 0
+  );
   const sigCount = significant.length;
 
   if (sigCount === 0) {
@@ -53,29 +60,38 @@ export function generateShortName(subject: string | null | undefined): string {
   }
 
   if (sigCount >= 3) {
-    // Acronym from significant words' first letters.
+    // Acronym from significant words' first letters. Parenthetical markers
+    // like "(Lec/Lab)" don't contribute initials ("IC(" -> "IC").
+    const initials = significant
+      .filter((w) => !/^\(.*\)$/.test(w))
+      .map((w) => significantWord(w)[0]!.toUpperCase())
+      .join("");
+    if (initials.length >= 2) return initials;
+    // Every significant word was parenthetical — fall back to first letters.
     return significant
-      .map((w) => w[0]!.toUpperCase())
+      .map((w) => significantWord(w)[0]!.toUpperCase())
       .join("");
   }
 
   if (sigCount === 1) {
     const only = significant[0]!;
+    const clean = significantWord(only);
     // Keep a trailing number/label (e.g. "Programming 2").
     const numMatch = only.match(/^(.*?)(\s*\d+.*)$/);
     if (numMatch) {
-      const base = numMatch[1]!;
-      const tail = numMatch[2]!;
-      return (base.length <= 5 ? base : abbreviateWord(base)) + tail;
+      const base = significantWord(numMatch[1]!);
+      const tail = numMatch[2]!.trim().replace(/[^a-z0-9]+$/i, "");
+      return (base.length <= 5 ? base : abbreviateWord(base)) + (tail ? " " + tail : "");
     }
-    return only.length <= 6 ? only : abbreviateWord(only);
+    return clean.length <= 6 ? clean : abbreviateWord(clean);
   }
 
   // sigCount === 2 -> readable abbreviation, preserving stopwords in place.
   return words
     .map((w) => {
       if (isStopword(w)) return w;
-      return w.length <= 4 ? w : abbreviateWord(w);
+      const clean = significantWord(w);
+      return clean.length <= 4 ? clean : abbreviateWord(clean);
     })
     .join(" ");
 }
