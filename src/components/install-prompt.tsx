@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { Download, X, Share, Home, Check, Smartphone } from "lucide-react";
 
@@ -30,8 +30,10 @@ function isStandalone(): boolean {
 export function InstallPrompt() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
+  const [installing, setInstalling] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
   const [ios, setIos] = useState(false);
-  const [installed, setInstalled] = useState(false);
+  const reloadedOnce = useRef(false);
 
   useEffect(() => {
     if (Capacitor.isNativePlatform() || isStandalone()) return;
@@ -44,9 +46,11 @@ export function InstallPrompt() {
     const onPrompt = (e: Event) => {
       e.preventDefault();
       setDeferred(e as BeforeInstallPromptEvent);
+      // Show the install sheet immediately when the browser is ready.
+      if (!localStorage.getItem(DISMISS_KEY)) setVisible(true);
     };
     const onInstalled = () => {
-      setInstalled(true);
+      localStorage.setItem(DISMISS_KEY, "1");
       setVisible(false);
     };
 
@@ -73,20 +77,41 @@ export function InstallPrompt() {
   };
 
   const handleInstall = async () => {
-    if (!deferred) return;
-    await deferred.prompt();
-    const choice = await deferred.userChoice;
-    if (choice.outcome === "accepted") {
-      localStorage.setItem(DISMISS_KEY, "1");
+    // Install prompt available -> install directly.
+    if (deferred) {
+      setInstalling(true);
+      await deferred.prompt();
+      const choice = await deferred.userChoice;
+      setInstalling(false);
+      if (choice.outcome === "accepted") {
+        localStorage.setItem(DISMISS_KEY, "1");
+      }
       setVisible(false);
-    } else {
-      setVisible(false);
+      return;
     }
+
+    // No prompt yet: the service worker may not be controlling this page yet
+    // (a fresh visit). Reload once to activate it — the browser then considers
+    // the site installable and the "Install" button works on the next tap.
+    if (!reloadedOnce.current) {
+      reloadedOnce.current = true;
+      try {
+        await navigator.serviceWorker.ready;
+      } catch {
+        // Ignore — reload anyway.
+      }
+      window.location.reload();
+      return;
+    }
+
+    // After the reload the browser still can't install (e.g. Firefox) —
+    // fall back to manual instructions.
+    setShowFallback(true);
   };
 
-  if (!visible || installed) return null;
+  if (!visible) return null;
 
-  const showSteps = ios || !deferred;
+  const isSheet = !ios && !showFallback;
 
   return (
     <>
@@ -96,65 +121,7 @@ export function InstallPrompt() {
         aria-hidden
       />
 
-      {showSteps ? (
-        /* ===== Instructions dialog (iPhone / browsers without install prompt) ===== */
-        <div className="fixed inset-x-0 bottom-0 z-[70] mx-auto w-full max-w-md rounded-t-3xl border border-border/70 bg-card p-6 pb-[calc(1.25rem+var(--sab))] shadow-[0_-8px_40px_rgba(0,0,0,0.2)]">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary">
-              <Smartphone className="h-5 w-5" />
-            </div>
-            <button
-              type="button"
-              onClick={dismiss}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted"
-              aria-label="Close"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          <h2 className="mt-4 text-lg font-bold tracking-tight text-foreground">
-            {ios ? "Install Schedly on your iPhone" : "Install Schedly"}
-          </h2>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            {ios
-              ? "Add Schedly to your Home Screen so it works just like a native app — one tap to open, no browser tabs."
-              : "Create a shortcut to Schedly on your device so it opens like a native app."}
-          </p>
-
-          <div className="mt-5 space-y-3">
-            {ios ? (
-              <>
-                <Step
-                  icon={<Share className="h-4 w-4" />}
-                  text='Tap the Share button in your browser.'
-                />
-                <Step
-                  icon={<Home className="h-4 w-4" />}
-                  text='Scroll down and tap "Add to Home Screen".'
-                />
-                <Step
-                  icon={<Check className="h-4 w-4" />}
-                  text='Tap "Add" in the top-right corner. Done!'
-                />
-              </>
-            ) : (
-              <Step
-                icon={<Download className="h-4 w-4" />}
-                text={"Use your browser's menu and choose \"Install app\" or \"Add to Home Screen\"."}
-              />
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={dismiss}
-            className="mt-6 flex h-12 w-full items-center justify-center rounded-full bg-gradient-to-r from-[#EC4899] to-[#F472B6] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(236,72,153,0.35)] active:scale-[0.97]"
-          >
-            Got it
-          </button>
-        </div>
-      ) : (
+      {isSheet ? (
         /* ===== Install sheet (Android / desktop Chrome, Edge) ===== */
         <div className="fixed inset-x-0 bottom-0 z-[70] mx-auto w-full max-w-md rounded-t-3xl border border-border/70 bg-card p-6 pb-[calc(1.25rem+var(--sab))] shadow-[0_-8px_40px_rgba(0,0,0,0.2)]">
           <div className="flex items-start justify-between gap-3">
@@ -182,10 +149,11 @@ export function InstallPrompt() {
           <button
             type="button"
             onClick={handleInstall}
-            className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#EC4899] to-[#F472B6] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(236,72,153,0.35)] active:scale-[0.97]"
+            disabled={installing}
+            className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#EC4899] to-[#F472B6] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(236,72,153,0.35)] active:scale-[0.97] disabled:opacity-60"
           >
             <Download className="h-5 w-5" />
-            Install App
+            {installing ? "Installing..." : "Install App"}
           </button>
           <button
             type="button"
@@ -193,6 +161,64 @@ export function InstallPrompt() {
             className="mt-2.5 h-10 w-full text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             Not now
+          </button>
+        </div>
+      ) : (
+        /* ===== Instructions dialog (iPhone / unsupported browsers) ===== */
+        <div className="fixed inset-x-0 bottom-0 z-[70] mx-auto w-full max-w-md rounded-t-3xl border border-border/70 bg-card p-6 pb-[calc(1.25rem+var(--sab))] shadow-[0_-8px_40px_rgba(0,0,0,0.2)]">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary">
+              <Smartphone className="h-5 w-5" />
+            </div>
+            <button
+              type="button"
+              onClick={dismiss}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <h2 className="mt-4 text-lg font-bold tracking-tight text-foreground">
+            {ios ? "Install Schedly on your iPhone" : "Install Schedly"}
+          </h2>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            {ios
+              ? "Add Schedly to your Home Screen so it works just like a native app — one tap to open, no browser tabs."
+              : "Your browser doesn't offer one-tap install. Create a shortcut manually instead."}
+          </p>
+
+          <div className="mt-5 space-y-3">
+            {ios ? (
+              <>
+                <Step
+                  icon={<Share className="h-4 w-4" />}
+                  text="Tap the Share button in your browser."
+                />
+                <Step
+                  icon={<Home className="h-4 w-4" />}
+                  text="Scroll down and tap &quot;Add to Home Screen&quot;."
+                />
+                <Step
+                  icon={<Check className="h-4 w-4" />}
+                  text="Tap &quot;Add&quot; in the top-right corner. Done!"
+                />
+              </>
+            ) : (
+              <Step
+                icon={<Download className="h-4 w-4" />}
+                text="Use your browser&apos;s menu and choose &quot;Install app&quot; or &quot;Add to Home Screen&quot;."
+              />
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={dismiss}
+            className="mt-6 flex h-12 w-full items-center justify-center rounded-full bg-gradient-to-r from-[#EC4899] to-[#F472B6] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(236,72,153,0.35)] active:scale-[0.97]"
+          >
+            Got it
           </button>
         </div>
       )}
