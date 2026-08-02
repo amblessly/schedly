@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -24,10 +25,43 @@ export function BottomNav() {
   const pathname = usePathname();
   const items = primaryNav;
 
+  // Auto-hide on scroll down, reappear on scroll up (mobile only).
+  const [hidden, setHidden] = useState(false);
+  const lastY = useRef(0);
+  const ticking = useRef(false);
+
+  useEffect(() => {
+    if (window.matchMedia("(min-width: 768px)").matches) return;
+    const el = document.querySelector("main");
+    if (!el) return;
+
+    const onScroll = () => {
+      if (ticking.current) return;
+      ticking.current = true;
+      requestAnimationFrame(() => {
+        ticking.current = false;
+        const y = el.scrollTop;
+        const delta = y - lastY.current;
+        if (Math.abs(delta) > 4) {
+          setHidden(delta > 0 && y > 80);
+        }
+        lastY.current = y;
+      });
+    };
+
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 md:hidden"
+      className={cn(
+        "fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 transition-transform duration-300 ease-out md:hidden",
+        hidden
+          ? "pointer-events-none translate-y-[calc(100%+0.5rem)] opacity-0"
+          : "translate-y-0 opacity-100"
+      )}
       style={{ paddingBottom: "calc(1rem + var(--sab))" }}
     >
       <div className="bottom-nav flex w-full max-w-md items-stretch justify-around gap-1 rounded-full border border-border/70 bg-card/95 px-2 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.18)] backdrop-blur-md">
