@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 export default function AuthLayout({
   children,
@@ -29,8 +30,8 @@ export default function AuthLayout({
             </p>
             <div className="flex gap-8 pt-2">
               <div className="flex flex-col gap-1">
-                <span className="text-2xl font-bold">AI</span>
-                <span className="text-sm text-primary-foreground/70">Smart extraction</span>
+                <span className="text-2xl font-bold">10s</span>
+                <span className="text-sm text-primary-foreground/70">Fast extraction</span>
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-2xl font-bold">24/7</span>
@@ -49,10 +50,17 @@ export default function AuthLayout({
       </div>
       <div className="flex w-full items-center justify-center bg-background p-4 lg:w-1/2 lg:p-8">
         <div className="w-full max-w-md">
-          <div className="mb-8 lg:hidden">
+          <div className="mb-8 flex items-center justify-between lg:hidden">
             <Link href="/" className="inline-flex items-center gap-2">
               <img src="/images/logo.jpg" alt="Schedly" className="h-8 w-8 rounded-lg object-cover" />
               <span className="text-xl font-bold tracking-tight text-foreground">Schedly</span>
+            </Link>
+            <Link
+              href="/"
+              aria-label="Back to Schedly"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-background text-foreground shadow-sm transition-colors hover:bg-muted active:scale-95"
+            >
+              <ArrowLeft className="h-4 w-4" />
             </Link>
           </div>
           {children}

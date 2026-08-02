@@ -60,8 +60,10 @@ export default function PomodoroPage() {
   };
 
   const skip = () => {
-    setPhase((p) => (p === "focus" ? "break" : "focus"));
+    const next = phase === "focus" ? "break" : "focus";
+    setPhase(next);
     setRunning(false);
+    setSecondsLeft((next === "focus" ? focusMin : breakMin) * 60);
   };
 
   return (
@@ -79,7 +81,7 @@ export default function PomodoroPage() {
         <CardContent className="flex flex-col items-center gap-6 py-8">
           <div className="flex gap-2">
             <button
-              onClick={() => { setRunning(false); setPhase("focus"); }}
+              onClick={() => { setRunning(false); setPhase("focus"); setSecondsLeft(focusMin * 60); }}
               className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
                 phase === "focus"
                   ? "bg-primary text-primary-foreground"
@@ -89,7 +91,7 @@ export default function PomodoroPage() {
               Focus
             </button>
             <button
-              onClick={() => { setRunning(false); setPhase("break"); }}
+              onClick={() => { setRunning(false); setPhase("break"); setSecondsLeft(breakMin * 60); }}
               className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
                 phase === "break"
                   ? "bg-primary text-primary-foreground"

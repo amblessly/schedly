@@ -12,11 +12,14 @@ const CONFIDENCE_THRESHOLD = Number(process.env.AI_CONFIDENCE_THRESHOLD ?? 0.9);
 
 /* ===== Vision Models (Image Understanding) =====
  * Ordered primary -> fallback. The primary is tried first; fallbacks are only
- * used when the primary fails or returns low-confidence output. */
+ * used when the primary fails or returns low-confidence output.
+ *
+ * Primary: Nemotron 3 Nano Omni — fastest free vision-capable model on
+ * OpenRouter (~460ms latency, 134 t/s). Omni = omni-modal (image + text). */
 const VISION_MODELS = [
-  "google/gemma-4-26b-a4b-it:free",             // Primary
-  "google/gemma-4-31b-it:free",                  // Fallback 1
-  "nvidia/nemotron-nano-12b-v2-vl:free",          // Fallback 2
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", // Primary (fast vision)
+  "nvidia/nemotron-nano-12b-v2-vl:free",                 // Fallback 1 (VL)
+  "google/gemma-4-26b-a4b-it:free",                      // Fallback 2
   ...(process.env.NODE_ENV === "development"
     ? ["poolside/laguna-m.1:free", "openai/gpt-oss-20b:free"]
     : []),

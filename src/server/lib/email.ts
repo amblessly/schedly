@@ -15,7 +15,7 @@ export async function sendEmail({ to, subject, html }: SendEmailOptions) {
 
   const resend = new Resend(apiKey);
   const data = await resend.emails.send({
-    from: `Schedly <${process.env.EMAIL_FROM || "noreply@schedly.shop"}>`,
+    from: `Schedly <${process.env.RESEND_FROM || process.env.EMAIL_FROM || "noreply@schedly.shop"}>`,
     to,
     subject,
     html,

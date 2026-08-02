@@ -1,10 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
+import { waitUntil } from "@vercel/functions";
 import { auth } from "@/server/lib/auth";
 import { db } from "@/server/db/client";
 import { uploadService } from "@/server/services/upload.service";
-import { uploadRepository } from "@/server/repositories/upload.repository";
-import { aiService } from "@/server/services/ai.service";
 import { detectImageMime, checkRateLimit, validateCsrf } from "@/server/lib/security";
 import { auditLog } from "@/server/lib/audit";
 import fs from "fs/promises";
@@ -113,45 +112,22 @@ export async function POST(request: NextRequest) {
 
     auditLog("upload.create", { userId: session.user.id, uploadId: upload.id, fileName: file.name });
 
-    // Process AI extraction within the request (maxDuration=60s).
-    // On serverless this keeps the function alive until extraction completes,
-    // which is more reliable than a background task that gets frozen.
+    // Kick off AI extraction in the background so this request returns fast.
+    // The client polls GET /api/upload/[id] until the status flips to
+    // "completed"/"failed". On Vercel, waitUntil keeps this invocation alive
+    // until extraction finishes (bounded by maxDuration). Locally the promise
+    // keeps running in the Node process after the response is sent.
     const origin = new URL(request.url).origin;
     const absoluteUrl = stored.url.startsWith("http")
       ? stored.url
       : `${origin}${stored.url}`;
 
-    let classes: Record<string, unknown>[] = [];
-    let metadata = { totalClasses: 0, confidence: 0, notes: null as string | null };
-
     if (process.env.OPENROUTER_API_KEY) {
-      try {
-        const result = await aiService.processImage(absoluteUrl);
-        if (result.success) {
-          const valid = result.data.classes.filter(
-            (c: { subject?: string; days?: unknown[]; startTime?: string; endTime?: string }) =>
-              c.subject && c.days && c.days.length > 0 && c.startTime && c.endTime
-          );
-          classes = valid;
-          metadata = {
-            totalClasses: valid.length,
-            confidence: result.data.metadata.confidence,
-            notes: result.data.metadata.notes,
-          };
-          await uploadRepository.updateAiResult(
-            upload.id,
-            { classes: valid, metadata } as never,
-            "completed"
-          );
-        } else {
-          console.error("[UPLOAD_API] AI extraction error:", result.error.message);
-          await uploadService.updateStatus(upload.id, "completed", result.error.message);
-        }
-      } catch (aiErr) {
-        const msg = aiErr instanceof Error ? aiErr.message : "AI processing failed";
-        console.error("[UPLOAD_API] AI extraction error:", aiErr);
-        await uploadService.updateStatus(upload.id, "completed", msg);
-      }
+      const task = uploadService.processWithAi(upload.id, absoluteUrl);
+      void waitUntil(task);
+      void task.catch((err) => {
+        console.error("[UPLOAD_API] Background AI extraction failed:", err);
+      });
     } else {
       await uploadService.updateStatus(upload.id, "completed");
     }
@@ -159,9 +135,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       uploadId: upload.id,
       fileUrl: stored.url,
-      classes,
-      metadata,
-      status: "completed",
+      status: "processing",
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

@@ -14,10 +14,18 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Camera, Image, AlertCircle, CheckCircle, ArrowLeft,
-  Plus, Calendar, ChevronRight, Trash2,
+  Plus, Calendar, ChevronRight, Trash2, Upload, Loader2,
 } from "lucide-react";
 import { validateExtractedClasses, type ValidationIssue } from "@/server/services/validation.service";
 import { publishScheduleToWidget } from "@/features/widget/widget-data";
+import { useMounted } from "@/lib/use-mounted";
+import {
+  getReviewState,
+  getReviewImage,
+  saveReviewState,
+  saveReviewImage,
+  clearReviewState,
+} from "@/features/upload/lib/review-state";
 
 type ClassData = {
   id: string;
@@ -58,13 +66,19 @@ export default function SchedulePage() {
   const u = user as UserWithExtras | null;
 
   const [phase, setPhase] = useState<Phase>("list");
-  const [greeting] = useState(() => {
-    const h = new Date().getHours();
-    return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-  });
   const [schedules, setSchedules] = useState<ScheduleData[]>([]);
   const [loadingSchedules, setLoadingSchedules] = useState(true);
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleData | null>(null);
+
+  // Time-based greeting must be computed after mount — Date.now() differs
+  // between the server and the client, which would break hydration.
+  const mounted = useMounted();
+  const greeting = !mounted
+    ? ""
+    : (() => {
+        const h = new Date().getHours();
+        return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+      })();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -73,7 +87,10 @@ export default function SchedulePage() {
     uploadFile, isUploading, progress, upload, isProcessing,
     extractedClasses, metadata,
     updateExtractedClass, removeExtractedClass, addExtractedClass, resetUpload,
+    restoreExtractedClasses, setMetadata,
   } = useUpload();
+
+  const userId = (u as { id?: string } | null)?.id || "anon";
 
   useEffect(() => {
     if (!authLoading) {
@@ -83,6 +100,38 @@ export default function SchedulePage() {
       });
     }
   }, [authLoading]);
+
+  // Resume an in-progress review (e.g., after coming back from the design
+  // editor, which unmounts this page and clears its React state).
+  useEffect(() => {
+    if (authLoading) return;
+    const saved = getReviewState(userId);
+    if (saved && saved.classes.length > 0) {
+      restoreExtractedClasses(saved.classes);
+      setMetadata(saved.confidence != null ? { confidence: saved.confidence } : null);
+      setValidationIssues(saved.validationIssues);
+      setPreviewUrl(getReviewImage(userId));
+      setPhase("review");
+    }
+  }, [authLoading, userId, restoreExtractedClasses, setMetadata]);
+
+  // Keep the in-progress review in sessionStorage so it survives remounts.
+  const reviewReady = phase === "review" && extractedClasses.length > 0;
+
+  useEffect(() => {
+    if (!reviewReady) return;
+    saveReviewState(userId, {
+      classes: extractedClasses,
+      confidence: metadata?.confidence ?? null,
+      validationIssues,
+    });
+  }, [reviewReady, userId, extractedClasses, metadata, validationIssues]);
+
+  useEffect(() => {
+    if (reviewReady && previewUrl) {
+      saveReviewImage(userId, previewUrl);
+    }
+  }, [reviewReady, userId, previewUrl]);
 
   const firstName = u?.firstName || "User";
 
@@ -125,6 +174,7 @@ export default function SchedulePage() {
 
   const handleUpload = async () => {
     if (!selectedFile) return;
+    setFakeProgress(0);
     try {
       const data = await uploadFile(selectedFile) as { classes?: unknown[] };
       if (data.classes && data.classes.length > 0) {
@@ -139,6 +189,7 @@ export default function SchedulePage() {
 
   const handleSaved = async (_scheduleId: string) => {
     setValidationIssues([]);
+    clearReviewState(userId);
     const data = await getUserSchedules();
     const schedules = data as ScheduleData[];
     const active =
@@ -153,14 +204,33 @@ export default function SchedulePage() {
     removeFile();
     setValidationIssues([]);
     setSelectedSchedule(null);
+    clearReviewState(userId);
     setPhase("list");
   };
 
   const handleBackToSelect = () => {
     removeFile();
     setValidationIssues([]);
+    clearReviewState(userId);
     setPhase("upload-select");
   };
+
+  // Extraction continues in the background and the client polls for status
+  // (see use-upload). While status is "processing", show a lightweight
+  // counting progress bar so the UI never feels stuck.
+  const isAiWorking = isProcessing || (isUploading && progress >= 100);
+
+  const [fakeProgress, setFakeProgress] = useState(0);
+
+  useEffect(() => {
+    if (!isAiWorking) return;
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      setFakeProgress(Math.min(99, Math.floor((elapsed / 12000) * 99)));
+    }, 100);
+    return () => clearInterval(timer);
+  }, [isAiWorking]);
 
   return (
     <div className="flex flex-col bg-background">
@@ -182,12 +252,12 @@ export default function SchedulePage() {
           {phase === "review" && (
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <Button variant="ghost" size="sm" onClick={handleBackToSelect}>
-                  <ArrowLeft className="mr-1 h-4 w-4" /> Back
+                <Button variant="ghost" size="icon-sm" onClick={handleBackToSelect} aria-label="Back">
+                  <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
                   <h2 className="text-lg font-semibold">Review Extracted Classes</h2>
-                  <p className="text-sm text-muted-foreground">Check and correct the AI extraction</p>
+                  <p className="text-sm text-muted-foreground">Check and correct the extraction</p>
                 </div>
               </div>
               {previewUrl && (
@@ -199,6 +269,7 @@ export default function SchedulePage() {
                 classes={extractedClasses}
                 uploadId={upload?.id}
                 fileUrl={upload?.fileUrl}
+                designImageUrl={previewUrl ?? upload?.fileUrl}
                 confidence={metadata?.confidence}
                 validationIssues={validationIssues}
                 onUpdate={updateExtractedClass}
@@ -214,8 +285,8 @@ export default function SchedulePage() {
           {phase === "upload-select" && (
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <Button variant="ghost" size="sm" onClick={handleBackToList}>
-                  <ArrowLeft className="mr-1 h-4 w-4" /> Back
+                <Button variant="ghost" size="icon-sm" onClick={handleBackToList} aria-label="Back">
+                  <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
                   <h2 className="text-lg font-semibold">Upload Schedule</h2>
@@ -230,7 +301,7 @@ export default function SchedulePage() {
                     </div>
                     <h3 className="text-lg font-semibold text-foreground">Upload your schedule</h3>
                     <p className="mt-1 max-w-xs text-sm text-muted-foreground leading-relaxed">
-                      Schedly will use AI to extract your classes automatically.
+                      Schedly will extract your classes automatically.
                     </p>
                      <div className="mt-5 flex flex-row gap-3 w-full max-w-xs">
                       <Button className="flex-1 h-11 px-6 font-medium" onClick={() => document.getElementById("upload-camera")?.click()}>
@@ -249,13 +320,15 @@ export default function SchedulePage() {
                   <div className="w-full max-w-md space-y-4">
                     <div className="relative aspect-video overflow-hidden rounded-xl bg-muted">
                       {previewUrl ? (
-                        <img src={previewUrl} alt="Schedule preview" className="h-full w-full object-contain" />
+                        <>
+                          <img src={previewUrl} alt="Schedule preview" className="h-full w-full object-contain" />
+                        </>
                       ) : (
                         <div className="flex h-full items-center justify-center">
                           <Skeleton className="h-full w-full" />
                         </div>
                       )}
-                      {!isUploading && (
+                      {!isUploading && !isProcessing && (
                         <button onClick={removeFile} className="absolute right-2 top-2 rounded-full bg-background/80 p-1 hover:bg-background" aria-label="Remove">
                           <span className="text-lg">&times;</span>
                         </button>
@@ -266,30 +339,26 @@ export default function SchedulePage() {
                       <p className="text-xs text-muted-foreground">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB &middot; {selectedFile.type}</p>
                     </div>
 
-                    {isUploading ? (
-                      <div className="space-y-3">
+                    {isUploading || isProcessing ? (
+                      <div key={isAiWorking ? "reading" : "uploading"} className="space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
+                            {isAiWorking ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            ) : (
+                              <Upload className="h-4 w-4 animate-pulse text-primary" />
+                            )}
+                            {isAiWorking ? "Reading your schedule" : "Uploading your schedule"}
+                          </span>
+                          <span className="text-xs font-semibold tabular-nums text-muted-foreground">
+                            {isAiWorking ? fakeProgress : progress}%
+                          </span>
+                        </div>
                         <div className="relative h-2 w-full overflow-hidden rounded-full bg-primary/10">
                           <div
-                            className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-300 ease-out"
-                            style={{ width: `${progress}%` }}
+                            className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-200 ease-out"
+                            style={{ width: `${isAiWorking ? fakeProgress : progress}%` }}
                           />
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm font-medium text-foreground">
-                            {isProcessing ? (
-                              <span className="inline-flex items-center gap-2">
-                                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                                AI is reading your schedule
-                              </span>
-                            ) : `Uploading ${progress}%`}
-                          </p>
-                          {isProcessing && (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              This may take a moment — AI processing time varies depending on server load.
-                              <br />
-                              Please hold on while we extract your classes.
-                            </p>
-                          )}
                         </div>
                       </div>
                     ) : (
@@ -316,8 +385,8 @@ export default function SchedulePage() {
           {phase === "view" && selectedSchedule && (
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-3">
-                <Button variant="ghost" className="h-10 px-3" onClick={handleBackToList}>
-                  <ArrowLeft className="mr-1 h-4 w-4" /> Back
+                <Button variant="ghost" size="icon-sm" onClick={handleBackToList} aria-label="Back">
+                  <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"

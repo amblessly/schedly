@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { authClient } from "@/lib/auth-client";
-import { uploadAvatar } from "./actions";
+import { uploadAvatar, deleteAccount } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +35,6 @@ type UserWithExtras = {
 export default function SettingsPage() {
   const { user, isLoading, refetchSession } = useAuth();
   const u = user as UserWithExtras | null;
-  const router = useRouter();
 
   if (isLoading) {
     return (
@@ -335,12 +334,13 @@ function AccountTab({ u }: { u: UserWithExtras | null }) {
   }
 
   return (
-    <Card className="border-border/50">
-      <CardHeader>
-        <CardTitle className="text-base">Personal Information</CardTitle>
-        <CardDescription>Update your name and profile details.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <div className="space-y-4">
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-base">Personal Information</CardTitle>
+          <CardDescription>Update your name and profile details.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label htmlFor="firstName" className="text-sm font-medium">First name</Label>
@@ -414,6 +414,78 @@ function AccountTab({ u }: { u: UserWithExtras | null }) {
 
         <Button onClick={handleSave} disabled={loading} className="h-10 font-medium">
           {loading ? "Saving..." : "Save changes"}
+        </Button>
+        </CardContent>
+      </Card>
+
+      <DeleteAccountCard username={u?.username || ""} />
+    </div>
+  );
+}
+
+function DeleteAccountCard({ username }: { username: string }) {
+  const [phrase, setPhrase] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
+
+  const matches = phrase.trim() === username;
+
+  async function handleDelete() {
+    if (!matches) return;
+    setLoading(true);
+    setError("");
+    try {
+      const result = await deleteAccount(username);
+      if ("error" in result) {
+        setError(result.error);
+        setLoading(false);
+        return;
+      }
+      // Clear the session cookie before leaving the app.
+      await authClient.signOut();
+      router.push("/");
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Card className="border-destructive/30">
+      <CardHeader>
+        <CardTitle className="text-base text-destructive">Delete account</CardTitle>
+        <CardDescription>
+          Permanently deletes your account and all your data — schedules, notes,
+          to-dos, and reminders. This action cannot be undone.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="deletePhrase" className="text-sm font-medium">
+            Type your username to confirm
+          </Label>
+          <Input
+            id="deletePhrase"
+            value={phrase}
+            onChange={(e) => setPhrase(e.target.value)}
+            placeholder={username || "username"}
+            className={`h-10 ${matches ? "border-green-500/50 focus-visible:border-green-500" : ""}`}
+          />
+          {matches && (
+            <p className="text-xs font-medium text-green-600 dark:text-green-400">
+              Match — the button is now enabled.
+            </p>
+          )}
+        </div>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Button
+          variant="destructive"
+          disabled={!matches || loading}
+          onClick={handleDelete}
+          className="h-10 font-medium"
+        >
+          {loading ? "Deleting..." : "Delete this account"}
         </Button>
       </CardContent>
     </Card>

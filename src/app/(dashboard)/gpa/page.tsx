@@ -150,8 +150,8 @@ export default function GPACalculatorPage() {
           </Button>
         </CardHeader>
         <CardContent className="space-y-2">
-          {/* Header */}
-          <div className="grid grid-cols-[1fr_80px_100px_36px] gap-2 text-xs font-medium text-muted-foreground px-1">
+          {/* Header (desktop only) */}
+          <div className="hidden grid-cols-[1fr_80px_100px_36px] gap-2 text-xs font-medium text-muted-foreground px-1 sm:grid">
             <span>Course Name</span>
             <span>Units</span>
             <span>Grade</span>
@@ -161,7 +161,7 @@ export default function GPACalculatorPage() {
           {courses.map((course) => (
             <div
               key={course.id}
-              className="grid grid-cols-[1fr_80px_100px_36px] gap-2 items-center"
+              className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-lg border border-border/40 p-2 sm:grid-cols-[1fr_80px_100px_36px] sm:gap-2 sm:rounded-none sm:border-0 sm:p-0"
             >
               <Input
                 placeholder="e.g. Mathematics"
@@ -169,6 +169,15 @@ export default function GPACalculatorPage() {
                 onChange={(e) => updateCourse(course.id, "name", e.target.value)}
                 className="h-9"
               />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 text-muted-foreground hover:text-destructive sm:hidden"
+                onClick={() => removeCourse(course.id)}
+                disabled={courses.length <= 1}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
               <Input
                 type="number"
                 min="0"
@@ -191,7 +200,7 @@ export default function GPACalculatorPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                className="hidden h-9 w-9 text-muted-foreground hover:text-destructive sm:inline-flex"
                 onClick={() => removeCourse(course.id)}
                 disabled={courses.length <= 1}
               >

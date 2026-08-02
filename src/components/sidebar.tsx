@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { navGroups, type NavItem } from "@/config/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useThemeConfig, THEME_PRESETS } from "@/features/theme";
+import { useMounted } from "@/lib/use-mounted";
 import { Check } from "lucide-react";
 import {
   Calendar,
@@ -66,11 +67,7 @@ function NavItemLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => v
   return (
     <Link
       href={item.href}
-      onClick={() => {
-        if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
-          onNavigate?.();
-        }
-      }}
+      onClick={() => onNavigate?.()}
       className={cn(
         "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-200",
         isActive
@@ -159,21 +156,25 @@ function greeting(hour: number) {
   return "Good evening";
 }
 
+// matchMedia must not be read during render — the server has no window, so
+// SSR and hydration would disagree. useSyncExternalStore resolves it after
+// hydration with the server snapshot ("desktop") used for the initial render.
+function subscribeDesktop(listener: () => void) {
+  const mq = window.matchMedia("(min-width: 768px)");
+  mq.addEventListener("change", listener);
+  return () => mq.removeEventListener("change", listener);
+}
+
+function getDesktopSnapshot(): boolean {
+  return window.matchMedia("(min-width: 768px)").matches;
+}
+
 export function Sidebar({ onClose }: { onClose?: () => void }) {
   const { user, signOut } = useAuth();
   const router = useRouter();
 
-  const [isDesktop, setIsDesktop] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return window.matchMedia("(min-width: 768px)").matches;
-  });
-
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 768px)");
-    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
+  const isDesktop = useSyncExternalStore(subscribeDesktop, getDesktopSnapshot, () => true);
+  const mounted = useMounted();
 
   const u = user as
     | {
@@ -195,10 +196,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     .join("")
     .toUpperCase() || firstName.charAt(0).toUpperCase();
   const avatarUrl = u?.image || u?.avatarUrl || null;
-  const [hello] = useState(() => {
-    const h = new Date().getHours();
-    return greeting(h);
-  });
+  // Time-based greeting computed after mount — Date.now() differs between
+  // the server and the client, which would break hydration.
+  const hello = !mounted ? "" : greeting(new Date().getHours());
   const pathname = usePathname();
   const isAdminPage = pathname.startsWith("/admin");
 

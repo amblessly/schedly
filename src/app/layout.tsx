@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Warmup } from "@/components/warmup";
+import { ThemeProvider } from "@/features/theme";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Schedly",
-  description: "AI-powered schedule management",
+  description: "Smart schedule management",
   applicationName: "Schedly",
   appleWebApp: {
     capable: true,
@@ -38,11 +40,14 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const initialThemeId = cookieStore.get("schedly-theme")?.value;
+
   return (
     <html
       lang="en"
@@ -50,7 +55,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <Warmup />
-        {children}
+        <ThemeProvider initialThemeId={initialThemeId}>{children}</ThemeProvider>
       </body>
     </html>
   );

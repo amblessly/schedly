@@ -4,10 +4,18 @@ import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { retry } from "@/lib/retry";
+import { useMounted } from "@/lib/use-mounted";
 
 export function useAuth() {
   const { data: session, isPending, refetch } = authClient.useSession();
+  // better-auth's useSession hydrates from cookies client-side only, so the
+  // server renders a session-less tree. Deferring the session until after
+  // mount keeps SSR and the first client render identical (no hydration
+  // mismatch), and the name still appears instantly once mounted.
+  const mounted = useMounted();
   const router = useRouter();
+
+  const resolvedSession = mounted ? session : null;
 
   const signUp = useCallback(
     async (data: {
@@ -47,10 +55,10 @@ export function useAuth() {
   }, [router]);
 
   return {
-    user: session?.user ?? null,
-    session: session ?? null,
-    isLoading: isPending,
-    isAuthenticated: !!session,
+    user: resolvedSession?.user ?? null,
+    session: resolvedSession ?? null,
+    isLoading: !mounted || isPending,
+    isAuthenticated: !!resolvedSession,
     refetchSession: refetch,
     signUp,
     signIn,

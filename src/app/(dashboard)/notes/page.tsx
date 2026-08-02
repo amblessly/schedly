@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   StickyNote,
   Plus,
@@ -22,24 +21,57 @@ type Note = {
 
 const STORAGE_KEY = "schedly-notes";
 
+const listeners = new Set<() => void>();
+let loaded = false;
+let cached: Note[] = [];
+const EMPTY_NOTES: Note[] = [];
+
+function readStorage(): Note[] {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function getSnapshot(): Note[] {
+  if (typeof window === "undefined") return EMPTY_NOTES;
+  if (!loaded) {
+    cached = readStorage();
+    loaded = true;
+  }
+  return cached;
+}
+
+function getServerSnapshot(): Note[] {
+  return EMPTY_NOTES;
+}
+
+function persist(next: Note[]) {
+  cached = next;
+  loaded = true;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // storage full or unavailable — keep state in memory
+  }
+  listeners.forEach((l) => l());
+}
+
 export default function NotesPage() {
-  const [notes, setNotes] = useState<Note[] | null>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-    } catch {
-      return [];
-    }
-  });
+  const notes = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const persist = useCallback((next: Note[]) => {
-    setNotes(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  }, []);
-
-  const addNote = () => {
+  const addNote = useCallback(() => {
     if (!title.trim() && !body.trim()) return;
     setSaving(true);
     const now = Date.now();
@@ -50,15 +82,15 @@ export default function NotesPage() {
       createdAt: now,
       updatedAt: now,
     };
-    persist([note, ...(notes || [])]);
+    persist([note, ...cached]);
     setTitle("");
     setBody("");
     setSaving(false);
-  };
+  }, [title, body]);
 
-  const deleteNote = (id: string) => {
-    persist((notes || []).filter((n) => n.id !== id));
-  };
+  const deleteNote = useCallback((id: string) => {
+    persist(cached.filter((n) => n.id !== id));
+  }, []);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -87,7 +119,7 @@ export default function NotesPage() {
             maxLength={2000}
           />
           <div className="flex justify-end">
-            <Button onClick={addNote} disabled={saving}>
+            <Button onClick={addNote} disabled={saving || (!title.trim() && !body.trim())}>
               {saving ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
               ) : (
@@ -99,12 +131,7 @@ export default function NotesPage() {
       </Card>
 
       <div className="mt-6 space-y-3">
-        {notes === null ? (
-          <>
-            <Skeleton className="h-24 w-full rounded-xl" />
-            <Skeleton className="h-24 w-full rounded-xl" />
-          </>
-        ) : notes.length === 0 ? (
+        {notes.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-14 text-center">
             <StickyNote className="mb-3 h-10 w-10 text-muted-foreground/40" />
             <p className="text-sm font-medium text-foreground">No notes yet</p>

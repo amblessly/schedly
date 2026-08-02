@@ -2,6 +2,7 @@
 
 import { put } from "@vercel/blob";
 import { auth } from "@/server/lib/auth";
+import { db } from "@/server/db/client";
 import { headers } from "next/headers";
 import { detectImageMime } from "@/server/lib/security";
 
@@ -43,4 +44,27 @@ export async function uploadAvatar(formData: FormData): Promise<{ url: string } 
   });
 
   return { url: blob.url };
+}
+
+export async function deleteAccount(username: string): Promise<{ ok: true } | { error: string }> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user?.id) {
+    return { error: "Unauthorized" };
+  }
+
+  // The client must type their exact username to confirm deletion.
+  const userUsername = (session.user as Record<string, unknown>).username as string | undefined;
+  if (!userUsername || username.trim() !== userUsername) {
+    return { error: "Username does not match. Nothing was deleted." };
+  }
+
+  try {
+    // All related data (schedules, classes, notes, to-dos, notifications,
+    // sessions) is removed by the database's ON DELETE CASCADE.
+    await db.user.delete({ where: { id: session.user.id } });
+    return { ok: true };
+  } catch (err) {
+    console.error("[deleteAccount] Failed to delete user:", err);
+    return { error: "Failed to delete account. Please try again." };
+  }
 }

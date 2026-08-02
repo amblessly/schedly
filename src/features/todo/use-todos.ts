@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 export type TodoItem = {
   id: string;
@@ -14,14 +14,52 @@ export type TodoItem = {
 
 const STORAGE_KEY = "schedly-todos";
 
+const listeners = new Set<() => void>();
+let loaded = false;
+let cached: TodoItem[] = [];
+const EMPTY_TODOS: TodoItem[] = [];
+
+function readStorage(): TodoItem[] {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function getSnapshot(): TodoItem[] {
+  if (typeof window === "undefined") return EMPTY_TODOS;
+  if (!loaded) {
+    cached = readStorage();
+    loaded = true;
+  }
+  return cached;
+}
+
+function getServerSnapshot(): TodoItem[] {
+  return EMPTY_TODOS;
+}
+
+function persist(next: TodoItem[]) {
+  cached = next;
+  loaded = true;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // storage full or unavailable — keep state in memory
+  }
+  listeners.forEach((l) => l());
+}
+
 export function useTodos() {
-  const [todos, setTodos] = useState<TodoItem[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-    } catch {
-      return [];
-    }
-  });
+  const todos = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const addTodo = useCallback(
     (text: string, priority: TodoItem["priority"], dueDate?: string) => {
@@ -33,18 +71,14 @@ export function useTodos() {
         dueDate: dueDate || undefined,
         createdAt: Date.now(),
       };
-      setTodos((prev) => {
-        const next = [todo, ...prev];
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-        return next;
-      });
+      persist([todo, ...cached]);
     },
     []
   );
 
   const toggleTodo = useCallback((id: string) => {
-    setTodos((prev) => {
-      const next = prev.map((t) =>
+    persist(
+      cached.map((t) =>
         t.id === id
           ? {
               ...t,
@@ -52,26 +86,16 @@ export function useTodos() {
               completedAt: !t.completed ? Date.now() : undefined,
             }
           : t
-      );
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
+      )
+    );
   }, []);
 
   const deleteTodo = useCallback((id: string) => {
-    setTodos((prev) => {
-      const next = prev.filter((t) => t.id !== id);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
+    persist(cached.filter((t) => t.id !== id));
   }, []);
 
   const clearCompleted = useCallback(() => {
-    setTodos((prev) => {
-      const next = prev.filter((t) => !t.completed);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
+    persist(cached.filter((t) => !t.completed));
   }, []);
 
   return { todos, addTodo, toggleTodo, deleteTodo, clearCompleted };

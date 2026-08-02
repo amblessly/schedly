@@ -1,16 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { ExtractedClass } from "@/features/upload/hooks/use-upload";
 import type { ValidationIssue } from "@/server/services/validation.service";
 import { saveSchedule, type SaveScheduleResult } from "@/app/(dashboard)/schedule/actions";
 import { generateShortName } from "@/lib/abbreviations";
+import { saveDesignState } from "@/features/upload/lib/design-state";
+import { PALETTE } from "@/features/upload/lib/palette";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Plus, Trash2, Save, AlertCircle, ChevronDown, ChevronUp, AlertTriangle, XCircle } from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Loader2, Plus, Trash2, Save, AlertCircle, ChevronDown, ChevronUp, AlertTriangle, XCircle, Paintbrush } from "lucide-react";
 
 const DAYS = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"] as const;
 const DAY_LABELS: Record<string, string> = {
@@ -22,6 +24,7 @@ type Props = {
   classes: ExtractedClass[];
   uploadId?: string;
   fileUrl?: string;
+  designImageUrl?: string;
   confidence?: number;
   validationIssues?: ValidationIssue[];
   onUpdate: (index: number, updated: ExtractedClass) => void;
@@ -32,14 +35,25 @@ type Props = {
 };
 
 export function ScheduleReview({
-  classes, uploadId, confidence, validationIssues = [], onUpdate, onRemove, onAdd, onSaved, onCancel,
+  classes, uploadId, designImageUrl, confidence, validationIssues = [], onUpdate, onRemove, onAdd, onSaved, onCancel,
 }: Props) {
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [semester, setSemester] = useState("");
   const [academicYear, setAcademicYear] = useState("");
   const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const handleEditDesign = () => {
+    if (!designImageUrl) return;
+    const ok = saveDesignState({ classes, imageUrl: designImageUrl });
+    if (!ok) {
+      setSaveError("Could not open the design editor on this device.");
+      return;
+    }
+    router.push("/design");
+  };
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -90,7 +104,7 @@ export function ScheduleReview({
           confidence >= 0.5 ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300" :
           "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
         }`}>
-          <span className="font-medium">AI Confidence: {Math.round(confidence * 100)}%</span>
+          <span className="font-medium">Extraction Confidence: {Math.round(confidence * 100)}%</span>
           <span className="opacity-70">— Review and correct as needed</span>
         </div>
       )}
@@ -149,13 +163,20 @@ export function ScheduleReview({
       </div>
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-medium text-foreground">
             Classes ({validCount}/{classes.length} valid)
           </h3>
-          <Button variant="outline" size="sm" onClick={onAdd}>
-            <Plus className="mr-1 h-3 w-3" /> Add Class
-          </Button>
+          <div className="flex items-center gap-2">
+            {designImageUrl && (
+              <Button variant="outline" size="sm" onClick={handleEditDesign}>
+                <Paintbrush className="mr-1 h-3 w-3" /> Edit Design
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={onAdd}>
+              <Plus className="mr-1 h-3 w-3" /> Add Class
+            </Button>
+          </div>
         </div>
 
         {classes.length === 0 && (
@@ -167,28 +188,59 @@ export function ScheduleReview({
         {classes.map((cls, i) => {
           const isExpanded = expandedIndex === i;
           const isValid = cls.subject.trim() && cls.days.length > 0;
+          const accent = isValid ? PALETTE[i % PALETTE.length] : "#ef4444";
           return (
-            <Card key={i} className={`transition-colors ${!isValid ? "border-red-200 dark:border-red-800" : ""}`}>
+            <Card
+              key={i}
+              className={`overflow-hidden transition-colors ${
+                !isValid ? "border-red-200 dark:border-red-800" : ""
+              }`}
+            >
               <CardHeader
-                className="cursor-pointer py-3 px-4"
+                className="cursor-pointer px-4 py-3"
                 onClick={() => setExpandedIndex(isExpanded ? null : i)}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {!isValid && <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />}
-                    <CardTitle className="text-sm font-medium truncate">
-                      {cls.subject || "Untitled Class"}
-                    </CardTitle>
-                    {cls.code && (
-                      <Badge variant="secondary" className="shrink-0 text-xs">{cls.code}</Badge>
-                    )}
+                <div className="flex items-center gap-3">
+                  <span
+                    className="h-11 w-1 shrink-0 rounded-full"
+                    style={{ backgroundColor: accent }}
+                    aria-hidden
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      {!isValid && <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />}
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {cls.subject || "Untitled Class"}
+                      </p>
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      {cls.code && (
+                        <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {cls.code}
+                        </span>
+                      )}
+                      {cls.days.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          {cls.days.map((d) => (
+                            <span
+                              key={d}
+                              className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
+                            >
+                              {DAY_LABELS[d]}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {!cls.code && cls.days.length === 0 && (
+                        <span className="text-[11px] text-muted-foreground">No code or days yet</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Badge variant="outline" className="text-xs">
-                      {cls.days.map((d) => DAY_LABELS[d]).join(", ") || "No days"}
-                    </Badge>
-                    {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </div>
+                  {isExpanded ? (
+                    <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
                 </div>
               </CardHeader>
               {isExpanded && (

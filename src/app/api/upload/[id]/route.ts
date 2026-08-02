@@ -12,7 +12,7 @@ export async function GET(
   }
 
   const { id } = await params;
-  const upload = await uploadRepository.findById(id);
+  let upload = await uploadRepository.findById(id);
 
   if (!upload) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -20,6 +20,22 @@ export async function GET(
 
   if (upload.userId !== session.user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Background extraction runs after the POST response was sent. If the
+  // serverless invocation was killed (maxDuration exceeded) the record can be
+  // stuck in "processing" forever — mark it failed so the client and the
+  // upload history don't hang indefinitely.
+  if (upload.status === "processing") {
+    const ageMs = Date.now() - upload.createdAt.getTime();
+    if (ageMs > 10 * 60_000) {
+      console.warn(`[UPLOAD_STATUS] Marking stale upload ${upload.id} as failed`);
+      upload = await uploadRepository.updateStatus(
+        upload.id,
+        "failed",
+        "Processing timed out. Please try again."
+      );
+    }
   }
 
   return NextResponse.json({

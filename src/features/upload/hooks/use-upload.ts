@@ -242,6 +242,8 @@ export function useUpload() {
     resetUpload,
     extractedClasses,
     metadata,
+    setMetadata,
+    restoreExtractedClasses: setExtractedClasses,
     updateExtractedClass,
     removeExtractedClass,
     addExtractedClass,

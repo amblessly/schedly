@@ -22,6 +22,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { publishScheduleToWidget } from "@/features/widget/widget-data";
+import { useMounted } from "@/lib/use-mounted";
 
 type ClassData = {
   id: string;
@@ -108,13 +109,19 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { todos } = useTodos();
   const [schedules, setSchedules] = useState<ScheduleData[] | null>(null);
-  const [greeting] = useState(() => {
-    const h = new Date().getHours();
-    return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-  });
   const [downloading, setDownloading] = useState(false);
   const scheduleRef = useRef<HTMLDivElement>(null);
   const captureRef = useRef<HTMLDivElement>(null);
+
+  // Time-based greeting must be computed after mount — Date.now() differs
+  // between the server and the client, which would break hydration.
+  const mounted = useMounted();
+  const greeting = !mounted
+    ? ""
+    : (() => {
+        const h = new Date().getHours();
+        return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+      })();
 
   const firstName = (user as { firstName?: string } | null)?.firstName || "User";
 
