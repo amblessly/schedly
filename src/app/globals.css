@@ -370,6 +370,18 @@ body {
   50% { opacity: 0.3; transform: scale(0.7); }
 }
 
+@keyframes wave-sway {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-5deg); }
+  45% { transform: rotate(4deg); }
+  70% { transform: rotate(-2deg); }
+}
+
+@keyframes bounce-soft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
@@ -381,5 +393,11 @@ body {
 }
 .animate-twinkle {
   animation: twinkle 2.8s ease-in-out infinite;
+}
+.animate-wave-sway {
+  animation: wave-sway 2.4s ease-in-out infinite;
+}
+.animate-bounce-soft {
+  animation: bounce-soft 2s ease-in-out infinite;
 }
 
