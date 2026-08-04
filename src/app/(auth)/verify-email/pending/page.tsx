@@ -6,6 +6,27 @@ import { authClient } from "@/lib/auth-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+const EMAIL_PROVIDERS: Record<string, string> = {
+  gmail: "https://mail.google.com",
+  googlemail: "https://mail.google.com",
+  outlook: "https://outlook.live.com",
+  hotmail: "https://outlook.live.com",
+  live: "https://outlook.live.com",
+  msn: "https://outlook.live.com",
+  yahoo: "https://mail.yahoo.com",
+  proton: "https://mail.proton.me",
+  icloud: "https://www.icloud.com/mail",
+  zoho: "https://mail.zoho.com",
+  aol: "https://mail.aol.com",
+  gmx: "https://www.gmx.com",
+};
+
+function getInboxUrl(email: string): string {
+  const domain = email.split("@")[1]?.toLowerCase() || "";
+  const providerKey = (domain.split(".")[0] ?? "").toLowerCase();
+  return EMAIL_PROVIDERS[providerKey] || `https://${domain}`;
+}
+
 function PendingContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -36,7 +57,6 @@ function PendingContent() {
   }, [router]);
 
   const checkNow = async () => {
-    setPolling(false);
     try {
       const res = await fetch("/api/auth/get-session");
       const data = await res.json();
@@ -45,7 +65,9 @@ function PendingContent() {
         return;
       }
     } catch { /* not yet */ }
-    setPolling(true);
+    if (email) {
+      window.open(getInboxUrl(email), "_blank", "noopener,noreferrer");
+    }
   };
 
   async function resendEmail() {
