@@ -141,10 +141,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     };
   }, [isImmersive]);
 
-  // Keep the Android status bar in sync with the active theme: it overlays
-  // the web content (edge-to-edge), so only the icon style needs updating.
+  // Full-screen edge-to-edge on native: the status bar stays visible but
+  // transparent, and the app adapts its safe-area padding around it.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
+    StatusBar.show().catch(() => {});
+    StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
     StatusBar.setStyle({ style: activeId === "midnight" ? Style.Light : Style.Dark }).catch(() => {});
   }, [activeId]);
 
