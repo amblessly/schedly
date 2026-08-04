@@ -30,20 +30,30 @@ export async function uploadAvatar(formData: FormData): Promise<{ url: string } 
   const ext = file.name.split(".").pop() || "jpg";
   const filename = `avatars/${session.user.id}-${Date.now()}.${ext}`;
 
-  const blob = await put(filename, new Blob([Buffer.from(buffer)], { type: detectedMime }), {
-    access: "public",
-    addRandomSuffix: false,
-    token: process.env.BLOB_READ_WRITE_TOKEN,
-  });
+  let blobUrl: string;
+  try {
+    const blob = await put(filename, new Blob([Buffer.from(buffer)], { type: detectedMime }), {
+      access: "public",
+      addRandomSuffix: false,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
+    blobUrl = blob.url;
+  } catch {
+    return { error: "Upload failed. Check that Vercel Blob storage is configured." };
+  }
 
   const h = await headers();
 
-  await auth.api.updateUser({
-    headers: h,
-    body: { avatarUrl: blob.url },
-  });
+  try {
+    await auth.api.updateUser({
+      headers: h,
+      body: { avatarUrl: blobUrl },
+    });
+  } catch {
+    return { error: "Uploaded, but couldn't update your profile. Try again." };
+  }
 
-  return { url: blob.url };
+  return { url: blobUrl };
 }
 
 export async function deleteAccount(username: string): Promise<{ ok: true } | { error: string }> {
