@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Bell,
@@ -18,6 +18,17 @@ type MascotVariant = "wave" | "timetable" | "celebrate";
 export function MobileOnboarding() {
   const [screen, setScreen] = useState(0);
   const touchX = useRef<number | null>(null);
+
+  // The onboarding is a fixed full-viewport app: nothing should scroll, so
+  // lock the page scroll for the whole time it is mounted on mobile.
+  useEffect(() => {
+    if (window.matchMedia("(min-width: 768px)").matches) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   const go = (next: number) => {
     setScreen(Math.max(0, Math.min(LAST_SCREEN, next)));
@@ -38,7 +49,7 @@ export function MobileOnboarding() {
 
   return (
     <div
-      className="relative h-[100dvh] overflow-hidden"
+      className="relative h-dvh-fallback overflow-hidden"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >

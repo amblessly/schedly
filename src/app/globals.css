@@ -157,6 +157,14 @@ body {
   display: none;
 }
 
+/* Full viewport height with a safe fallback: browsers without `dvh`
+   support fall back to `100vh` instead of losing the height entirely
+   (which would let the page grow and scroll on the mobile landing). */
+.h-dvh-fallback {
+  height: 100vh;
+  height: 100dvh;
+}
+
 /* Custom themed scrollbar — desktop only (mobile stays hidden) */
 @media (min-width: 768px) {
   /* Always render the window scrollbar so the custom track is visible */

@@ -113,7 +113,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className="relative flex h-screen overflow-hidden md:h-auto md:min-h-screen md:overflow-visible"
+      className="relative flex h-screen overflow-hidden"
       style={{
         ...themeVars,
         backgroundColor: "#fff",
@@ -157,14 +157,14 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </button>
       )}
 
-      <div className="flex flex-1 flex-col overflow-hidden md:overflow-visible">
+      <div className="flex flex-1 flex-col overflow-hidden">
         <main
           onClick={() => setOpen(false)}
           className={[
-            "flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-x-none md:overflow-visible",
+            "flex-1 touch-pan-y overflow-x-hidden overscroll-x-none",
             isImmersive
-              ? "p-0 md:p-6 md:pt-20"
-              : "p-4 pt-16 pb-28 sm:p-6 sm:pt-16 md:pt-20 md:pb-4",
+              ? "overflow-y-auto p-0 md:p-6 md:pt-20"
+              : "overflow-hidden p-4 pt-16 pb-28 sm:p-6 sm:pt-16 md:pt-20 md:pb-4 [&:has(.allow-scroll)]:overflow-y-auto",
             "transition-transform duration-300 ease-out",
             open ? "md:-translate-x-[304px]" : "md:translate-x-0",
           ].join(" ")}
@@ -172,10 +172,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           {isImmersive ? (
             <>{children}</>
           ) : (
-            <div className="mx-auto w-full max-w-3xl md:w-full">
-              <div className="grid min-h-[calc(100vh-9rem)] w-full items-start justify-items-center md:min-h-[calc(100vh-7rem)]">
-                <div className="w-full">{children}</div>
-              </div>
+            <div className="mx-auto flex h-full w-full max-w-3xl md:w-full">
+              <div className="m-auto w-full">{children}</div>
             </div>
           )}
         </main>

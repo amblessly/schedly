@@ -222,7 +222,12 @@ export default function SchedulePage() {
   }, [isAiWorking]);
 
   return (
-    <div className="mx-auto max-w-4xl pt-8 md:pt-0">
+    <div
+      className={[
+        "mx-auto max-w-4xl pt-8 md:pt-0",
+        phase === "review" || phase === "view" ? "allow-scroll" : "",
+      ].join(" ")}
+    >
           <div className="mb-6 sm:mb-8">
             <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               Schedule
