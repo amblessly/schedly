@@ -52,8 +52,9 @@ export default function OnboardingPage() {
         onboardingCompleted: true,
       } as Parameters<typeof authClient.updateUser>[0]);
       // Refresh the session so the dashboard layout sees onboarding is done
-      // and doesn't redirect straight back here.
-      await refetchSession();
+      // and doesn't redirect straight back here. Bypass the cookie cache so we
+      // read the updated value from the DB, not the stale cached session.
+      await refetchSession({ query: { disableCookieCache: true } });
     } catch {
       /* let the user through either way */
     }
@@ -134,7 +135,7 @@ export default function OnboardingPage() {
             type="button"
             onClick={markComplete}
             disabled={finishing}
-            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className={`text-sm font-medium text-muted-foreground transition-colors hover:text-foreground ${step !== 1 ? "invisible" : ""}`}
           >
             Skip
           </button>
@@ -235,14 +236,6 @@ export default function OnboardingPage() {
               <Button className="mt-6 h-12 w-full font-semibold" disabled={finishing} onClick={markComplete}>
                 {finishing ? "Finishing up..." : "Get started"}
               </Button>
-              <button
-                type="button"
-                onClick={markComplete}
-                disabled={finishing}
-                className="mt-3 w-full text-center text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Not now
-              </button>
             </CardContent>
           </Card>
         )}
