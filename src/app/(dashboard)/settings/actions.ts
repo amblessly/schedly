@@ -17,14 +17,20 @@ export async function uploadAvatar(formData: FormData): Promise<{ url: string } 
     return { error: "No file provided" };
   }
 
-  if (file.size > 4 * 1024 * 1024) {
-    return { error: "File must be under 4MB" };
+  if (file.size > 10 * 1024 * 1024) {
+    return { error: "File must be under 10MB" };
   }
 
   const buffer = new Uint8Array(await file.arrayBuffer());
-  const detectedMime = detectImageMime(buffer);
+
+  // Prefer magic-byte detection; fall back to the browser's MIME type so
+  // formats the detector doesn't know (HEIC, AVIF, …) still upload fine.
+  let detectedMime = detectImageMime(buffer);
+  if (!detectedMime && file.type.startsWith("image/")) {
+    detectedMime = file.type;
+  }
   if (!detectedMime) {
-    return { error: "File must be an image (JPEG, PNG, GIF, WebP, or BMP)" };
+    return { error: "File must be an image (JPEG, PNG, GIF, WebP, BMP, HEIC, AVIF, …)" };
   }
 
   const ext = file.name.split(".").pop() || "jpg";
@@ -38,8 +44,9 @@ export async function uploadAvatar(formData: FormData): Promise<{ url: string } 
       token: process.env.BLOB_READ_WRITE_TOKEN,
     });
     blobUrl = blob.url;
-  } catch {
-    return { error: "Upload failed. Check that Vercel Blob storage is configured." };
+  } catch (err) {
+    console.error("[uploadAvatar] Blob upload failed:", err);
+    return { error: "Upload failed. Please try again." };
   }
 
   const h = await headers();
@@ -49,11 +56,32 @@ export async function uploadAvatar(formData: FormData): Promise<{ url: string } 
       headers: h,
       body: { avatarUrl: blobUrl },
     });
-  } catch {
+  } catch (err) {
+    console.error("[uploadAvatar] updateUser failed:", err);
     return { error: "Uploaded, but couldn't update your profile. Try again." };
   }
 
   return { url: blobUrl };
+}
+
+export async function removeAvatar(): Promise<{ ok: true } | { error: string }> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user?.id) {
+    return { error: "Unauthorized" };
+  }
+
+  const h = await headers();
+
+  try {
+    await auth.api.updateUser({
+      headers: h,
+      body: { avatarUrl: "" },
+    });
+    return { ok: true };
+  } catch (err) {
+    console.error("[removeAvatar] updateUser failed:", err);
+    return { error: "Couldn't remove your photo. Try again." };
+  }
 }
 
 export async function deleteAccount(username: string): Promise<{ ok: true } | { error: string }> {

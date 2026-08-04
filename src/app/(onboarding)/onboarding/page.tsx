@@ -5,11 +5,19 @@ import { useRouter } from "next/navigation";
 import { Camera, GraduationCap, Sparkles } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { authClient } from "@/lib/auth-client";
-import { uploadAvatar } from "@/app/(dashboard)/settings/actions";
+import { uploadAvatar, removeAvatar } from "@/app/(dashboard)/settings/actions";
 import { AddToHomeScreenCard } from "./add-to-home-screen";
 import { NotificationsCard } from "./notifications-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 type UserWithExtras = {
   username?: string;
@@ -28,6 +36,8 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<1 | 2>(1);
   const [avatarUrl, setAvatarUrl] = useState<string | null>((u?.image as string) || (u?.avatarUrl as string) || null);
   const [uploading, setUploading] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
   const [finishing, setFinishing] = useState(false);
 
   const firstName = u?.firstName || "User";
@@ -41,6 +51,9 @@ export default function OnboardingPage() {
       await authClient.updateUser({
         onboardingCompleted: true,
       } as Parameters<typeof authClient.updateUser>[0]);
+      // Refresh the session so the dashboard layout sees onboarding is done
+      // and doesn't redirect straight back here.
+      await refetchSession();
     } catch {
       /* let the user through either way */
     }
@@ -61,6 +74,7 @@ export default function OnboardingPage() {
       const result = await uploadAvatar(fd);
       if ("url" in result) {
         setAvatarUrl(result.url);
+        setAvatarDialogOpen(false);
         refetchSession();
       }
     } catch {
@@ -69,6 +83,31 @@ export default function OnboardingPage() {
     setUploading(false);
     e.target.value = "";
   }
+
+  async function handleRemoveAvatar() {
+    if (removing) return;
+    setRemoving(true);
+    try {
+      const result = await removeAvatar();
+      if ("ok" in result) {
+        setAvatarUrl(null);
+        setAvatarDialogOpen(false);
+        refetchSession();
+      }
+    } catch {
+      /* keep current avatar */
+    }
+    setRemoving(false);
+  }
+
+  const handleAvatarClick = () => {
+    if (uploading) return;
+    if (avatarUrl) {
+      setAvatarDialogOpen(true);
+    } else {
+      fileInputRef.current?.click();
+    }
+  };
 
   useEffect(() => {
     if (!isLoading && !user) router.replace("/login");
@@ -128,7 +167,7 @@ export default function OnboardingPage() {
               <div className="mb-6 flex flex-col items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={handleAvatarClick}
                   disabled={uploading}
                   className="group relative h-24 w-24 overflow-hidden rounded-full ring-2 ring-border/40 transition-shadow hover:ring-primary/40"
                 >
@@ -152,7 +191,7 @@ export default function OnboardingPage() {
                   </span>
                 </button>
                 <p className="text-xs text-muted-foreground">
-                  {avatarUrl ? "Tap to change your photo" : "Add a profile photo (optional)"}
+                  {avatarUrl ? "Tap to change or remove your photo" : "Add a profile photo (optional)"}
                 </p>
                 <input
                   ref={fileInputRef}
@@ -207,6 +246,47 @@ export default function OnboardingPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Avatar popup: view / change / remove the profile photo */}
+        <Dialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen}>
+          <DialogContent className="max-w-xs">
+            <DialogHeader>
+              <DialogTitle className="text-center">Profile photo</DialogTitle>
+              <DialogDescription className="text-center">
+                View your photo or pick a new one.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col items-center gap-4">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt="Profile avatar"
+                  className="h-36 w-36 rounded-full object-cover ring-2 ring-border/40"
+                />
+              ) : null}
+            </div>
+            <DialogFooter className="flex-row justify-center gap-2 sm:justify-center">
+              <Button
+                variant="outline"
+                className="h-10 flex-1"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploading ? "Uploading..." : "Change photo"}
+              </Button>
+              {avatarUrl && (
+                <Button
+                  variant="destructive"
+                  className="h-10 flex-1"
+                  disabled={removing}
+                  onClick={handleRemoveAvatar}
+                >
+                  {removing ? "Removing..." : "Remove photo"}
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

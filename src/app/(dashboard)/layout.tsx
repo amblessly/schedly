@@ -62,7 +62,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (needsOnboarding) router.replace("/onboarding");
   }, [needsOnboarding, router]);
-
   // The design editor is immersive on mobile: no fixed header, drawer,
   // backdrop, or bottom nav covering it — the canvas fills the screen.
   const isImmersive = pathname === "/design" || pathname === "/widget";
@@ -150,7 +149,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     StatusBar.setStyle({ style: activeId === "midnight" ? Style.Light : Style.Dark }).catch(() => {});
   }, [activeId]);
 
-  if (needsOnboarding) {
+  // Never show the dashboard until we know who the user is: while the
+  // session is loading, or when the user hasn't finished onboarding, show a
+  // blank loading screen instead of flashing the dashboard behind it.
+  if (isLoading || needsOnboarding) {
     return (
       <div className="flex min-h-[100dvh] items-center justify-center bg-white">
         <div className="animate-pulse text-sm text-muted-foreground">Loading…</div>
@@ -232,11 +234,11 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           ].join(" ")}
         >
           {isImmersive ? (
-            <div className="h-dvh-fallback overflow-y-auto p-0 md:p-6 md:pt-20">
+            <div className="animate-fade-up h-dvh-fallback overflow-y-auto p-0 md:p-6 md:pt-20">
               {children}
             </div>
           ) : (
-            <div className="mx-auto w-full max-w-3xl md:w-full">{children}</div>
+            <div className="animate-fade-up mx-auto w-full max-w-3xl md:w-full">{children}</div>
           )}
         </main>
       </div>
