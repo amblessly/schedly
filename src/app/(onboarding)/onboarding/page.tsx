@@ -139,7 +139,11 @@ export default function OnboardingPage() {
                       {initials}
                     </span>
                   )}
-                  <span className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity group-hover:opacity-100">
+                  <span
+                    className={`absolute inset-0 flex items-center justify-center bg-black/45 transition-opacity ${
+                      uploading ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                    }`}
+                  >
                     {uploading ? (
                       <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     ) : (
