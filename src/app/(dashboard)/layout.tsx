@@ -221,7 +221,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       {!isImmersive && !isSettings && <BottomNav />}
 
       <Dialog open={refreshOpen} onOpenChange={setRefreshOpen}>
-        <DialogContent className="sm:max-w-sm" showCloseButton={false}>
+        <DialogContent className="max-w-[300px]" showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>Refresh this page?</DialogTitle>
             <DialogDescription>
