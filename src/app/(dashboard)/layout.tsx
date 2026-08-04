@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
+import { StatusBar, Style } from "@capacitor/status-bar";
 import { Sidebar } from "@/components/sidebar";
 import { BottomNav } from "@/components/bottom-nav";
 import { Button } from "@/components/ui/button";
@@ -46,7 +48,7 @@ function setOpen(next: boolean) {
 }
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
-  const { themeVars } = useThemeConfig();
+  const { themeVars, activeId } = useThemeConfig();
   const open = useSyncExternalStore(subscribeOpen, getOpenSnapshot, () => true);
   const showButton = !open;
   const pathname = usePathname();
@@ -139,6 +141,13 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     };
   }, [isImmersive]);
 
+  // Keep the Android status bar in sync with the active theme: it overlays
+  // the web content (edge-to-edge), so only the icon style needs updating.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    StatusBar.setStyle({ style: activeId === "midnight" ? Style.Light : Style.Dark }).catch(() => {});
+  }, [activeId]);
+
   if (needsOnboarding) {
     return (
       <div className="flex min-h-[100dvh] items-center justify-center bg-white">
@@ -155,7 +164,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className="relative flex min-h-dvh-fallback"
+      className="relative isolate flex min-h-dvh-fallback"
       style={{
         ...themeVars,
         backgroundColor: "#fff",
@@ -164,6 +173,18 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         backgroundSize: "cover",
       }}
     >
+      {/* Theme-colored wash behind the status bar (edge-to-edge overlay) */}
+      {!isImmersive && (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-24"
+          style={{
+            background:
+              "linear-gradient(to bottom, var(--primary) 0%, color-mix(in srgb, var(--primary) 45%, transparent) 32px, transparent 88px)",
+          }}
+        />
+      )}
+
       <div className={sidebarWrap} inert={!open}>
         <Sidebar onClose={() => setOpen(false)} />
       </div>
@@ -181,7 +202,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className={`fixed left-4 top-4 z-50 flex h-11 w-11 items-center justify-center rounded-xl bg-card/90 shadow-[0_8px_40px_rgba(0,0,0,0.1)] transition-all duration-300 ${logoHidden ? "pointer-events-none -translate-y-2 opacity-0" : "opacity-100"}`}
+          className={`fixed left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center rounded-xl bg-card/90 shadow-[0_8px_40px_rgba(0,0,0,0.1)] transition-all duration-300 ${logoHidden ? "pointer-events-none -translate-y-2 opacity-0" : "opacity-100"}`}
           aria-label="Refresh page"
         >
           <img src="/images/logo.jpg" alt="Schedly" className="h-9 w-9 rounded-xl object-cover" />
@@ -192,7 +213,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       {!isImmersive && showButton && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed right-4 top-4 z-50 flex h-11 w-11 items-center justify-center rounded-xl bg-sidebar/90 text-sidebar-foreground shadow-[0_8px_40px_rgba(0,0,0,0.12)] transition-colors hover:bg-sidebar"
+          className="fixed right-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center rounded-xl bg-sidebar/90 text-sidebar-foreground shadow-[0_8px_40px_rgba(0,0,0,0.12)] transition-colors hover:bg-sidebar"
           aria-label="Show sidebar"
         >
           <Menu className="h-5 w-5" />
@@ -204,7 +225,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           onClick={() => setOpen(false)}
           className={[
             "flex-1 transition-transform duration-300 ease-out",
-            isImmersive ? "" : "px-4 pt-16 pb-28 sm:px-6 sm:pt-16 md:pt-20 md:pb-4",
+            isImmersive ? "" : "px-4 pt-[calc(env(safe-area-inset-top)+4rem)] pb-28 sm:px-6 sm:pt-[calc(env(safe-area-inset-top)+4rem)] md:pt-20 md:pb-4",
             open ? "md:-translate-x-[304px]" : "md:translate-x-0",
           ].join(" ")}
         >
