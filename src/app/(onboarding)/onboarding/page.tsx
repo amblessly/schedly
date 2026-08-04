@@ -19,8 +19,6 @@ type UserWithExtras = {
   avatarUrl?: string;
 } & Record<string, unknown>;
 
-const USERNAME_RE = /^[a-z0-9_.]{3,30}$/;
-
 export default function OnboardingPage() {
   const { user, isLoading, refetchSession } = useAuth();
   const u = user as UserWithExtras | null;
@@ -28,9 +26,6 @@ export default function OnboardingPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<1 | 2>(1);
-  const [username, setUsername] = useState(u?.username ?? "");
-  const [usernameError, setUsernameError] = useState("");
-  const [savingProfile, setSavingProfile] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>((u?.image as string) || (u?.avatarUrl as string) || null);
   const [uploading, setUploading] = useState(false);
   const [finishing, setFinishing] = useState(false);
@@ -38,7 +33,6 @@ export default function OnboardingPage() {
   const firstName = u?.firstName || "User";
   const lastName = u?.lastName || "";
   const initials = [firstName[0], lastName[0]].filter(Boolean).join("").toUpperCase();
-  const usernameValid = USERNAME_RE.test(username.trim());
 
   const markComplete = async () => {
     if (finishing) return;
@@ -53,24 +47,8 @@ export default function OnboardingPage() {
     router.push("/dashboard");
   };
 
-  const handleContinue = async () => {
-    if (!usernameValid || savingProfile) return;
-    setSavingProfile(true);
-    setUsernameError("");
-    try {
-      const result = await authClient.updateUser({
-        username: username.trim().toLowerCase(),
-      } as Parameters<typeof authClient.updateUser>[0]);
-      if (result.error) {
-        setUsernameError("That username is already taken");
-        setSavingProfile(false);
-        return;
-      }
-      setStep(2);
-    } catch {
-      setUsernameError("Something went wrong. Please try again.");
-    }
-    setSavingProfile(false);
+  const handleContinue = () => {
+    setStep(2);
   };
 
   async function handleAvatarSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -142,7 +120,7 @@ export default function OnboardingPage() {
                 </span>
                 <h1 className="text-xl font-bold tracking-tight text-foreground">Set up your profile</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Pick a username and profile photo so your friends can find you.
+                  Add a profile photo so your friends can find you.
                 </p>
               </div>
 
@@ -181,43 +159,11 @@ export default function OnboardingPage() {
                 />
               </div>
 
-              {/* Username */}
-              <div className="space-y-2">
-                <label htmlFor="username" className="text-sm font-medium text-foreground">
-                  Username
-                </label>
-                <div className="flex items-center gap-1 rounded-lg border border-border px-3 focus-within:border-primary/50">
-                  <span className="text-base text-muted-foreground">@</span>
-                  <input
-                    id="username"
-                    value={username}
-                    onChange={(e) => {
-                      const value = e.target.value.toLowerCase();
-                      setUsername(value);
-                      if (usernameError) setUsernameError("");
-                    }}
-                    placeholder="username"
-                    spellCheck={false}
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    className="h-11 w-full bg-transparent text-[15px] text-foreground outline-none placeholder:text-muted-foreground/60"
-                  />
-                </div>
-                {usernameError ? (
-                  <p className="text-xs text-destructive">{usernameError}</p>
-                ) : !usernameValid ? (
-                  <p className="text-xs text-muted-foreground">
-                    3–30 characters · lowercase letters, numbers, underscores, dots
-                  </p>
-                ) : null}
-              </div>
-
               <Button
                 className="mt-6 h-12 w-full font-semibold"
-                disabled={!usernameValid || savingProfile}
                 onClick={handleContinue}
               >
-                {savingProfile ? "Saving..." : "Continue"}
+                Continue
               </Button>
             </CardContent>
           </Card>
