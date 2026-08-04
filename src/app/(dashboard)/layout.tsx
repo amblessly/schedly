@@ -57,6 +57,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   // backdrop, or bottom nav covering it — the canvas fills the screen.
   const isImmersive = pathname === "/design" || pathname === "/widget";
 
+  // Account settings is a full-screen page — hide the bottom nav there.
+  const isSettings = pathname === "/settings";
+
   // Fade the top-left logo out on scroll down, back in on scroll up.
   const [logoHidden, setLogoHidden] = useState(false);
   const logoLastY = useRef(0);
@@ -164,7 +167,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             "flex-1 touch-pan-y overflow-x-hidden overscroll-x-none",
             isImmersive
               ? "overflow-y-auto p-0 md:p-6 md:pt-20"
-              : "overflow-y-auto p-4 pt-16 pb-28 sm:p-6 sm:pt-16 md:pt-20 md:pb-4",
+              : isSettings
+                ? "overflow-y-auto p-4 pt-16 pb-8 sm:p-6 sm:pt-16 md:pt-20 md:pb-4"
+                : "overflow-y-auto p-4 pt-16 pb-28 sm:p-6 sm:pt-16 md:pt-20 md:pb-4",
             "transition-transform duration-300 ease-out",
             open ? "md:-translate-x-[304px]" : "md:translate-x-0",
           ].join(" ")}
@@ -179,7 +184,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      {!isImmersive && <BottomNav />}
+      {!isImmersive && !isSettings && <BottomNav />}
     </div>
   );
 }
