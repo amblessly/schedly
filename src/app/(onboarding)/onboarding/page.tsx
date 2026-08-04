@@ -47,18 +47,35 @@ export default function OnboardingPage() {
   const markComplete = async () => {
     if (finishing) return;
     setFinishing(true);
-    try {
-      await authClient.updateUser({
-        onboardingCompleted: true,
-      } as Parameters<typeof authClient.updateUser>[0]);
-      // Refresh the session so the dashboard layout sees onboarding is done
-      // and doesn't redirect straight back here. Bypass the cookie cache so we
-      // read the updated value from the DB, not the stale cached session.
+    const retries = 3;
+    for (let i = 0; i < retries; i++) {
+      try {
+        await authClient.updateUser({
+          onboardingCompleted: true,
+        } as Parameters<typeof authClient.updateUser>[0]);
+      } catch {
+        /* try again */
+      }
+      // Refresh the session so the dashboard layout sees onboarding is done and
+      // doesn't redirect straight back here. Bypass the cookie cache so we read
+      // the updated value from the DB, not the stale cached session.
       await refetchSession({ query: { disableCookieCache: true } });
-    } catch {
-      /* let the user through either way */
+      try {
+        const res = await fetch("/api/auth/get-session?disableCookieCache=true");
+        const data = await res.json();
+        const updated = data?.user as
+          | { onboardingCompleted?: boolean }
+          | null
+          | undefined;
+        if (updated?.onboardingCompleted) {
+          router.push("/dashboard");
+          return;
+        }
+      } catch {
+        /* try again */
+      }
     }
-    router.push("/dashboard");
+    setFinishing(false);
   };
 
   const handleContinue = () => {

@@ -6,25 +6,48 @@ import { authClient } from "@/lib/auth-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-const EMAIL_PROVIDERS: Record<string, string> = {
-  gmail: "https://mail.google.com",
-  googlemail: "https://mail.google.com",
-  outlook: "https://outlook.live.com",
-  hotmail: "https://outlook.live.com",
-  live: "https://outlook.live.com",
-  msn: "https://outlook.live.com",
-  yahoo: "https://mail.yahoo.com",
-  proton: "https://mail.proton.me",
-  icloud: "https://www.icloud.com/mail",
-  zoho: "https://mail.zoho.com",
-  aol: "https://mail.aol.com",
-  gmx: "https://www.gmx.com",
+interface EmailProvider {
+  app?: string;
+  web: string;
+}
+
+// Each provider maps to both its native app URL scheme (for Capacitor/PWA so
+// the mail app opens directly instead of the browser) and its web URL fallback.
+const EMAIL_PROVIDERS: Record<string, EmailProvider> = {
+  gmail: { app: "googlegmail://", web: "https://mail.google.com" },
+  googlemail: { app: "googlegmail://", web: "https://mail.google.com" },
+  outlook: { app: "ms-outlook://", web: "https://outlook.live.com" },
+  hotmail: { app: "ms-outlook://", web: "https://outlook.live.com" },
+  live: { app: "ms-outlook://", web: "https://outlook.live.com" },
+  msn: { app: "ms-outlook://", web: "https://outlook.live.com" },
+  yahoo: { app: "ymail://", web: "https://mail.yahoo.com" },
+  proton: { app: "protonmail://", web: "https://mail.proton.me" },
+  icloud: { web: "https://www.icloud.com/mail" },
+  zoho: { web: "https://mail.zoho.com" },
+  aol: { web: "https://mail.aol.com" },
+  gmx: { web: "https://www.gmx.com" },
 };
 
-function getInboxUrl(email: string): string {
+function getProvider(email: string): EmailProvider {
   const domain = email.split("@")[1]?.toLowerCase() || "";
   const providerKey = (domain.split(".")[0] ?? "").toLowerCase();
-  return EMAIL_PROVIDERS[providerKey] || `https://${domain}`;
+  return EMAIL_PROVIDERS[providerKey] || { web: `https://${domain}` };
+}
+
+function openInbox(email: string) {
+  const { app, web } = getProvider(email);
+  if (app) {
+    // Try the native mail app first. If the page is still visible after a beat,
+    // the app wasn't installed / didn't handle the scheme, so fall back to web.
+    window.location.href = app;
+    setTimeout(() => {
+      if (!document.hidden) {
+        window.open(web, "_blank", "noopener,noreferrer");
+      }
+    }, 600);
+  } else {
+    window.open(web, "_blank", "noopener,noreferrer");
+  }
 }
 
 function PendingContent() {
@@ -66,7 +89,7 @@ function PendingContent() {
       }
     } catch { /* not yet */ }
     if (email) {
-      window.open(getInboxUrl(email), "_blank", "noopener,noreferrer");
+      openInbox(email);
     }
   };
 
