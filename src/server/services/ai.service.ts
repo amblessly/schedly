@@ -60,7 +60,10 @@ export const aiService = {
         PipelineLogger.debug("cache", "Cache miss", { runId, hash, cacheMs: Math.round(performance.now() - ct0) });
       }
 
-      // 1. Primary vision extraction (single pass).
+      // 1. Primary vision extraction (single pass — the common path is ONE
+      // AI call). Any usable result is returned immediately; low-confidence
+      // results are fixed by the user in the review screen instead of burning
+      // 2-3 more slow model calls.
       const primary = await extractScheduleFromImage(
         imageUrl,
         imageBuffer ? { base64: imageBuffer.toString("base64"), contentType: "image/jpeg" } : undefined,
@@ -68,50 +71,19 @@ export const aiService = {
       const raw = primary.data;
 
       const primaryResult = buildResult(raw);
+      if (primaryResult && (primaryResult.metadata.confidence >= CONFIDENCE_THRESHOLD || (primaryResult.classes?.length ?? 0) > 0)) {
+        await maybeCache(hash, imageBuffer, primaryResult, primary.model, runId, t0);
+        return ok(primaryResult);
+      }
       if (primaryResult) {
-        // 2. Confidence gate — return immediately when confident.
-        if (primaryResult.metadata.confidence >= CONFIDENCE_THRESHOLD) {
-          await maybeCache(hash, imageBuffer, primaryResult, primary.model, runId, t0);
-          return ok(primaryResult);
-        }
-        PipelineLogger.info("pipeline", "Primary confidence below threshold", {
-          runId,
-          confidence: primaryResult.metadata.confidence,
-          threshold: CONFIDENCE_THRESHOLD,
-        });
+        PipelineLogger.info("pipeline", "Primary returned no usable classes", { runId });
       } else {
-        PipelineLogger.warn("pipeline", "Primary extraction produced no usable classes", { runId });
+        PipelineLogger.warn("pipeline", "Primary extraction produced no parseable data", { runId });
       }
 
-      // 3. Fallback: try a stronger vision model via the same extraction path.
-      if (process.env.OPENROUTER_API_KEY) {
-        try {
-          const fallback = await extractScheduleFromImage(imageUrl);
-          const fallbackResult = buildResult(fallback.data);
-          if (fallbackResult) {
-            if (fallbackResult.metadata.confidence >= CONFIDENCE_THRESHOLD) {
-              await maybeCache(hash, imageBuffer, fallbackResult, fallback.model, runId, t0);
-              return ok(fallbackResult);
-            }
-            // Still low — send to Hy3 for a deep re-validation pass.
-            if (process.env.OPENROUTER_VALIDATION_ENABLED !== "false") {
-              const validated = await validateExtractedData(fallback.data);
-              if (aiValidationResultSchema.safeParse(validated).success) {
-                const res = finalizeValidated(validated);
-                await maybeCache(hash, imageBuffer, res, `hy3:${fallback.model}`, runId, t0);
-                return ok(res);
-              }
-            }
-            await maybeCache(hash, imageBuffer, fallbackResult, fallback.model, runId, t0);
-            return ok(fallbackResult);
-          }
-        } catch (fbErr) {
-          PipelineLogger.warn("pipeline", "Fallback vision extraction failed", { runId }, fbErr);
-        }
-      }
-
-      // 4. Last resort: Hy3 re-validation of the (low-confidence) primary output.
-      if (primaryResult && process.env.OPENROUTER_VALIDATION_ENABLED !== "false") {
+      // 2. Last resort: a single Hy3 re-validation pass when the vision model
+      // came back with nothing usable.
+      if (process.env.OPENROUTER_VALIDATION_ENABLED !== "false") {
         try {
           const validated = await validateExtractedData(raw);
           if (aiValidationResultSchema.safeParse(validated).success) {
@@ -120,10 +92,8 @@ export const aiService = {
             return ok(res);
           }
         } catch (valErr) {
-          PipelineLogger.warn("pipeline", "Hy3 validation failed, using primary result", { runId }, valErr);
+          PipelineLogger.warn("pipeline", "Hy3 validation failed", { runId }, valErr);
         }
-        await maybeCache(hash, imageBuffer, primaryResult, primary.model, runId, t0);
-        return ok(primaryResult);
       }
 
       if (primaryResult) {

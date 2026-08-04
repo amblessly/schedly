@@ -50,6 +50,8 @@ model User {
   year      Int?
   timezone  String   @default("UTC")
   theme     String   @default("system")
+  widgetToken String? @unique @map("widget_token")
+  onboardingCompleted Boolean @default(false) @map("onboarding_completed")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Menu } from "lucide-react";
 import { Sidebar } from "@/components/sidebar";
 import { BottomNav } from "@/components/bottom-nav";
 import { useThemeConfig } from "@/features/theme";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 
 // The drawer's open state lives in a tiny external store so its initial
 // value can come from matchMedia only AFTER hydration: the server always
@@ -41,9 +42,47 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const open = useSyncExternalStore(subscribeOpen, getOpenSnapshot, () => true);
   const showButton = !open;
   const pathname = usePathname();
+  const router = useRouter();
+
+  // First-time users are pushed through the setup flow before using the app.
+  const { user, isLoading } = useAuth();
+  const needsOnboarding =
+    !isLoading && user && (user as { onboardingCompleted?: boolean }).onboardingCompleted === false;
+
+  useEffect(() => {
+    if (needsOnboarding) router.replace("/onboarding");
+  }, [needsOnboarding, router]);
+
   // The design editor is immersive on mobile: no fixed header, drawer,
   // backdrop, or bottom nav covering it — the canvas fills the screen.
-  const isImmersive = pathname === "/design";
+  const isImmersive = pathname === "/design" || pathname === "/widget";
+
+  // Fade the top-left logo out on scroll down, back in on scroll up.
+  const [logoHidden, setLogoHidden] = useState(false);
+  const logoLastY = useRef(0);
+  const logoTicking = useRef(false);
+
+  useEffect(() => {
+    const el = document.querySelector("main");
+    if (!el) return;
+
+    const onScroll = () => {
+      if (logoTicking.current) return;
+      logoTicking.current = true;
+      requestAnimationFrame(() => {
+        logoTicking.current = false;
+        const y = el.scrollTop;
+        const delta = y - logoLastY.current;
+        if (Math.abs(delta) > 4) {
+          setLogoHidden(delta > 0 && y > 80);
+        }
+        logoLastY.current = y;
+      });
+    };
+
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
 
   // Close the mobile drawer on every navigation so it never stays open
   // covering a page (e.g., after coming back from the design editor).
@@ -51,6 +90,20 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     if (window.matchMedia("(min-width: 768px)").matches) return;
     setOpen(false);
   }, [pathname]);
+
+  // Reset the scroll container on navigation so the next page starts at the
+  // top instead of resuming where the previous page left off.
+  useEffect(() => {
+    document.querySelector("main")?.scrollTo({ top: 0, behavior: "instant" });
+  }, [pathname]);
+
+  if (needsOnboarding) {
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center bg-white">
+        <div className="animate-pulse text-sm text-muted-foreground">Loading…</div>
+      </div>
+    );
+  }
 
   const sidebarWrap = [
     "sidebar-slide fixed right-3 z-40 w-[304px] max-w-[calc(100vw-1.5rem)] will-change-transform",
@@ -63,8 +116,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       className="relative flex h-screen overflow-hidden md:h-auto md:min-h-screen md:overflow-visible"
       style={{
         ...themeVars,
-        backgroundColor: "var(--background)",
-        backgroundImage: "var(--app-bg-image)",
+        backgroundColor: "#fff",
+        backgroundImage: "radial-gradient(circle at top center, color-mix(in srgb, var(--primary) 50%, transparent), transparent 70%)",
+        backgroundRepeat: "no-repeat",
         backgroundSize: "cover",
       }}
     >
@@ -85,7 +139,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="fixed left-4 top-4 z-50 flex h-11 w-11 items-center justify-center rounded-xl bg-card/90 shadow-[0_8px_40px_rgba(0,0,0,0.1)]"
+          className={`fixed left-4 top-4 z-50 flex h-11 w-11 items-center justify-center rounded-xl bg-card/90 shadow-[0_8px_40px_rgba(0,0,0,0.1)] transition-all duration-300 ${logoHidden ? "pointer-events-none -translate-y-2 opacity-0" : "opacity-100"}`}
           aria-label="Refresh page"
         >
           <img src="/images/logo.jpg" alt="Schedly" className="h-9 w-9 rounded-xl object-cover" />
@@ -119,7 +173,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             <>{children}</>
           ) : (
             <div className="mx-auto w-full max-w-3xl md:w-full">
-              <div className="grid min-h-[calc(100vh-9rem)] w-full place-items-center md:min-h-[calc(100vh-7rem)]">
+              <div className="grid min-h-[calc(100vh-9rem)] w-full items-start justify-items-center md:min-h-[calc(100vh-7rem)]">
                 <div className="w-full">{children}</div>
               </div>
             </div>

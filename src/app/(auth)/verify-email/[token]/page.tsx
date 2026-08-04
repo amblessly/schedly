@@ -25,7 +25,7 @@ function VerifyHandler() {
       .then(() => {
         if (!cancelled) {
           setStatus("success");
-          window.location.href = "/schedule";
+          window.location.href = "/dashboard";
         }
       })
       .catch((err) => {

@@ -23,6 +23,7 @@ import {
   LifeBuoy,
   Timer,
   LayoutDashboard,
+  LayoutGrid,
   Music,
   UploadCloud,
   StickyNote,
@@ -51,6 +52,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   "life-buoy": LifeBuoy,
   timer: Timer,
   "layout-dashboard": LayoutDashboard,
+  "widget": LayoutGrid,
   music: Music,
   "upload-cloud": UploadCloud,
   "sticky-note": StickyNote,
@@ -67,6 +69,7 @@ function NavItemLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => v
   return (
     <Link
       href={item.href}
+      prefetch
       onClick={() => onNavigate?.()}
       className={cn(
         "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-200",

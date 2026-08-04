@@ -12,7 +12,7 @@ import path from "path";
 const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 type StoredFile = { url: string; key: string };
 

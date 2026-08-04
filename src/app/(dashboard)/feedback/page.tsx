@@ -88,7 +88,7 @@ export default function FeedbackPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-2xl pt-8 md:pt-0">
       <div className="mb-6 sm:mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
           Help &amp; Feedback

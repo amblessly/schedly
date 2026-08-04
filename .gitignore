@@ -74,3 +74,6 @@ benchmark/fixtures/
 benchmark/report.json
 benchmark/report.md
 .env*
+
+# android build cache
+android/.kotlin/

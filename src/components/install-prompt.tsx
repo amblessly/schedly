@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import { Download, X, Share, Home, Check, Smartphone } from "lucide-react";
 
@@ -34,8 +35,13 @@ export function InstallPrompt() {
   const [showFallback, setShowFallback] = useState(false);
   const [ios, setIos] = useState(false);
   const reloadedOnce = useRef(false);
+  const pathname = usePathname();
 
   useEffect(() => {
+    // The onboarding flow has its own "Add to home screen" step, so the
+    // global install sheet should not compete with it.
+    if (pathname?.startsWith("/onboarding")) return;
+
     if (Capacitor.isNativePlatform() || isStandalone()) return;
 
     // Register the service worker so the PWA is installable (Chrome/Edge).
@@ -69,7 +75,9 @@ export function InstallPrompt() {
       window.removeEventListener("appinstalled", onInstalled);
       clearTimeout(timer);
     };
-  }, []);
+  }, [pathname]);
+
+  if (pathname?.startsWith("/onboarding")) return null;
 
   const dismiss = () => {
     localStorage.setItem(DISMISS_KEY, "1");

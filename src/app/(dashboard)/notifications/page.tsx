@@ -91,7 +91,7 @@ export default function NotificationsPage() {
 
   if (!loaded) {
     return (
-      <div className="mx-auto max-w-3xl space-y-6 py-8">
+      <div className="mx-auto max-w-3xl space-y-6 pt-8 md:pt-0">
         <div>
           <Skeleton className="h-8 w-40" />
           <Skeleton className="h-4 w-48 mt-2" />
@@ -117,7 +117,7 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6 pt-8 md:pt-0">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">

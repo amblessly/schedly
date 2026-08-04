@@ -21,7 +21,7 @@ export function LoginForm() {
   const { signIn } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callback") || "/schedule";
+  const callbackUrl = searchParams.get("callback") || "/dashboard";
 
   function update(field: keyof LoginInput, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));

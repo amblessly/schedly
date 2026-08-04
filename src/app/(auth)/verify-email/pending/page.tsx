@@ -23,7 +23,7 @@ function PendingContent() {
         if (data?.user?.emailVerified) {
           clearInterval(pollRef.current);
           setPolling(false);
-          router.push("/schedule");
+          router.push("/dashboard");
         }
       } catch {
         // keep polling
@@ -41,7 +41,7 @@ function PendingContent() {
       const res = await fetch("/api/auth/get-session");
       const data = await res.json();
       if (data?.user?.emailVerified) {
-        router.push("/schedule");
+        router.push("/dashboard");
         return;
       }
     } catch { /* not yet */ }

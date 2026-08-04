@@ -129,6 +129,10 @@
 
 body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  background-color: #fff;
+  background-image: radial-gradient(circle at top center, color-mix(in srgb, var(--primary) 50%, transparent), transparent 70%);
+  background-repeat: no-repeat;
+  background-size: cover;
 }
 
 @layer base {

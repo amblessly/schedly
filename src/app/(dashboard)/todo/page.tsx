@@ -6,10 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, ListTodo, GripVertical, Clock, Calendar } from "lucide-react";
+import { Plus, Trash2, ListTodo, Clock, Calendar } from "lucide-react";
 import { useTodos } from "@/features/todo/use-todos";
 
 type FilterType = "all" | "active" | "completed";
+
+const PRIORITY_DOTS: Record<"low" | "medium" | "high", string> = {
+  low: "bg-green-400",
+  medium: "bg-yellow-400",
+  high: "bg-red-400",
+};
 
 export default function TodoPage() {
   const { todos, addTodo, toggleTodo, deleteTodo, clearCompleted } = useTodos();
@@ -34,20 +40,8 @@ export default function TodoPage() {
   const activeCount = todos.filter((t) => !t.completed).length;
   const completedCount = todos.filter((t) => t.completed).length;
 
-  const priorityColors = {
-    low: "border-l-green-400",
-    medium: "border-l-yellow-400",
-    high: "border-l-red-400",
-  };
-
-  const priorityLabels = {
-    low: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
-    medium: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300",
-    high: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
-  };
-
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6 pt-8 md:pt-0">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
           To-Do List
@@ -80,12 +74,13 @@ export default function TodoPage() {
                   <button
                     key={p}
                     onClick={() => setNewPriority(p)}
-                    className={`rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors ${
+                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors ${
                       newPriority === p
-                        ? priorityLabels[p]
-                        : "bg-muted text-muted-foreground hover:bg-accent"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
                     }`}
                   >
+                    <span className={`h-1.5 w-1.5 rounded-full ${PRIORITY_DOTS[p]}`} />
                     {p}
                   </button>
                 ))}
@@ -113,7 +108,7 @@ export default function TodoPage() {
               onClick={() => setFilter(f)}
               className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
                 filter === f
-                  ? "bg-card/30 text-foreground shadow-sm"
+                  ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -149,11 +144,10 @@ export default function TodoPage() {
           {filtered.map((todo) => (
             <div
               key={todo.id}
-              className={`group flex items-center gap-3 rounded-xl border-l-[3px] bg-card/30 px-4 py-3 transition-[background-color,box-shadow,opacity] hover:shadow-sm ${
-                priorityColors[todo.priority]
-              } ${todo.completed ? "opacity-60" : ""}`}
+              className={`group flex items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 transition-opacity ${
+                todo.completed ? "opacity-60" : ""
+              }`}
             >
-              <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground/20" />
               <Checkbox
                 checked={todo.completed}
                 onCheckedChange={() => toggleTodo(todo.id)}
@@ -167,9 +161,8 @@ export default function TodoPage() {
                   {todo.text}
                 </p>
                 <div className="mt-0.5 flex items-center gap-2">
-                  <span
-                    className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${priorityLabels[todo.priority]}`}
-                  >
+                  <span className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    <span className={`h-1.5 w-1.5 rounded-full ${PRIORITY_DOTS[todo.priority]}`} />
                     {todo.priority}
                   </span>
                   {todo.dueDate && (
@@ -186,7 +179,7 @@ export default function TodoPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                className="h-8 w-8 shrink-0 text-muted-foreground/50 opacity-0 group-hover:opacity-100 hover:text-destructive"
                 onClick={() => deleteTodo(todo.id)}
               >
                 <Trash2 className="h-4 w-4" />

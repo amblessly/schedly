@@ -83,7 +83,7 @@ export default function GPACalculatorPage() {
   const target = parseFloat(targetGPA) || 0;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6 pt-8 md:pt-0">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">

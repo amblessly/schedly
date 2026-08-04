@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { authClient } from "@/lib/auth-client";
 import { uploadAvatar, deleteAccount } from "./actions";
+import { getWidgetToken, regenerateWidgetToken } from "../widget/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,67 +39,62 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col bg-background">
-        <main className="flex-1 p-4 sm:p-6">
-          <div className="mx-auto max-w-2xl space-y-6">
-            <div>
-              <Skeleton className="h-8 w-48" />
-              <Skeleton className="h-4 w-64 mt-2" />
-            </div>
-            <Skeleton className="h-10 w-full rounded-lg" />
-            <Card className="border-border/50">
-              <CardContent className="pt-6">
-                <div className="flex flex-col items-center gap-4 sm:flex-row">
-                  <Skeleton className="h-20 w-20 rounded-full" />
-                  <div className="space-y-2">
-                    <Skeleton className="h-5 w-32" />
-                    <Skeleton className="h-4 w-48" />
-                    <Skeleton className="h-3 w-24" />
-                    <div className="flex gap-2 pt-1">
-                      <Skeleton className="h-8 w-16 rounded-lg" />
-                      <Skeleton className="h-8 w-20 rounded-lg" />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-border/50">
-              <CardHeader>
+      <div className="mx-auto max-w-2xl space-y-6 pt-8 md:pt-0">
+        <div>
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-64 mt-2" />
+        </div>
+        <Skeleton className="h-10 w-full rounded-lg" />
+        <Card className="border-border/50">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center gap-4 sm:flex-row">
+              <Skeleton className="h-20 w-20 rounded-full" />
+              <div className="space-y-2">
                 <Skeleton className="h-5 w-32" />
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-border/40">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-4 w-28" />
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        </main>
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-3 w-24" />
+                <div className="flex gap-2 pt-1">
+                  <Skeleton className="h-8 w-16 rounded-lg" />
+                  <Skeleton className="h-8 w-20 rounded-lg" />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50">
+          <CardHeader>
+            <Skeleton className="h-5 w-32" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex items-center justify-between py-2 border-b border-border/40">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-28" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col bg-background">
-      <main className="flex-1 p-4 sm:p-6">
-        <div className="mx-auto max-w-2xl">
-          <div className="mb-6 sm:mb-8">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Account Settings
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground sm:text-base">
-              Manage your account preferences and security.
-            </p>
-          </div>
+    <div className="mx-auto max-w-2xl pt-8 md:pt-0">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          Account Settings
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+          Manage your account preferences and security.
+        </p>
+      </div>
 
-          <Tabs defaultValue="overview">
+            <Tabs defaultValue="overview">
             <TabsList className="w-full justify-start">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="account">Account</TabsTrigger>
               <TabsTrigger value="security">Security</TabsTrigger>
+              <TabsTrigger value="widget">Widget</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview">
@@ -110,9 +106,10 @@ export default function SettingsPage() {
             <TabsContent value="security">
               <SecurityTab />
             </TabsContent>
+            <TabsContent value="widget">
+              <WidgetTab />
+            </TabsContent>
           </Tabs>
-        </div>
-      </main>
     </div>
   );
 }
@@ -592,5 +589,150 @@ function SecurityTab() {
         </Button>
       </CardContent>
     </Card>
+  );
+}
+
+function WidgetTab() {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [confirmRegenerate, setConfirmRegenerate] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getWidgetToken()
+      .then((result) => {
+        if (cancelled) return;
+        if (result.success) setUrl(result.url);
+        else setError(result.error);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Something went wrong. Please try again.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function copyLink() {
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError("Could not copy. Select the link manually.");
+    }
+  }
+
+  async function handleRegenerate() {
+    setLoading(true);
+    setError("");
+    setCopied(false);
+    try {
+      const result = await regenerateWidgetToken();
+      if (result.success) {
+        setUrl(result.url);
+        setConfirmRegenerate(false);
+      } else {
+        setError(result.error);
+      }
+    } catch {
+      setError("Something went wrong. Please try again.");
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-base">Home Screen Widget</CardTitle>
+          <CardDescription>
+            Show your class schedule on your phone&apos;s home screen. Paste this link into a
+            widget app so your schedule appears without opening Schedly.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="widgetLink" className="text-sm font-medium">Your widget link</Label>
+            {loading ? (
+              <Skeleton className="h-10 w-full rounded-lg" />
+            ) : url ? (
+              <div className="flex gap-2">
+                <Input
+                  id="widgetLink"
+                  readOnly
+                  value={url}
+                  onFocus={(e) => e.target.select()}
+                  className="h-10 font-mono text-xs"
+                />
+                <Button onClick={copyLink} variant="outline" className="h-10 shrink-0" disabled={!url}>
+                  {copied ? "Copied!" : "Copy"}
+                </Button>
+              </div>
+            ) : null}
+            {error && <p className="text-xs text-destructive">{error}</p>}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setConfirmRegenerate((v) => !v)}>
+              New link
+            </Button>
+            {confirmRegenerate && (
+              <span className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Old link stops working immediately.</span>
+                <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={handleRegenerate} disabled={loading}>
+                  Confirm
+                </Button>
+              </span>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Anyone who has this link can view your schedule (read-only — no editing). Only
+              share it with people you trust, and reset the link if someone else gets it.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-base">How to add it</CardTitle>
+          <CardDescription>
+            These apps render any website as a home-screen widget. They refresh a few times an
+            hour, which is enough to keep your schedule up to date.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-xl border border-border/50 p-4">
+            <p className="text-sm font-semibold text-foreground">iPhone (iOS)</p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+              <li>Install a widget app from the App Store, e.g. &quot;Widget Web&quot;.</li>
+              <li>Open your widget link above and copy it.</li>
+              <li>In the widget app, add a new widget with your Schedly link.</li>
+            </ol>
+          </div>
+          <div className="rounded-xl border border-border/50 p-4">
+            <p className="text-sm font-semibold text-foreground">Android</p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+              <li>Install a widget app from the Play Store, e.g. &quot;Web Widget&quot;.</li>
+              <li>Open your widget link above and copy it.</li>
+              <li>Long-press your home screen → Widgets → add the widget app, then paste your link.</li>
+            </ol>
+          </div>
+          <p className="text-xs text-muted-foreground/70">
+            Tip: if a widget app needs a smaller screen, it works best with the full link
+            (including the token) — that&apos;s what the &quot;Copy&quot; button gives you.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

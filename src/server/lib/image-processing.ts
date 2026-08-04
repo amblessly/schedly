@@ -552,7 +552,7 @@ async function stepNoiseReduction(input: Buffer): Promise<Buffer> {
   Step 9 — Resolution Upscaling
   ────────────────────────────────────────────────────────────── */
 
-async function stepResolutionUpscaling(input: Buffer, maxDimension = 2400): Promise<Buffer> {
+async function stepResolutionUpscaling(input: Buffer, maxDimension = 1600): Promise<Buffer> {
  const meta = await sharp(input).metadata();
  const width = meta.width ?? 0;
  const height = meta.height ?? 0;
@@ -608,7 +608,7 @@ const DEFAULTS: PreprocessOptions = {
  sharpen: true,
  denoise: true,
  resolutionUpscale: true,
- maxDimension: 2400,
+  maxDimension: 1600,
 };
 
 /**
@@ -634,40 +634,50 @@ export async function preprocessImage(
 
  let buf = input;
 
+ // Fast path: skip heavy OpenCV steps if the image is already clean.
+ const quality = await analyzeImageQuality(buf);
+ if (quality.overall >= 0.7) {
+   buf = await stepAutoRotate(buf);
+   if (options.resolutionUpscale) {
+     buf = await stepResolutionUpscaling(buf, options.maxDimension);
+   }
+   return sharp(buf).jpeg({ quality: 90, force: true }).toBuffer();
+ }
+
  if (options.autoRotate) {
-  buf = await stepAutoRotate(buf);
+   buf = await stepAutoRotate(buf);
  }
 
  if (options.autoCrop) {
-  buf = await stepAutoCrop(buf);
+   buf = await stepAutoCrop(buf);
  }
 
  if (options.perspectiveCorrection) {
-  buf = await stepPerspectiveCorrection(buf);
+   buf = await stepPerspectiveCorrection(buf);
  }
 
  if (options.removeShadows) {
-  buf = await stepShadowRemoval(buf);
+   buf = await stepShadowRemoval(buf);
  }
 
  if (options.brightnessNormalization) {
-  buf = await stepBrightnessNormalization(buf);
+   buf = await stepBrightnessNormalization(buf);
  }
 
  if (options.contrastEnhancement) {
-  buf = await stepContrastEnhancement(buf);
+   buf = await stepContrastEnhancement(buf);
  }
 
  if (options.sharpen) {
-  buf = await stepSharpening(buf);
+   buf = await stepSharpening(buf);
  }
 
  if (options.denoise) {
-  buf = await stepNoiseReduction(buf);
+   buf = await stepNoiseReduction(buf);
  }
 
  if (options.resolutionUpscale) {
-  buf = await stepResolutionUpscaling(buf, options.maxDimension);
+   buf = await stepResolutionUpscaling(buf, options.maxDimension);
  }
 
  return sharp(buf).jpeg({ quality: 90, force: true }).toBuffer();

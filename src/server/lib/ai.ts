@@ -8,35 +8,29 @@ const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
  * re-extraction. High-confidence results skip the fallback entirely, keeping
  * the common path to a single AI call.
  */
-const CONFIDENCE_THRESHOLD = Number(process.env.AI_CONFIDENCE_THRESHOLD ?? 0.9);
+const CONFIDENCE_THRESHOLD = Number(process.env.AI_CONFIDENCE_THRESHOLD ?? 0.75);
 
 /* ===== Vision Models (Image Understanding) =====
- * Ordered primary -> fallback. The primary is tried first; fallbacks are only
- * used when the primary fails or returns low-confidence output.
+ * Ordered primary -> fallback. The fallback is ONLY used when the primary
+ * errors out (rate limit / outage) — not on low confidence. Keeps the common
+ * path to a single AI call for fast uploads.
  *
- * Primary: Nemotron 3 Nano Omni — fastest free vision-capable model on
- * OpenRouter (~460ms latency, 134 t/s). Omni = omni-modal (image + text). */
+ * Primary: Gemma 4 26B — fastest measured free vision model on OpenRouter
+ * (~49s end-to-end on a real schedule photo, reliable confident output). */
 const VISION_MODELS = [
-  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", // Primary (fast vision)
-  "nvidia/nemotron-nano-12b-v2-vl:free",                 // Fallback 1 (VL)
-  "google/gemma-4-26b-a4b-it:free",                      // Fallback 2
-  ...(process.env.NODE_ENV === "development"
-    ? ["poolside/laguna-m.1:free", "openai/gpt-oss-20b:free"]
-    : []),
+  "google/gemma-4-26b-a4b-it:free",                        // Primary (fast, accurate)
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",    // Fallback (only on errors)
 ];
 
 /* ===== Reasoning & Validation Models (Hy3) =====
- * Used only as a last resort when the vision models fail to produce a usable
- * result, or for deep re-validation of low-confidence extractions. */
+ * Used only as a last resort when the vision model fails to produce a usable
+ * result (no classes at all). */
 const VALIDATION_MODELS = [
-  "tencent/hy3:free",                             // Primary
-  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", // Fallback
-  ...(process.env.NODE_ENV === "development"
-    ? ["poolside/laguna-m.1:free"]
-    : []),
+  "tencent/hy3:free",                            // Primary
+  "google/gemma-4-26b-a4b-it:free",              // Fallback
 ];
 
-const RETRY_DELAYS = [1000, 3000];
+const RETRY_DELAYS = [1000];
 
 /**
  * Single, concise extraction prompt. Day abbreviation expansion is delegated to
@@ -124,7 +118,7 @@ async function callOpenRouter(model: string, messages: unknown[]) {
       model,
       messages,
       temperature: 0.1,
-      max_tokens: 4096,
+      max_tokens: 2048,
     }),
   });
 
@@ -162,7 +156,6 @@ function parseAiResponse(data: unknown) {
   const obj = data as { choices?: { message: { content: string } }[] };
   const first = obj.choices?.[0];
   const text = first?.message?.content;
-  console.log("[AI] Response:", String(text).substring(0, 200));
 
   if (!text) {
     console.error("[AI] No content in response:", JSON.stringify(data));

@@ -66,12 +66,12 @@ export function useUpload() {
           clearInterval(interval);
           reject(err);
         }
-      }, 1500);
+      }, 1000);
 
       setTimeout(() => {
         clearInterval(interval);
         reject(new Error("Processing timed out. Please try again."));
-      }, 120_000);
+      }, 300_000);
     });
 
   const uploadFile = (file: File, ocrText?: string): Promise<Record<string, unknown>> => {

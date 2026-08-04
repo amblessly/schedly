@@ -11,7 +11,7 @@ export function VerifiedSuccess() {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          window.location.href = "/schedule";
+          window.location.href = "/dashboard";
           return 0;
         }
         return prev - 1;

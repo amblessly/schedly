@@ -48,7 +48,7 @@ export default function AuthLayout({
           </p>
         </div>
       </div>
-      <div className="flex w-full items-center justify-center bg-background p-4 lg:w-1/2 lg:p-8">
+      <div className="flex w-full items-center justify-center bg-transparent p-4 lg:w-1/2 lg:p-8">
         <div className="w-full max-w-md">
           <div className="mb-8 flex items-center justify-between lg:hidden">
             <Link href="/" className="inline-flex items-center gap-2">

@@ -67,7 +67,7 @@ export default function PomodoroPage() {
   };
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="mx-auto max-w-md pt-8 md:pt-0">
       <div className="mb-6 sm:mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
           Pomodoro Timer

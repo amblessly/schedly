@@ -64,7 +64,7 @@ export function BottomNav() {
       )}
       style={{ paddingBottom: "calc(1rem + var(--sab))" }}
     >
-      <div className="bottom-nav flex w-full max-w-md items-stretch justify-around gap-1 rounded-full border border-border/70 bg-card/95 px-2 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.18)] backdrop-blur-md">
+      <div className="bottom-nav flex items-center justify-center gap-1 rounded-full border border-border/70 bg-card/95 px-16 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.18)] backdrop-blur-md">
         {items.map((item) => {
           const Icon = iconMap[item.icon] || Calendar;
           const active =
@@ -73,30 +73,18 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch
               aria-current={active ? "page" : undefined}
+              aria-label={item.label}
+              title={item.label}
               className={cn(
-                "relative flex min-h-[48px] min-w-[52px] flex-1 flex-col items-center justify-center gap-1 rounded-full px-2 py-1.5 transition-colors",
+                "relative flex h-10 w-10 items-center justify-center rounded-full transition-colors",
                 active
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <span
-                className={cn(
-                  "flex h-8 w-12 items-center justify-center rounded-full transition-all duration-200",
-                  active && "bg-primary/12"
-                )}
-              >
-                <Icon className="h-[22px] w-[22px]" />
-              </span>
-              <span
-                className={cn(
-                  "text-[11px] font-medium leading-none tracking-tight",
-                  active ? "font-semibold" : "font-normal"
-                )}
-              >
-                {item.label.split(" ")[0]}
-              </span>
+              <Icon className="h-6 w-6" strokeWidth={active ? 2 : 1.75} />
             </Link>
           );
         })}

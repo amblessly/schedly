@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useUpload } from "@/features/upload";
 import { ScheduleReview } from "@/features/upload";
@@ -14,11 +13,10 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Camera, Image, AlertCircle, CheckCircle, ArrowLeft,
-  Plus, Calendar, ChevronRight, Trash2, Upload, Loader2,
+  Plus, Calendar, Trash2, Upload, Loader2,
 } from "lucide-react";
 import { validateExtractedClasses, type ValidationIssue } from "@/server/services/validation.service";
 import { publishScheduleToWidget } from "@/features/widget/widget-data";
-import { useMounted } from "@/lib/use-mounted";
 import {
   getReviewState,
   getReviewImage,
@@ -62,23 +60,12 @@ type Phase = "list" | "view" | "upload-select" | "review";
 
 export default function SchedulePage() {
   const { user, isLoading: authLoading } = useAuth();
-  const router = useRouter();
   const u = user as UserWithExtras | null;
 
   const [phase, setPhase] = useState<Phase>("list");
   const [schedules, setSchedules] = useState<ScheduleData[]>([]);
   const [loadingSchedules, setLoadingSchedules] = useState(true);
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleData | null>(null);
-
-  // Time-based greeting must be computed after mount — Date.now() differs
-  // between the server and the client, which would break hydration.
-  const mounted = useMounted();
-  const greeting = !mounted
-    ? ""
-    : (() => {
-        const h = new Date().getHours();
-        return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-      })();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -132,8 +119,6 @@ export default function SchedulePage() {
       saveReviewImage(userId, previewUrl);
     }
   }, [reviewReady, userId, previewUrl]);
-
-  const firstName = u?.firstName || "User";
 
   const handleViewSchedule = async (scheduleId: string) => {
     const data = await getSchedule(scheduleId);
@@ -196,12 +181,12 @@ export default function SchedulePage() {
     clearReviewState(userId);
     const data = await getUserSchedules();
     const schedules = data as ScheduleData[];
+    setSchedules(schedules);
     const active =
       schedules.find((s) => s.isActive && s.classes.length > 0) ??
       schedules.find((s) => s.classes.length > 0) ??
       null;
     publishScheduleToWidget(active);
-    router.push("/schedule");
   };
 
   const handleBackToList = () => {
@@ -237,12 +222,10 @@ export default function SchedulePage() {
   }, [isAiWorking]);
 
   return (
-    <div className="flex flex-col bg-background">
-      <main className="flex-1 p-4 sm:p-6">
-        <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-4xl pt-8 md:pt-0">
           <div className="mb-6 sm:mb-8">
             <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              {greeting}, {firstName}
+              Schedule
             </h1>
             <p className="mt-1 text-sm text-muted-foreground sm:text-base">
               {phase === "list"
@@ -300,9 +283,7 @@ export default function SchedulePage() {
               <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-16 text-center">
                 {!selectedFile ? (
                   <>
-                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-                      <Calendar className="h-7 w-7 text-primary/70" />
-                    </div>
+                    <Calendar className="mb-3 h-8 w-8 text-muted-foreground/40" />
                     <h3 className="text-lg font-semibold text-foreground">Upload your schedule</h3>
                     <p className="mt-1 max-w-xs text-sm text-muted-foreground leading-relaxed">
                       Schedly will extract your classes automatically.
@@ -444,9 +425,7 @@ export default function SchedulePage() {
                 </div>
               ) : schedules.length === 0 ? (
                 <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-16 text-center">
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-                    <Calendar className="h-7 w-7 text-primary/70" />
-                  </div>
+                  <Calendar className="mb-3 h-8 w-8 text-muted-foreground/40" />
                   <h3 className="text-lg font-semibold text-foreground">No schedules yet</h3>
                   <p className="mt-1 max-w-xs text-sm leading-relaxed text-muted-foreground">
                     Upload a photo of your class schedule and let Schedly extract your timetable automatically.
@@ -465,15 +444,24 @@ export default function SchedulePage() {
                       onClick={() => handleViewSchedule(schedule.id)}
                     >
                       <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between">
-                          <CardTitle className="text-base">{schedule.title}</CardTitle>
-                          <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <CardTitle className="truncate text-base">{schedule.title}</CardTitle>
+                            {(schedule.semester || schedule.academicYear) && (
+                              <p className="mt-0.5 text-xs text-muted-foreground">
+                                {[schedule.semester, schedule.academicYear].filter(Boolean).join(" · ")}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleDeleteSchedule(schedule.id); }}
+                            className="shrink-0 rounded-md p-1 text-muted-foreground/60 transition-colors hover:text-destructive"
+                            aria-label={`Delete ${schedule.title}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
-                        {(schedule.semester || schedule.academicYear) && (
-                          <p className="text-xs text-muted-foreground">
-                            {[schedule.semester, schedule.academicYear].filter(Boolean).join(" · ")}
-                          </p>
-                        )}
                       </CardHeader>
                       <CardContent>
                         <div className="flex flex-wrap items-center gap-2">
@@ -489,16 +477,6 @@ export default function SchedulePage() {
                             <Badge variant="outline" className="text-[10px]">+{schedule.classes.length - 3}</Badge>
                           )}
                         </div>
-                        <div className="mt-3 flex justify-end">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-9 text-destructive hover:text-destructive"
-                            onClick={(e) => { e.stopPropagation(); handleDeleteSchedule(schedule.id); }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -512,15 +490,13 @@ export default function SchedulePage() {
             <button
               type="button"
               onClick={() => setPhase("upload-select")}
-              className="fixed bottom-28 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition-transform active:scale-95 sm:hidden md:bottom-6"
+              className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition-transform active:scale-95 sm:hidden md:bottom-6"
               aria-label="New schedule"
               style={{ marginBottom: "var(--sab)" }}
             >
-              <Plus className="h-6 w-6" />
+              <Plus className="h-5 w-5" />
             </button>
           )}
-        </div>
-      </main>
     </div>
   );
 }

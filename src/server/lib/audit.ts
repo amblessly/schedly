@@ -8,6 +8,8 @@ type AuditAction =
   | "schedule.delete"
   | "upload.create"
   | "feedback.submit"
+  | "widget.token_create"
+  | "widget.token_regenerate"
   | "admin.action";
 
 export function auditLog(action: AuditAction, metadata?: Record<string, unknown>) {
