@@ -66,15 +66,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const logoTicking = useRef(false);
 
   useEffect(() => {
-    const el = document.querySelector("main");
-    if (!el) return;
-
     const onScroll = () => {
       if (logoTicking.current) return;
       logoTicking.current = true;
       requestAnimationFrame(() => {
         logoTicking.current = false;
-        const y = el.scrollTop;
+        const y = window.scrollY;
         const delta = y - logoLastY.current;
         if (Math.abs(delta) > 4) {
           setLogoHidden(delta > 0 && y > 80);
@@ -83,8 +80,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       });
     };
 
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   // Close the mobile drawer on every navigation so it never stays open
@@ -94,10 +91,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     setOpen(false);
   }, [pathname]);
 
-  // Reset the scroll container on navigation so the next page starts at the
+  // Reset the scroll position on navigation so the next page starts at the
   // top instead of resuming where the previous page left off.
   useEffect(() => {
-    document.querySelector("main")?.scrollTo({ top: 0, behavior: "instant" });
+    window.scrollTo({ top: 0, behavior: "instant" });
   }, [pathname]);
 
   if (needsOnboarding) {
@@ -116,7 +113,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className="relative flex h-dvh-fallback overflow-hidden"
+      className="relative flex min-h-dvh-fallback"
       style={{
         ...themeVars,
         backgroundColor: "#fff",
@@ -160,26 +157,21 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </button>
       )}
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col">
         <main
           onClick={() => setOpen(false)}
           className={[
-            "flex-1 touch-pan-y overflow-x-hidden overscroll-x-none",
-            isImmersive
-              ? "overflow-y-auto p-0 md:p-6 md:pt-20"
-              : isSettings
-                ? "overflow-y-auto p-4 pt-16 pb-8 sm:p-6 sm:pt-16 md:pt-20 md:pb-4"
-                : "overflow-y-auto p-4 pt-16 pb-28 sm:p-6 sm:pt-16 md:pt-20 md:pb-4",
-            "transition-transform duration-300 ease-out",
+            "flex-1 transition-transform duration-300 ease-out",
+            isImmersive ? "" : "px-4 pt-16 pb-28 sm:px-6 sm:pt-16 md:pt-20 md:pb-4",
             open ? "md:-translate-x-[304px]" : "md:translate-x-0",
           ].join(" ")}
         >
           {isImmersive ? (
-            <>{children}</>
-          ) : (
-            <div className="mx-auto flex h-full w-full max-w-3xl md:w-full">
-              <div className="m-auto w-full">{children}</div>
+            <div className="h-dvh-fallback overflow-y-auto p-0 md:p-6 md:pt-20">
+              {children}
             </div>
+          ) : (
+            <div className="mx-auto w-full max-w-3xl md:w-full">{children}</div>
           )}
         </main>
       </div>

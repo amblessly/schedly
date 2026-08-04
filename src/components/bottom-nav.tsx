@@ -32,15 +32,13 @@ export function BottomNav() {
 
   useEffect(() => {
     if (window.matchMedia("(min-width: 768px)").matches) return;
-    const el = document.querySelector("main");
-    if (!el) return;
 
     const onScroll = () => {
       if (ticking.current) return;
       ticking.current = true;
       requestAnimationFrame(() => {
         ticking.current = false;
-        const y = el.scrollTop;
+        const y = window.scrollY;
         const delta = y - lastY.current;
         if (Math.abs(delta) > 4) {
           setHidden(delta > 0 && y > 80);
@@ -49,8 +47,8 @@ export function BottomNav() {
       });
     };
 
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   return (

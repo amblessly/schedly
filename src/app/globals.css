@@ -165,6 +165,13 @@ body {
   height: 100dvh;
 }
 
+/* Minimum full viewport height with a safe fallback: pages grow with
+   their content, but always fill at least the device viewport. */
+.min-h-dvh-fallback {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
 /* Custom themed scrollbar — desktop only (mobile stays hidden) */
 @media (min-width: 768px) {
   /* Always render the window scrollbar so the custom track is visible */
