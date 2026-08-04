@@ -113,7 +113,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className="relative flex h-screen overflow-hidden"
+      className="relative flex h-dvh-fallback overflow-hidden"
       style={{
         ...themeVars,
         backgroundColor: "#fff",
@@ -164,7 +164,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             "flex-1 touch-pan-y overflow-x-hidden overscroll-x-none",
             isImmersive
               ? "overflow-y-auto p-0 md:p-6 md:pt-20"
-              : "overflow-hidden p-4 pt-16 pb-28 sm:p-6 sm:pt-16 md:pt-20 md:pb-4 [&:has(.allow-scroll)]:overflow-y-auto",
+              : "overflow-y-auto p-4 pt-16 pb-28 sm:p-6 sm:pt-16 md:pt-20 md:pb-4",
             "transition-transform duration-300 ease-out",
             open ? "md:-translate-x-[304px]" : "md:translate-x-0",
           ].join(" ")}
