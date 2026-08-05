@@ -326,11 +326,10 @@ export default function DashboardPage() {
       </div>
 
       {/* At a Glance */}
-      <div className="grid grid-cols-2 items-stretch gap-3">
-        {/* Next Class — stretches to the same height as the To-Dos + Free Time
-            column; one subject per snap page, scroll inside the card to see
-            the rest. */}
-        <Card className="flex h-full flex-col border-border/50 [--card-spacing:--spacing(5)]">
+      <div className="grid grid-cols-2 items-start gap-3">
+        {/* Next Class — compact: shows roughly one subject, scroll inside the
+            card to see the rest (height never grows with content). */}
+        <Card className="border-border/50 [--card-spacing:--spacing(5)]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Next Class
@@ -344,7 +343,7 @@ export default function DashboardPage() {
               <CalendarClock className="h-4 w-4 text-primary" />
             </div>
           </CardHeader>
-          <CardContent className="flex min-h-0 flex-1 flex-col">
+          <CardContent>
             {schedules === null ? (
               <div className="space-y-2">
                 <Skeleton className="h-6 w-24" />
@@ -352,7 +351,7 @@ export default function DashboardPage() {
                 <Skeleton className="h-3 w-20" />
               </div>
             ) : upcomingClasses.length > 0 ? (
-              <ul className="min-h-0 flex-1 snap-y snap-mandatory space-y-2 overflow-y-auto pr-1">
+              <ul className="max-h-[112px] space-y-2 overflow-y-auto pr-1">
                 {upcomingClasses.map((item, i) => {
                   const { class: c, startMs, endMs, dayLabel, isNear } = item;
                   const happeningNow = startMs <= 0;
@@ -361,7 +360,7 @@ export default function DashboardPage() {
                   return (
                     <li
                       key={`${c.id}-${dayLabel}-${startMs}`}
-                      className={`flex h-full snap-start flex-col justify-center rounded-xl border p-3 ${
+                      className={`rounded-xl border p-3 ${
                         featured ? "border-primary/25 bg-primary/[0.04]" : "border-border/40"
                       }`}
                     >
