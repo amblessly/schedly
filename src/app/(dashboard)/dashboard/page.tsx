@@ -36,6 +36,7 @@ import {
   Sparkles,
   Plus,
   ChevronRight,
+  Sunrise,
 } from "lucide-react";
 import { publishScheduleToWidget } from "@/features/widget/widget-data";
 import { useMounted } from "@/lib/use-mounted";
@@ -246,6 +247,63 @@ export default function DashboardPage() {
     null
   );
 
+  // Morning Briefing — a 5-second summary of the day. Signature dashboard feature.
+  const briefingTitle = !mounted
+    ? "Morning Briefing"
+    : (() => {
+        const h = new Date().getHours();
+        return h < 12 ? "Morning" : h < 18 ? "Afternoon" : "Evening";
+      })();
+  const nextClass = upcomingClasses[0];
+  const firstClassToday = todaysClasses[0];
+  const briefingLines: { icon: string; text: string }[] = [];
+
+  if (nextClass) {
+    const n = nextClass.class.shortName?.trim() || nextClass.class.code?.trim() || nextClass.class.subject;
+    briefingLines.push({
+      icon: "📚",
+      text: `Next class: ${n} at ${formatClockTime(nextClass.class.startTime)}`,
+    });
+  } else {
+    briefingLines.push({ icon: "📚", text: "No classes coming up." });
+  }
+
+  if (todaysClasses.length > 0) {
+    briefingLines.push({
+      icon: "⏰",
+      text: `You have ${todaysClasses.length} class${todaysClasses.length !== 1 ? "es" : ""} today.`,
+    });
+  } else {
+    briefingLines.push({ icon: "⏰", text: "No classes today." });
+  }
+
+  if (firstClassToday) {
+    briefingLines.push({
+      icon: "☕",
+      text: `You're free until ${formatClockTime(firstClassToday.startTime)}.`,
+    });
+  } else {
+    briefingLines.push({ icon: "☕", text: "You're free all day." });
+  }
+
+  if (todaysTodos.length > 0) {
+    briefingLines.push({
+      icon: "✅",
+      text: `${todaysTodos.length} task${todaysTodos.length !== 1 ? "s" : ""} due today.`,
+    });
+  } else {
+    briefingLines.push({ icon: "✅", text: "No tasks due today." });
+  }
+
+  if (busyDay) {
+    briefingLines.push({
+      icon: "💡",
+      text: `${DAY_FULL[busyDay.day]} is your busiest day this week.`,
+    });
+  } else {
+    briefingLines.push({ icon: "💡", text: "Your week looks balanced." });
+  }
+
   const handleGenerateInsights = async () => {
     if (aiLoading) return;
     setAiLoading(true);
@@ -324,6 +382,34 @@ export default function DashboardPage() {
           Here&apos;s your day at a glance.
         </p>
       </div>
+
+      {/* Morning Briefing — the 5-second summary of the day */}
+      <Card className="border-border/50 bg-primary/[0.03] [--card-spacing:--spacing(5)]">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            {briefingTitle} Briefing
+          </CardTitle>
+          <Sunrise className="h-4 w-4 text-primary" />
+        </CardHeader>
+        <CardContent>
+          {schedules === null ? (
+            <div className="space-y-2">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-4 w-full rounded-md" />
+              ))}
+            </div>
+          ) : (
+            <ul className="space-y-1.5">
+              {briefingLines.map((line, i) => (
+                <li key={i} className="flex items-start gap-2.5 text-sm">
+                  <span className="w-5 shrink-0 text-center leading-6">{line.icon}</span>
+                  <span className="leading-6 text-foreground">{line.text}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       {/* At a Glance */}
       <div className="grid grid-cols-2 items-start gap-3">
