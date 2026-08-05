@@ -31,7 +31,6 @@ import {
   MapPin,
   GraduationCap,
   Coffee,
-  Bell,
 } from "lucide-react";
 import { publishScheduleToWidget } from "@/features/widget/widget-data";
 import { useMounted } from "@/lib/use-mounted";
@@ -82,26 +81,6 @@ function fmtDuration(ms: number) {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   return m ? `${h}h ${m}m` : `${h}h`;
-}
-
-function reminderKind(c: ClassData, nowMin: number): "done" | "now" | "upcoming" {
-  const start = toMin(c.startTime);
-  const end = toMin(c.endTime);
-  if (end <= nowMin) return "done";
-  if (start <= nowMin) return "now";
-  return "upcoming";
-}
-
-function reminderLabel(c: ClassData, nowMin: number): string {
-  const start = toMin(c.startTime);
-  const end = toMin(c.endTime);
-  if (end <= nowMin) return "Done";
-  if (start <= nowMin) return `Ends in ${end - nowMin}m`;
-  const diff = start - nowMin;
-  if (diff < 60) return `In ${diff}m`;
-  const h = Math.floor(diff / 60);
-  const m = diff % 60;
-  return m ? `In ${h}h ${m}m` : `In ${h}h`;
 }
 
 function getNextClass(classes: ClassData[]) {
@@ -195,12 +174,6 @@ export default function DashboardPage() {
     null
   );
 
-  // Today's classes, earliest first — feeds the "Reminders Today" card.
-  const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
-  const todaysClasses = allClasses
-    .filter((c) => c.days.includes(todayDay))
-    .sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
-
   const handleDownload = async () => {
       const node = captureRef.current || scheduleRef.current;
       if (!node) return;
@@ -264,69 +237,7 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Your Schedule — the center of the app */}
-      <div>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">Your Schedule</h2>
-          {schedules && schedules.length > 0 && (
-            <Button variant="outline" size="sm" onClick={handleDownload} disabled={downloading}>
-              {downloading ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
-              ) : (
-                <><Download className="mr-2 h-4 w-4" /> Download image</>
-              )}
-            </Button>
-          )}
-        </div>
-
-        {schedules === null ? (
-          <div className="space-y-3">
-            <div className="grid grid-cols-7 gap-1">
-              {Array.from({ length: 7 }).map((_, i) => (
-                <Skeleton key={i} className="h-6 w-full" />
-              ))}
-            </div>
-            <div className="grid grid-cols-7 gap-1">
-              {Array.from({ length: 21 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          </div>
-        ) : schedules.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-16 text-center">
-            <GraduationCap className="mb-3 h-10 w-10 text-muted-foreground/40" />
-            <p className="text-sm font-medium text-foreground">No schedule yet</p>
-            <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-              Upload a photo of your class schedule and your timetable will appear here
-              automatically.
-            </p>
-            <Button className="mt-5" onClick={() => (window.location.href = "/schedule")}>
-              Upload Schedule
-            </Button>
-          </div>
-        ) : (
-          <>
-            <div ref={scheduleRef}>
-              <SchedulePreview classes={allClasses} filename="schedule.png" />
-            </div>
-            <div
-              ref={captureRef}
-              aria-hidden
-              style={{
-                position: "fixed",
-                left: "-99999px",
-                top: 0,
-                pointerEvents: "none",
-                opacity: 1,
-              }}
-            >
-              <SchedulePreview classes={allClasses} filename="schedule.png" capture />
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Today at a glance */}
+      {/* At a Glance */}
       <div className="grid grid-cols-2 items-start gap-3">
         {/* Next Class */}
         <Card className="border-border/50 [--card-spacing:--spacing(5)]">
@@ -404,7 +315,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Free time today */}
-        <Card className="border-border/50 [--card-spacing:--spacing(5)]">
+        <Card className="border-border/50 sm:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Free Time Today
@@ -434,61 +345,74 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
-
-        {/* Reminders today */}
-        <Card className="border-border/50 [--card-spacing:--spacing(5)]">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Reminders Today
-            </CardTitle>
-            <Bell className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            {schedules === null ? (
-              <Skeleton className="h-4 w-40" />
-            ) : todaysClasses.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nothing scheduled today</p>
-            ) : (
-              <ul className="space-y-1.5">
-                {todaysClasses.slice(0, 4).map((c) => {
-                  const kind = reminderKind(c, nowMin);
-                  return (
-                    <li key={c.id} className="flex items-center gap-2 text-sm">
-                      <span
-                        className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${
-                          kind === "done"
-                            ? "bg-muted text-muted-foreground"
-                            : kind === "now"
-                              ? "bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300"
-                              : "bg-primary/10 text-primary"
-                        }`}
-                      >
-                        {formatClock(toMin(c.startTime))}
-                      </span>
-                      <span className={`truncate ${kind === "done" ? "text-muted-foreground" : "text-foreground"}`}>
-                        {c.shortName?.trim() || c.code?.trim() || c.subject}
-                      </span>
-                      <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
-                        {reminderLabel(c, nowMin)}
-                      </span>
-                    </li>
-                  );
-                })}
-                {todaysClasses.length > 4 && (
-                  <li className="text-xs text-muted-foreground">
-                    +{todaysClasses.length - 4} more
-                  </li>
-                )}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
       </div>
 
       {/* Schedule Insights */}
       {schedules && allClasses.length > 0 && (
         <ScheduleInsightsCards insights={insights} />
       )}
+
+      {/* Generated Schedule Table */}
+      <div>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground">Your Schedule</h2>
+          {schedules && schedules.length > 0 && (
+            <Button variant="outline" size="sm" onClick={handleDownload} disabled={downloading}>
+              {downloading ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
+              ) : (
+                <><Download className="mr-2 h-4 w-4" /> Download image</>
+              )}
+            </Button>
+          )}
+        </div>
+
+        {schedules === null ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <Skeleton key={i} className="h-6 w-full" />
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({ length: 21 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          </div>
+        ) : schedules.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-16 text-center">
+            <GraduationCap className="mb-3 h-10 w-10 text-muted-foreground/40" />
+            <p className="text-sm font-medium text-foreground">No schedule yet</p>
+            <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+              Upload a photo of your class schedule and your timetable will appear here
+              automatically.
+            </p>
+            <Button className="mt-5" onClick={() => (window.location.href = "/schedule")}>
+              Upload Schedule
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div ref={scheduleRef}>
+              <SchedulePreview classes={allClasses} filename="schedule.png" />
+            </div>
+            <div
+              ref={captureRef}
+              aria-hidden
+              style={{
+                position: "fixed",
+                left: "-99999px",
+                top: 0,
+                pointerEvents: "none",
+                opacity: 1,
+              }}
+            >
+              <SchedulePreview classes={allClasses} filename="schedule.png" capture />
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
