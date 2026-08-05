@@ -72,13 +72,13 @@ export function validateExtractedClasses(classes: ExtractedClassInput[]): Valida
       const b = classes[j];
       if (!a || !b) continue;
 
+      const aStart = toMinutes(a.startTime);
+      const aEnd = toMinutes(a.endTime);
+      const bStart = toMinutes(b.startTime);
+      const bEnd = toMinutes(b.endTime);
       const sharedDays = a.days.filter((d) => b.days.includes(d));
-      if (sharedDays.length > 0) {
-        const aStart = toMinutes(a.startTime);
-        const aEnd = toMinutes(a.endTime);
-        const bStart = toMinutes(b.startTime);
-        const bEnd = toMinutes(b.endTime);
 
+      if (sharedDays.length > 0) {
         if (aStart !== null && aEnd !== null && bStart !== null && bEnd !== null && aStart < bEnd && bStart < aEnd) {
           issues.push({
             type: "overlap",
@@ -89,15 +89,25 @@ export function validateExtractedClasses(classes: ExtractedClassInput[]): Valida
         }
       }
 
-      const sameSubject = a.subject?.toLowerCase() === b.subject?.toLowerCase();
-      const sameCode = a.code && b.code && a.code.toLowerCase() === b.code.toLowerCase();
+      const sameSubject = normalizeSubject(a.subject) === normalizeSubject(b.subject);
+      const sameCode =
+        a.code && b.code && a.code.toLowerCase() === b.code.toLowerCase();
       const sameDays = a.days.length === b.days.length && a.days.every((d) => b.days.includes(d));
+      const timesOverlap =
+        aStart !== null && aEnd !== null && bStart !== null && bEnd !== null &&
+        aStart < bEnd && bStart < aEnd;
 
-      if (sameSubject && sameCode && sameDays) {
+      // A duplicate is either the exact same class (subject + code + days) or the
+      // same subject booked at the same time on shared days (covers missing codes).
+      const isDuplicate =
+        (sameSubject && sameCode && sameDays) ||
+        (sameSubject && timesOverlap && sharedDays.length > 0);
+
+      if (isDuplicate) {
         issues.push({
           type: "duplicate",
           severity: "warning",
-          message: `"${a.subject}" appears to be a duplicate of class ${j + 1}`,
+          message: `"${a.subject}" appears to be a duplicate of class ${j + 1} (${a.startTime} → ${a.endTime})`,
           classIndices: [i, j],
         });
       }
@@ -118,4 +128,8 @@ function toMinutes(time: string): number | null {
   const m = Number(parts[1]);
   if (isNaN(h) || isNaN(m)) return null;
   return h * 60 + m;
+}
+
+function normalizeSubject(subject: string | undefined | null): string {
+  return (subject ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }

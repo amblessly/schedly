@@ -96,6 +96,16 @@ export function ScheduleReview({
 
   const validCount = classes.filter((c) => c.subject.trim() && c.days.length > 0).length;
 
+  // Group validation issues per class row so each card can flag its own conflicts.
+  const issuesByIndex: Record<number, ValidationIssue[]> = {};
+  for (const issue of validationIssues) {
+    for (const idx of issue.classIndices) {
+      (issuesByIndex[idx] ??= []).push(issue);
+    }
+  }
+  const rowHasError = (i: number) => issuesByIndex[i]?.some((x) => x.severity === "error") ?? false;
+  const rowHasWarning = (i: number) => (issuesByIndex[i]?.length ?? 0) > 0 && !rowHasError(i);
+
   return (
     <div className="space-y-4">
       {typeof confidence === "number" && (
@@ -189,11 +199,17 @@ export function ScheduleReview({
           const isExpanded = expandedIndex === i;
           const isValid = cls.subject.trim() && cls.days.length > 0;
           const accent = isValid ? PALETTE[i % PALETTE.length] : "#ef4444";
+          const rowIssues = issuesByIndex[i] ?? [];
+          const hasError = rowHasError(i);
+          const hasWarning = rowHasWarning(i);
           return (
             <Card
               key={i}
               className={`overflow-hidden transition-colors ${
-                !isValid ? "border-red-200 dark:border-red-800" : ""
+                !isValid ? "border-red-200 dark:border-red-800"
+                : hasError ? "border-red-300 dark:border-red-700"
+                : hasWarning ? "border-amber-300 dark:border-amber-700"
+                : ""
               }`}
             >
               <CardHeader
@@ -212,6 +228,18 @@ export function ScheduleReview({
                       <p className="truncate text-sm font-semibold text-foreground">
                         {cls.subject || "Untitled Class"}
                       </p>
+                      {rowIssues.length > 0 && (
+                        <span
+                          className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                            hasError
+                              ? "bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-300"
+                              : "bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300"
+                          }`}
+                          title={rowIssues.map((x) => x.message).join("\n")}
+                        >
+                          {rowIssues.length} conflict{rowIssues.length !== 1 ? "s" : ""}
+                        </span>
+                      )}
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
                       {cls.code && (
@@ -245,6 +273,20 @@ export function ScheduleReview({
               </CardHeader>
               {isExpanded && (
                 <CardContent className="px-4 pb-4 pt-0 space-y-3">
+                    {rowIssues.length > 0 && (
+                      <div className="space-y-1 rounded-lg border border-red-200 bg-red-50/60 px-2.5 py-2 dark:border-red-800 dark:bg-red-950/40">
+                        {rowIssues.map((issue, k) => (
+                          <p key={k} className="flex items-start gap-1.5 text-[11px] leading-snug text-red-700 dark:text-red-300">
+                            {issue.severity === "error" ? (
+                              <XCircle className="mt-0.5 h-3 w-3 shrink-0 text-red-500" />
+                            ) : (
+                              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-amber-500" />
+                            )}
+                            <span>{issue.message}</span>
+                          </p>
+                        ))}
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">Subject *</Label>
