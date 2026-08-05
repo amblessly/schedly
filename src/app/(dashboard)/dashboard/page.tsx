@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, type FormEvent } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import html2canvas from "html2canvas-pro";
@@ -35,8 +35,6 @@ import {
   Coffee,
   Sparkles,
   Plus,
-  Camera,
-  Bell,
   ChevronRight,
 } from "lucide-react";
 import { publishScheduleToWidget } from "@/features/widget/widget-data";
@@ -164,10 +162,9 @@ const GallerySave = registerPlugin<GallerySavePlugin>("GallerySave");
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { todos, addTodo } = useTodos();
+  const { todos } = useTodos();
   const [schedules, setSchedules] = useState<ScheduleData[] | null>(null);
   const [downloading, setDownloading] = useState(false);
-  const [newTodo, setNewTodo] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<string[] | null>(null);
@@ -245,14 +242,6 @@ export default function DashboardPage() {
     (best, p) => (best === null || p.durationMinutes > best.durationMinutes ? p : best),
     null
   );
-
-  const handleAddTodo = (e: FormEvent) => {
-    e.preventDefault();
-    const text = newTodo.trim();
-    if (!text) return;
-    addTodo(text, "medium", todayStr);
-    setNewTodo("");
-  };
 
   const handleGenerateInsights = async () => {
     if (aiLoading) return;
@@ -437,19 +426,20 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Today's To-Dos */}
-        <Card className="border-border/50 [--card-spacing:--spacing(5)]">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              To-Dos Today
-            </CardTitle>
-            <ListTodo className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            {todaysTodos.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nothing due today</p>
-            ) : (
-              <>
+        {/* Right column: To-Dos always directly above Free Time */}
+        <div className="flex flex-col gap-3">
+          {/* Today's To-Dos */}
+          <Card className="border-border/50 [--card-spacing:--spacing(5)]">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                To-Dos Today
+              </CardTitle>
+              <ListTodo className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              {todaysTodos.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nothing due today</p>
+              ) : (
                 <ul className="space-y-1.5">
                   {todaysTodos.slice(0, 3).map((t) => (
                     <li key={t.id} className="flex items-center gap-2 text-xs">
@@ -464,74 +454,66 @@ export default function DashboardPage() {
                     </li>
                   ))}
                 </ul>
+              )}
+              <div className="mt-2 flex items-center justify-between">
+                <Link
+                  href="/todo"
+                  className="inline-flex items-center gap-0.5 text-xs font-medium text-primary"
+                >
+                  <Plus className="h-3 w-3" /> Add a task
+                </Link>
                 {todaysTodos.length > 3 && (
                   <Link
                     href="/todo"
-                    className="mt-2 inline-flex items-center gap-0.5 text-xs font-medium text-primary"
+                    className="inline-flex items-center gap-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
                   >
-                    View all {todaysTodos.length} tasks <ChevronRight className="h-3 w-3" />
+                    View all {todaysTodos.length} <ChevronRight className="h-3 w-3" />
                   </Link>
                 )}
-              </>
-            )}
-            <form onSubmit={handleAddTodo} className="mt-3 flex items-center gap-1.5">
-              <input
-                value={newTodo}
-                onChange={(e) => setNewTodo(e.target.value)}
-                placeholder="Add a task for today…"
-                className="h-8 min-w-0 flex-1 rounded-md border border-border/60 bg-transparent px-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              <button
-                type="submit"
-                aria-label="Add task"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border/60 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-                disabled={!newTodo.trim()}
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-            </form>
-          </CardContent>
-        </Card>
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Free time today */}
-        <Card className="border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Free Time Today
-            </CardTitle>
-            <Coffee className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            {schedules === null ? (
-              <Skeleton className="h-4 w-40" />
-            ) : freeToday.isFullyFree ? (
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  You&apos;re free today
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  No schedule today — perfect time to relax or catch up on tasks.
-                </p>
-              </div>
-            ) : longestBreakToday ? (
-              <div className="flex items-end gap-2">
-                <span className="text-2xl font-bold tracking-tight text-foreground">
-                  {minutesToHoursLabel(longestBreakToday.durationMinutes)}
-                </span>
-                <span className="pb-1 text-xs text-muted-foreground">
-                  longest break · {formatClock(longestBreakToday.startMinutes)} – {formatClock(longestBreakToday.endMinutes)}
-                </span>
-              </div>
-            ) : (
-              <div>
-                <p className="text-sm font-semibold text-foreground">No long breaks today</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Packed day — squeeze in short breaks between classes.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          {/* Free time today */}
+          <Card className="border-border/50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Free Time Today
+              </CardTitle>
+              <Coffee className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              {schedules === null ? (
+                <Skeleton className="h-4 w-40" />
+              ) : freeToday.isFullyFree ? (
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    You&apos;re free today
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    No schedule today — perfect time to relax or catch up on tasks.
+                  </p>
+                </div>
+              ) : longestBreakToday ? (
+                <div className="flex items-end gap-2">
+                  <span className="text-2xl font-bold tracking-tight text-foreground">
+                    {minutesToHoursLabel(longestBreakToday.durationMinutes)}
+                  </span>
+                  <span className="pb-1 text-xs text-muted-foreground">
+                    longest break · {formatClock(longestBreakToday.startMinutes)} – {formatClock(longestBreakToday.endMinutes)}
+                  </span>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm font-semibold text-foreground">No long breaks today</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Packed day — squeeze in short breaks between classes.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Today's Schedule */}
@@ -602,36 +584,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         )}
-      </section>
-
-      {/* Quick Actions */}
-      <section aria-label="Quick actions">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">Quick Actions</h2>
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          <Link
-            href="/schedule"
-            className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-border/50 bg-card px-3 py-4 text-center transition-colors hover:border-primary/50 active:scale-touch"
-          >
-            <Camera className="h-5 w-5 text-primary" />
-            <span className="text-xs font-medium text-foreground">Scan Schedule</span>
-          </Link>
-          <Link
-            href="/todo"
-            className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-border/50 bg-card px-3 py-4 text-center transition-colors hover:border-primary/50 active:scale-touch"
-          >
-            <Plus className="h-5 w-5 text-primary" />
-            <span className="text-xs font-medium text-foreground">New To-Do</span>
-          </Link>
-          <Link
-            href="/reminders"
-            className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-border/50 bg-card px-3 py-4 text-center transition-colors hover:border-primary/50 active:scale-touch"
-          >
-            <Bell className="h-5 w-5 text-primary" />
-            <span className="text-xs font-medium text-foreground">New Reminder</span>
-          </Link>
-        </div>
       </section>
 
       {/* Insights — auto weekly insight + optional AI tips */}

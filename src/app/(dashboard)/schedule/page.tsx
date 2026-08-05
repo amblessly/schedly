@@ -398,13 +398,6 @@ export default function SchedulePage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Your Schedules</h2>
-                <Button
-                  size="sm"
-                  className="hidden h-9 px-3 sm:inline-flex"
-                  onClick={() => setPhase("upload-select")}
-                >
-                  <Plus className="mr-1 h-4 w-4" /> New Schedule
-                </Button>
               </div>
 
               {loadingSchedules ? (
@@ -490,12 +483,12 @@ export default function SchedulePage() {
             </div>
           )}
 
-          {/* Mobile FAB for New Schedule (list phase only) */}
+          {/* FAB for New Schedule (list phase only) */}
           {phase === "list" && (
             <button
               type="button"
               onClick={() => setPhase("upload-select")}
-              className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition-transform active:scale-95 sm:hidden md:bottom-6"
+              className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition-transform active:scale-95 md:bottom-6"
               aria-label="New schedule"
               style={{ marginBottom: "var(--sab)" }}
             >
