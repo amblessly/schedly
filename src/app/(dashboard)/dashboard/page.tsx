@@ -10,7 +10,6 @@ import { retry } from "@/lib/retry";
 import { SchedulePreview } from "@/features/schedule/components/schedule-preview";
 import { useTodos } from "@/features/todo/use-todos";
 import {
-  computeScheduleInsights,
   getFreeTimeToday,
   DAY_ORDER,
   DAY_FULL,
@@ -19,7 +18,6 @@ import {
   type InsightItem,
   type FreePeriod,
 } from "@/features/insights/compute-insights";
-import { ScheduleInsightsCards } from "@/features/insights/insight-cards";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,7 +30,6 @@ import {
   MapPin,
   GraduationCap,
   Coffee,
-  Bell,
   Sparkles,
   Plus,
 } from "lucide-react";
@@ -85,22 +82,6 @@ function fmtDuration(ms: number) {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   return m ? `${h}h ${m}m` : `${h}h`;
-}
-
-function reminderKind(c: ClassData): { label: string; cls: string } {
-  const now = new Date();
-  const dayIdx = DAY_NAMES.indexOf(c.days[0] ?? "");
-  if (dayIdx < 0) return { label: "Upcoming", cls: "text-slate-400" };
-  const diff = (dayIdx - now.getDay() + 7) % 7;
-  const start = new Date(now);
-  start.setDate(now.getDate() + diff);
-  start.setHours(c.startTime.getHours(), c.startTime.getMinutes(), 0, 0);
-  const ms = start.getTime() - now.getTime();
-  const dayLabel = c.days.length > 1 ? `${c.days.map((d) => d.slice(0, 3).toUpperCase()).join("/")}` : c.days[0]?.slice(0, 3).toUpperCase();
-  if (ms < 0) return { label: "Done", cls: "text-slate-400" };
-  if (diff === 0) return { label: "Today", cls: "text-emerald-600" };
-  if (diff === 1) return { label: `Tomorrow ${dayLabel}`, cls: "text-amber-600" };
-  return { label: `${dayLabel} ${formatClock(start.getHours() * 60 + start.getMinutes())}`, cls: "text-slate-400" };
 }
 
 function getNextClass(classes: ClassData[]) {
@@ -185,7 +166,6 @@ export default function DashboardPage() {
     startMinutes: toMin(c.startTime),
     endMinutes: toMin(c.endTime),
   }));
-  const insights = computeScheduleInsights(insightItems);
   const todayDay = DAY_ORDER[(new Date().getDay() + 6) % 7] ?? "monday";
   const freeToday = getFreeTimeToday(insightItems, todayDay);
 
@@ -197,11 +177,6 @@ export default function DashboardPage() {
     (best, p) => (best === null || p.durationMinutes > best.durationMinutes ? p : best),
     null
   );
-
-  const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
-  const todaysClasses = allClasses
-    .filter((c) => c.days.includes(todayDay))
-    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
 
   const handleAddTodo = (e: FormEvent) => {
     e.preventDefault();
@@ -292,8 +267,8 @@ export default function DashboardPage() {
 
       {/* At a Glance */}
       <div className="grid grid-cols-2 items-start gap-3">
-        {/* Next Class */}
-        <Card className="border-border/50 [--card-spacing:--spacing(5)]">
+        {/* Next Class — tall, spans both right-column cards */}
+        <Card className="row-span-2 h-full border-border/50 [--card-spacing:--spacing(5)]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Next Class
@@ -383,57 +358,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Reminders Today */}
-        <Card className="border-border/50 [--card-spacing:--spacing(5)]">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Reminders
-            </CardTitle>
-            <Bell className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            {schedules === null ? (
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-3 w-24" />
-              </div>
-            ) : todaysClasses.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No classes today</p>
-            ) : (
-              <ul className="space-y-2">
-                {todaysClasses.slice(0, 4).map((c, i) => {
-                  const startMin = c.startTime.getHours() * 60 + c.startTime.getMinutes();
-                  const endMin = c.endTime.getHours() * 60 + c.endTime.getMinutes();
-                  const isLive = nowMin >= startMin && nowMin <= endMin;
-                  const kind = reminderKind(c);
-                  return (
-                    <li key={`${c.subject}-${i}`} className="flex items-start gap-2 text-sm">
-                      <Clock className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${isLive ? "text-primary" : "text-muted-foreground/60"}`} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium text-foreground">
-                          {c.shortName?.trim() || c.code?.trim() || c.subject}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatClock(startMin)} – {formatClock(endMin)}
-                          {c.room ? ` · ${c.room}` : ""}
-                        </p>
-                      </div>
-                      <span className={`shrink-0 text-xs font-medium ${kind.cls}`}>
-                        {isLive ? "Now" : kind.label}
-                      </span>
-                    </li>
-                  );
-                })}
-                {todaysClasses.length > 4 && (
-                  <li className="text-xs text-muted-foreground">
-                    +{todaysClasses.length - 4} more
-                  </li>
-                )}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Free time today */}
         <Card className="border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -467,42 +391,50 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Schedule Insights */}
+      {/* AI Insights — cards only appear after generating */}
       {schedules && allClasses.length > 0 && (
-        <>
-          <ScheduleInsightsCards
-            insights={insights}
-            action={
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleGenerateInsights}
-                disabled={aiLoading}
-              >
-                {aiLoading ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating…</>
-                ) : (
-                  <><Sparkles className="mr-2 h-4 w-4 text-primary" /> Generate insights</>
-                )}
-              </Button>
-            }
-          />
-          {aiError && (
-            <p className="text-xs text-destructive">{aiError}</p>
+        <section aria-label="Schedule insights">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <h2 className="text-lg font-semibold text-foreground">Insights</h2>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGenerateInsights}
+              disabled={aiLoading}
+            >
+              {aiLoading ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating…</>
+              ) : (
+                <><Sparkles className="mr-2 h-4 w-4 text-primary" /> Generate insights</>
+              )}
+            </Button>
+          </div>
+
+          {aiError && <p className="text-xs text-destructive">{aiError}</p>}
+
+          {!aiLoading && !aiSuggestions && (
+            <p className="text-sm text-muted-foreground">
+              Tap “Generate insights” to get AI tips for your week — your best day
+              for plans, a routine to build, and more.
+            </p>
           )}
+
           {aiSuggestions && aiSuggestions.length > 0 && (
-            <Card className="border-border/50 [--card-spacing:--spacing(5)]">
-              <CardContent className="space-y-2">
-                {aiSuggestions.map((s, i) => (
-                  <div key={i} className="flex items-start gap-2.5 rounded-lg bg-primary/5 px-3 py-2.5">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {aiSuggestions.map((s, i) => (
+                <Card key={i} className="border-border/50 [--card-spacing:--spacing(5)]">
+                  <CardContent className="flex items-start gap-2.5">
                     <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                     <p className="text-sm leading-snug text-foreground">{s}</p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
-        </>
+        </section>
       )}
 
       {/* Generated Schedule Table */}
