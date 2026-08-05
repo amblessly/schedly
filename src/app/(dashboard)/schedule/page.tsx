@@ -248,8 +248,8 @@ export default function SchedulePage() {
                 </div>
               </div>
               {previewUrl && (
-                <div className="relative max-h-48 overflow-hidden rounded-xl bg-muted">
-                  <img src={previewUrl} alt="Uploaded schedule" className="h-full w-full object-contain" />
+                <div className="relative overflow-hidden rounded-xl bg-muted">
+                  <img src={previewUrl} alt="Uploaded schedule" className="mx-auto h-auto max-h-48 max-w-full object-contain" />
                 </div>
               )}
               <ScheduleReview
@@ -303,13 +303,18 @@ export default function SchedulePage() {
                   </>
                 ) : (
                   <div className="w-full max-w-md space-y-4">
-                    <div className="relative aspect-video overflow-hidden rounded-xl bg-muted">
+                    <div className="relative w-full overflow-hidden rounded-xl bg-muted">
                       {previewUrl ? (
                         <>
-                          <img src={previewUrl} alt="Schedule preview" className="h-full w-full object-contain" />
+                          <img src={previewUrl} alt="Schedule preview" className="mx-auto h-auto max-h-[70vh] w-auto max-w-full object-contain" />
+                          {(isUploading || isProcessing) && (
+                            <div className="pointer-events-none absolute inset-0">
+                              <div className="animate-scan-line absolute left-0 right-0 h-20 bg-gradient-to-b from-transparent via-primary/40 to-transparent shadow-[0_0_24px] shadow-primary/40" />
+                            </div>
+                          )}
                         </>
                       ) : (
-                        <div className="flex h-full items-center justify-center">
+                        <div className="aspect-video flex items-center justify-center">
                           <Skeleton className="h-full w-full" />
                         </div>
                       )}
