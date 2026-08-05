@@ -7,14 +7,6 @@ import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { Sidebar } from "@/components/sidebar";
 import { BottomNav } from "@/components/bottom-nav";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import { useThemeConfig } from "@/features/theme";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 
@@ -106,41 +98,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [pathname]);
 
-  // A swipe down from the very top would normally refresh the page by
-  // accident. In the browser, the browser's own refresh icon shows during the
-  // pull; detect the gesture here and ask before actually reloading.
-  const [refreshOpen, setRefreshOpen] = useState(false);
-  const pullStartY = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (isImmersive) return;
-
-    const onTouchStart = (e: TouchEvent) => {
-      pullStartY.current = window.scrollY <= 0 ? (e.touches[0]?.clientY ?? null) : null;
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      if (pullStartY.current === null) return;
-      const y = e.touches[0]?.clientY ?? 0;
-      if (y - pullStartY.current > 80) {
-        pullStartY.current = null;
-        setRefreshOpen(true);
-      }
-    };
-    const onTouchEnd = () => {
-      pullStartY.current = null;
-    };
-
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: true });
-    window.addEventListener("touchend", onTouchEnd, { passive: true });
-    return () => {
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onTouchEnd);
-    };
-  }, [isImmersive]);
-
-  // Full-screen edge-to-edge on native: the status bar stays visible but
+  // Full-screen edge-to-edge on Android: the status bar stays visible but
   // transparent, and the app adapts its safe-area padding around it.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
@@ -249,23 +207,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {!isImmersive && !isSettings && <BottomNav />}
-
-      <Dialog open={refreshOpen} onOpenChange={setRefreshOpen}>
-        <DialogContent className="max-w-[300px]" showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>Refresh this page?</DialogTitle>
-            <DialogDescription>
-              Refreshing reloads Schedly from the start. Any unsaved changes will be lost.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setRefreshOpen(false)}>
-              No, stay here
-            </Button>
-            <Button onClick={() => window.location.reload()}>Yes, refresh</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

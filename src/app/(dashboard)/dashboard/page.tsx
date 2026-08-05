@@ -358,15 +358,33 @@ export default function DashboardPage() {
                 <Skeleton className="h-3 w-20" />
               </div>
             ) : upcomingClasses.length > 0 ? (
-              <ul className="max-h-[320px] space-y-3 overflow-y-auto pr-1">
+              <ul className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
                 {upcomingClasses.map((item, i) => {
                   const { class: c, startMs, endMs, dayLabel } = item;
                   const happeningNow = startMs <= 0;
                   const name = c.shortName?.trim() || c.code?.trim() || c.subject;
+                  const featured = i === 0;
                   return (
-                    <li key={`${c.id}-${dayLabel}-${startMs}`} className="space-y-1.5">
+                    <li
+                      key={`${c.id}-${dayLabel}-${startMs}`}
+                      className={`rounded-xl border p-3 ${
+                        featured ? "border-primary/25 bg-primary/[0.04]" : "border-border/40"
+                      }`}
+                    >
                       <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-sm font-semibold text-foreground">{name}</p>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: c.color }}
+                          />
+                          <p
+                            className={`truncate text-foreground ${
+                              featured ? "text-[15px] font-semibold" : "text-sm font-medium"
+                            }`}
+                          >
+                            {name}
+                          </p>
+                        </div>
                         <span
                           className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
                             happeningNow
@@ -377,39 +395,38 @@ export default function DashboardPage() {
                           {dayLabel}
                         </span>
                       </div>
-                      <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1.5">
+                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
                           <CalendarClock className="h-3 w-3 shrink-0" />
                           {formatTimeRange(c.startTime, c.endTime)}
                         </span>
                         {c.room?.trim() && (
-                          <span className="flex items-center gap-1.5">
+                          <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3 shrink-0" /> {c.room.trim()}
                           </span>
                         )}
                         {c.instructor?.trim() && (
-                          <span className="flex items-center gap-1.5">
+                          <span className="flex items-center gap-1">
                             <User className="h-3 w-3 shrink-0" /> {c.instructor.trim()}
                           </span>
                         )}
-                        <span
-                          className={`flex items-center gap-1.5 ${
-                            happeningNow ? "font-medium text-primary" : ""
-                          }`}
-                        >
-                          <Clock className="h-3 w-3 shrink-0" />
-                          {happeningNow
-                            ? `Happening now · ends in ${fmtCountdown(endMs)}`
-                            : `Starts in ${fmtCountdown(startMs)}`}
-                        </span>
                       </div>
-                      <div className="h-1 w-full overflow-hidden rounded-full bg-primary/10">
+                      <p
+                        className={`mt-1 flex items-center gap-1 text-xs ${
+                          happeningNow ? "font-semibold text-primary" : "text-muted-foreground"
+                        }`}
+                      >
+                        <Clock className="h-3 w-3 shrink-0" />
+                        {happeningNow
+                          ? `Happening now · ends in ${fmtCountdown(endMs)}`
+                          : `Starts in ${fmtCountdown(startMs)}`}
+                      </p>
+                      <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-foreground/10">
                         <div
-                          className="h-full rounded-full bg-primary transition-all duration-1000 ease-linear"
-                          style={{ width: `${classProgress(item, now)}%` }}
+                          className="h-full rounded-full transition-all duration-1000 ease-linear"
+                          style={{ width: `${classProgress(item, now)}%`, backgroundColor: c.color }}
                         />
                       </div>
-                      {i < upcomingClasses.length - 1 && <hr className="mt-2 border-border/60" />}
                     </li>
                   );
                 })}
