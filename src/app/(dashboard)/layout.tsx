@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu } from "lucide-react";
+import { Menu, ArrowLeft } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { Sidebar } from "@/components/sidebar";
@@ -201,15 +201,20 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         aria-hidden
       />
 
-      {/* Logo top-left — fixed to the page (stays put while content scrolls) */}
+      {/* Logo/back top-left — fixed to the page (stays put while content scrolls).
+          On account settings it becomes a back arrow that returns to the dashboard. */}
       {!isImmersive && showButton && (
         <button
           type="button"
-          onClick={() => window.location.reload()}
-          className={`fixed left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center rounded-xl bg-card/90 shadow-[0_8px_40px_rgba(0,0,0,0.1)] transition-all duration-300 ${logoHidden ? "pointer-events-none -translate-y-2 opacity-0" : "opacity-100"}`}
-          aria-label="Refresh page"
+          onClick={() => (isSettings ? router.push("/dashboard") : window.location.reload())}
+          className={`fixed left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center rounded-xl bg-card/90 shadow-[0_8px_40px_rgba(0,0,0,0.1)] transition-all duration-300 ${isSettings || logoHidden ? "" : "hover:scale-105"} ${logoHidden ? "pointer-events-none -translate-y-2 opacity-0" : "opacity-100"}`}
+          aria-label={isSettings ? "Back to dashboard" : "Refresh page"}
         >
-          <img src="/images/logo.jpg" alt="Schedly" className="h-9 w-9 rounded-xl object-cover" />
+          {isSettings ? (
+            <ArrowLeft className="h-5 w-5" />
+          ) : (
+            <img src="/images/logo.jpg" alt="Schedly" className="h-9 w-9 rounded-xl object-cover" />
+          )}
         </button>
       )}
 
