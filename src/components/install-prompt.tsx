@@ -44,9 +44,12 @@ export function InstallPrompt() {
 
     if (Capacitor.isNativePlatform() || isStandalone()) return;
 
-    // Register the service worker so the PWA is installable (Chrome/Edge).
+    // Register the service worker so the PWA is installable (Chrome/Edge)
+    // and the app shell is cached for offline use.
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
+      navigator.serviceWorker
+        .register("/sw.js", { updateViaCache: "none" })
+        .catch(() => {});
     }
 
     const onPrompt = (e: Event) => {
