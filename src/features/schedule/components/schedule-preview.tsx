@@ -27,6 +27,8 @@ type Props = {
   filename?: string;
   scale?: number;
   capture?: boolean;
+  /** Optional element rendered on the right side of the top bar (non-capture). */
+  action?: React.ReactNode;
 };
 
 const ALL_DAYS = [
@@ -81,7 +83,7 @@ function formatTimeRange(start: Date, end: Date): string {
   return `${minutesTo12h(timeToMinutes(start))} – ${minutesTo12h(timeToMinutes(end))}`;
 }
 
-export function SchedulePreview({ classes, filename = "schedule.png", scale, capture }: Props) {
+export function SchedulePreview({ classes, filename = "schedule.png", scale, capture, action }: Props) {
   const activeDays = ALL_DAYS.filter((day) => classes.some((c) => c.days.includes(day)));
   const [selected, setSelected] = useState<ClassData | null>(null);
 
@@ -126,6 +128,7 @@ export function SchedulePreview({ classes, filename = "schedule.png", scale, cap
         <div className="h-3 w-3 rounded-full bg-yellow-400/60" />
         <div className="h-3 w-3 rounded-full bg-green-400/60" />
         <span className="ml-2 truncate text-xs font-mono text-muted-foreground">{filename}</span>
+        {!isCapture && action && <div className="ml-auto shrink-0">{action}</div>}
       </div>
 
       <div className="overflow-hidden">

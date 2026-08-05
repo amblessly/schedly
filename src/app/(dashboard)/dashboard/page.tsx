@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, type FormEvent } from "react";
+import Link from "next/link";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import html2canvas from "html2canvas-pro";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -11,6 +12,7 @@ import { SchedulePreview } from "@/features/schedule/components/schedule-preview
 import { useTodos } from "@/features/todo/use-todos";
 import {
   getFreeTimeToday,
+  computeScheduleInsights,
   DAY_ORDER,
   DAY_FULL,
   formatClock,
@@ -28,10 +30,14 @@ import {
   Loader2,
   Clock,
   MapPin,
+  User,
   GraduationCap,
   Coffee,
   Sparkles,
   Plus,
+  Camera,
+  Bell,
+  ChevronRight,
 } from "lucide-react";
 import { publishScheduleToWidget } from "@/features/widget/widget-data";
 import { useMounted } from "@/lib/use-mounted";
@@ -76,19 +82,26 @@ function toMin(d: Date) {
   return d.getHours() * 60 + d.getMinutes();
 }
 
-function fmtDuration(ms: number) {
-  const mins = Math.max(0, Math.round(ms / 60000));
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m ? `${h}h ${m}m` : `${h}h`;
+function fmtCountdown(ms: number) {
+  const total = Math.max(0, Math.round(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
 }
 
-function getNextClass(classes: ClassData[]) {
-  if (!classes.length) return null;
-  const now = new Date();
+type UpcomingClass = {
+  class: ClassData;
+  startMs: number;
+  endMs: number;
+  dayLabel: string;
+};
+
+function getUpcomingClasses(classes: ClassData[], now: Date): UpcomingClass[] {
+  const items: UpcomingClass[] = [];
   const nowDay = now.getDay();
-  let best: { class: ClassData; startMs: number; endMs: number } | null = null;
 
   for (const c of classes) {
     for (const day of c.days) {
@@ -102,13 +115,46 @@ function getNextClass(classes: ClassData[]) {
       end.setDate(now.getDate() + diff);
       end.setHours(c.endTime.getHours(), c.endTime.getMinutes(), 0, 0);
       if (end.getTime() <= now.getTime()) continue; // fully past
-      const startMs = start.getTime() - now.getTime();
-      if (best === null || startMs < best.startMs) {
-        best = { class: c, startMs, endMs: end.getTime() - now.getTime() };
-      }
+      items.push({
+        class: c,
+        startMs: start.getTime() - now.getTime(),
+        endMs: end.getTime() - now.getTime(),
+        dayLabel: diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : DAY_FULL[day] ?? day,
+      });
     }
   }
-  return best;
+
+  items.sort((a, b) => a.startMs - b.startMs);
+  return items;
+}
+
+function formatClockTime(d: Date) {
+  let h = d.getHours();
+  const m = d.getMinutes();
+  const ampm = h < 12 ? "AM" : "PM";
+  h = h % 12 === 0 ? 12 : h % 12;
+  return `${h}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
+function formatTimeRange(start: Date, end: Date) {
+  return `${formatClockTime(start)} – ${formatClockTime(end)}`;
+}
+
+// Fills toward the class: elapsed while it's running, or how far the day has
+// advanced toward a still-pending class.
+function classProgress(item: UpcomingClass, now: Date) {
+  if (item.startMs <= 0) {
+    const span = item.startMs - item.endMs; // negative duration
+    if (span >= 0) return 0;
+    return Math.min(100, Math.max(0, (-item.startMs / -span) * 100));
+  }
+  const dayStart = new Date(now.getTime() + item.startMs);
+  dayStart.setHours(0, 0, 0, 0);
+  const start = new Date(now.getTime() + item.startMs);
+  const total = start.getTime() - dayStart.getTime();
+  if (total <= 0) return 0;
+  const elapsed = now.getTime() - dayStart.getTime();
+  return Math.min(100, Math.max(0, (elapsed / total) * 100));
 }
 
 interface GallerySavePlugin {
@@ -125,8 +171,15 @@ export default function DashboardPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<string[] | null>(null);
+  const [now, setNow] = useState(() => new Date());
   const scheduleRef = useRef<HTMLDivElement>(null);
   const captureRef = useRef<HTMLDivElement>(null);
+
+  // Tick every second so countdowns visibly move.
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // Time-based greeting must be computed after mount — Date.now() differs
   // between the server and the client, which would break hydration.
@@ -157,7 +210,7 @@ export default function DashboardPage() {
   }, [schedules]);
 
   const allClasses = (schedules ?? []).flatMap((s) => s.classes);
-  const nextClass = getNextClass(allClasses);
+  const upcomingClasses = getUpcomingClasses(allClasses, now);
 
   // Schedule insights are derived purely from class times (client-side, offline).
   const insightItems: InsightItem[] = allClasses.map((c) => ({
@@ -166,8 +219,23 @@ export default function DashboardPage() {
     startMinutes: toMin(c.startTime),
     endMinutes: toMin(c.endTime),
   }));
+  const weeklyInsights = computeScheduleInsights(insightItems);
   const todayDay = DAY_ORDER[(new Date().getDay() + 6) % 7] ?? "monday";
   const freeToday = getFreeTimeToday(insightItems, todayDay);
+
+  const todaysClasses = allClasses
+    .filter((c) => c.days.includes(todayDay))
+    .sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
+
+  const busyDay = weeklyInsights.busiestDay;
+  const weeklyInsightText = busyDay
+    ? `${DAY_FULL[busyDay.day]} is your busiest day`
+    : "Your week looks balanced";
+  const weeklyInsightSub = busyDay
+    ? `${minutesToHoursLabel(busyDay.busyMinutes)} of classes · ${weeklyInsights.freeHours}h free this week`
+    : `${weeklyInsights.freeHours}h free across ${weeklyInsights.activeDayCount} class day${
+        weeklyInsights.activeDayCount !== 1 ? "s" : ""
+      }`;
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const todaysTodos = todos.filter((t) => t.dueDate === todayStr);
@@ -273,7 +341,14 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Next Class
             </CardTitle>
-            <CalendarClock className="h-4 w-4 text-primary" />
+            <div className="flex items-center gap-2">
+              {upcomingClasses.length > 1 && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                  {upcomingClasses.length} upcoming
+                </span>
+              )}
+              <CalendarClock className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
             {schedules === null ? (
@@ -282,25 +357,63 @@ export default function DashboardPage() {
                 <Skeleton className="h-3 w-36" />
                 <Skeleton className="h-3 w-20" />
               </div>
-            ) : nextClass ? (
-              <div>
-                <p className="text-lg font-semibold text-foreground">
-                  {nextClass.class.shortName?.trim() || nextClass.class.code?.trim() || nextClass.class.subject}
-                </p>
-                <div className="mt-1 flex flex-col gap-0.5 text-xs text-muted-foreground">
-                  {nextClass.class.room && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" /> {nextClass.class.room}
-                    </span>
-                  )}
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {nextClass.startMs <= 0
-                      ? `Happening now · ends in ${fmtDuration(nextClass.endMs)}`
-                      : `Starts in ${fmtDuration(nextClass.startMs)}`}
-                  </span>
-                </div>
-              </div>
+            ) : upcomingClasses.length > 0 ? (
+              <ul className="max-h-[320px] space-y-3 overflow-y-auto pr-1">
+                {upcomingClasses.map((item, i) => {
+                  const { class: c, startMs, endMs, dayLabel } = item;
+                  const happeningNow = startMs <= 0;
+                  const name = c.shortName?.trim() || c.code?.trim() || c.subject;
+                  return (
+                    <li key={`${c.id}-${dayLabel}-${startMs}`} className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-semibold text-foreground">{name}</p>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                            happeningNow
+                              ? "bg-destructive/10 text-destructive"
+                              : "bg-primary/10 text-primary"
+                          }`}
+                        >
+                          {dayLabel}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1.5">
+                          <CalendarClock className="h-3 w-3 shrink-0" />
+                          {formatTimeRange(c.startTime, c.endTime)}
+                        </span>
+                        {c.room?.trim() && (
+                          <span className="flex items-center gap-1.5">
+                            <MapPin className="h-3 w-3 shrink-0" /> {c.room.trim()}
+                          </span>
+                        )}
+                        {c.instructor?.trim() && (
+                          <span className="flex items-center gap-1.5">
+                            <User className="h-3 w-3 shrink-0" /> {c.instructor.trim()}
+                          </span>
+                        )}
+                        <span
+                          className={`flex items-center gap-1.5 ${
+                            happeningNow ? "font-medium text-primary" : ""
+                          }`}
+                        >
+                          <Clock className="h-3 w-3 shrink-0" />
+                          {happeningNow
+                            ? `Happening now · ends in ${fmtCountdown(endMs)}`
+                            : `Starts in ${fmtCountdown(startMs)}`}
+                        </span>
+                      </div>
+                      <div className="h-1 w-full overflow-hidden rounded-full bg-primary/10">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all duration-1000 ease-linear"
+                          style={{ width: `${classProgress(item, now)}%` }}
+                        />
+                      </div>
+                      {i < upcomingClasses.length - 1 && <hr className="mt-2 border-border/60" />}
+                    </li>
+                  );
+                })}
+              </ul>
             ) : (
               <p className="text-sm text-muted-foreground">No upcoming classes</p>
             )}
@@ -319,25 +432,30 @@ export default function DashboardPage() {
             {todaysTodos.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nothing due today</p>
             ) : (
-              <ul className="space-y-1.5">
-                {todaysTodos.slice(0, 4).map((t) => (
-                  <li key={t.id} className="flex items-center gap-2 text-sm">
-                    <span
-                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                        t.completed ? "bg-green-500" : "bg-primary"
-                      }`}
-                    />
-                    <span className={t.completed ? "line-through text-muted-foreground" : "text-foreground"}>
-                      {t.text}
-                    </span>
-                  </li>
-                ))}
-                {todaysTodos.length > 4 && (
-                  <li className="text-xs text-muted-foreground">
-                    +{todaysTodos.length - 4} more
-                  </li>
+              <>
+                <ul className="space-y-1.5">
+                  {todaysTodos.slice(0, 3).map((t) => (
+                    <li key={t.id} className="flex items-center gap-2 text-xs">
+                      <span
+                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                          t.completed ? "bg-green-500" : "bg-primary"
+                        }`}
+                      />
+                      <span className={t.completed ? "line-through text-muted-foreground" : "text-foreground"}>
+                        {t.text}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {todaysTodos.length > 3 && (
+                  <Link
+                    href="/todo"
+                    className="mt-2 inline-flex items-center gap-0.5 text-xs font-medium text-primary"
+                  >
+                    View all {todaysTodos.length} tasks <ChevronRight className="h-3 w-3" />
+                  </Link>
                 )}
-              </ul>
+              </>
             )}
             <form onSubmit={handleAddTodo} className="mt-3 flex items-center gap-1.5">
               <input
@@ -370,9 +488,14 @@ export default function DashboardPage() {
             {schedules === null ? (
               <Skeleton className="h-4 w-40" />
             ) : freeToday.isFullyFree ? (
-              <p className="text-sm text-muted-foreground">
-                No classes today — enjoy the {DAY_FULL[todayDay]}.
-              </p>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  You&apos;re free today
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  No schedule today — perfect time to relax or catch up on tasks.
+                </p>
+              </div>
             ) : longestBreakToday ? (
               <div className="flex items-end gap-2">
                 <span className="text-2xl font-bold tracking-tight text-foreground">
@@ -383,47 +506,153 @@ export default function DashboardPage() {
                 </span>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                Packed day — no long breaks available.
-              </p>
+              <div>
+                <p className="text-sm font-semibold text-foreground">No long breaks today</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Packed day — squeeze in short breaks between classes.
+                </p>
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* AI Insights — cards only appear after generating */}
+      {/* Today's Schedule */}
+      <section aria-label="Today's schedule">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground">Today&apos;s Schedule</h2>
+          <Link
+            href="/schedule"
+            className="inline-flex items-center gap-0.5 text-xs font-medium text-primary"
+          >
+            Full timetable <ChevronRight className="h-3 w-3" />
+          </Link>
+        </div>
+        {schedules === null ? (
+          <div className="space-y-2">
+            {[1, 2].map((i) => (
+              <Skeleton key={i} className="h-12 w-full rounded-xl" />
+            ))}
+          </div>
+        ) : todaysClasses.length === 0 ? (
+          <Card className="border-border/50 [--card-spacing:--spacing(5)]">
+            <CardContent className="flex items-center gap-3 py-4">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Coffee className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  No classes on {DAY_FULL[todayDay]}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  You&apos;re free all day — perfect time to relax or catch up on tasks.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-border/50 [--card-spacing:--spacing(5)]">
+            <CardContent className="divide-y divide-border/60 py-1">
+              {todaysClasses.map((c) => {
+                const name = c.shortName?.trim() || c.code?.trim() || c.subject;
+                const done = new Date(c.endTime).getTime() <= now.getTime();
+                return (
+                  <div key={c.id} className="flex items-center gap-3 py-2.5">
+                    <span className="w-14 shrink-0 text-xs font-semibold tabular-nums text-foreground">
+                      {formatClockTime(c.startTime)}
+                    </span>
+                    <span className="h-8 w-1 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className={`truncate text-sm font-medium ${
+                          done ? "text-muted-foreground line-through" : "text-foreground"
+                        }`}
+                      >
+                        {name}
+                      </p>
+                      {c.room?.trim() && (
+                        <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
+                          <MapPin className="h-3 w-3 shrink-0" /> {c.room.trim()}
+                        </p>
+                      )}
+                    </div>
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                      {formatClockTime(c.endTime)}
+                    </span>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
+      </section>
+
+      {/* Quick Actions */}
+      <section aria-label="Quick actions">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground">Quick Actions</h2>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <Link
+            href="/schedule"
+            className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-border/50 bg-card px-3 py-4 text-center transition-colors hover:border-primary/50 active:scale-touch"
+          >
+            <Camera className="h-5 w-5 text-primary" />
+            <span className="text-xs font-medium text-foreground">Scan Schedule</span>
+          </Link>
+          <Link
+            href="/todo"
+            className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-border/50 bg-card px-3 py-4 text-center transition-colors hover:border-primary/50 active:scale-touch"
+          >
+            <Plus className="h-5 w-5 text-primary" />
+            <span className="text-xs font-medium text-foreground">New To-Do</span>
+          </Link>
+          <Link
+            href="/reminders"
+            className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-border/50 bg-card px-3 py-4 text-center transition-colors hover:border-primary/50 active:scale-touch"
+          >
+            <Bell className="h-5 w-5 text-primary" />
+            <span className="text-xs font-medium text-foreground">New Reminder</span>
+          </Link>
+        </div>
+      </section>
+
+      {/* Insights — auto weekly insight + optional AI tips */}
       {schedules && allClasses.length > 0 && (
         <section aria-label="Schedule insights">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <h2 className="text-lg font-semibold text-foreground">Insights</h2>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleGenerateInsights}
-              disabled={aiLoading}
-            >
-              {aiLoading ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating…</>
-              ) : (
-                <><Sparkles className="mr-2 h-4 w-4 text-primary" /> Generate insights</>
-              )}
-            </Button>
+          <div className="mb-3 flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">Insights</h2>
           </div>
 
-          {aiError && <p className="text-xs text-destructive">{aiError}</p>}
+          <Card className="border-border/50 [--card-spacing:--spacing(5)]">
+            <CardContent className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">{weeklyInsightText}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{weeklyInsightSub}</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={handleGenerateInsights}
+                disabled={aiLoading}
+              >
+                {aiLoading ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Working…</>
+                ) : aiSuggestions ? (
+                  "More AI tips"
+                ) : (
+                  <><Sparkles className="mr-2 h-4 w-4 text-primary" /> AI tips</>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
 
-          {!aiLoading && !aiSuggestions && (
-            <p className="text-sm text-muted-foreground">
-              Tap “Generate insights” to get AI tips for your week — your best day
-              for plans, a routine to build, and more.
-            </p>
-          )}
+          {aiError && <p className="mt-2 text-xs text-destructive">{aiError}</p>}
 
           {aiSuggestions && aiSuggestions.length > 0 && (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
               {aiSuggestions.map((s, i) => (
                 <Card key={i} className="border-border/50 [--card-spacing:--spacing(5)]">
                   <CardContent className="flex items-start gap-2.5">
@@ -439,18 +668,7 @@ export default function DashboardPage() {
 
       {/* Generated Schedule Table */}
       <div>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">Your Schedule</h2>
-          {schedules && schedules.length > 0 && (
-            <Button variant="outline" size="sm" onClick={handleDownload} disabled={downloading}>
-              {downloading ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
-              ) : (
-                <><Download className="mr-2 h-4 w-4" /> Download image</>
-              )}
-            </Button>
-          )}
-        </div>
+        <h2 className="mb-3 text-lg font-semibold text-foreground">Your Schedule</h2>
 
         {schedules === null ? (
           <div className="space-y-3">
@@ -480,7 +698,19 @@ export default function DashboardPage() {
         ) : (
           <>
             <div ref={scheduleRef}>
-              <SchedulePreview classes={allClasses} filename="schedule.png" />
+              <SchedulePreview
+                classes={allClasses}
+                filename="schedule.png"
+                action={
+                  <Button variant="outline" size="sm" onClick={handleDownload} disabled={downloading}>
+                    {downloading ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
+                    ) : (
+                      <><Download className="mr-2 h-4 w-4" /> Download image</>
+                    )}
+                  </Button>
+                }
+              />
             </div>
             <div
               ref={captureRef}
