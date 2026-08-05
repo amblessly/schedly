@@ -325,11 +325,10 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* At a Glance */}
-      <div className="grid grid-cols-2 items-start gap-3">
-        {/* Next Class — compact: shows roughly one subject, scroll inside the
-            card to see the rest (height never grows with content). */}
-        <Card className="border-border/50 [--card-spacing:--spacing(5)]">
+      {/* Bento grid — mixed-size tiles (landscape, square) for a glanceable day */}
+      <div className="grid grid-cols-2 items-stretch gap-3">
+        {/* Next Class — landscape tile */}
+        <Card className="col-span-2 border-border/50 [--card-spacing:--spacing(5)]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Next Class
@@ -436,118 +435,114 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Right column: To-Dos always directly above Free Time */}
-        <div className="flex flex-col gap-3">
-          {/* Today's To-Dos */}
-          <Card className="border-border/50 [--card-spacing:--spacing(5)]">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                To-Dos Today
-              </CardTitle>
-              <ListTodo className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              {todaysTodos.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nothing due today</p>
-              ) : (
-                <ul className="space-y-1.5">
-                  {todaysTodos.slice(0, 3).map((t) => (
-                    <li key={t.id} className="flex items-center gap-2 text-xs">
-                      <span
-                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                          t.completed ? "bg-green-500" : "bg-primary"
-                        }`}
-                      />
-                      <span className={t.completed ? "line-through text-muted-foreground" : "text-foreground"}>
-                        {t.text}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <div className="mt-2 flex items-center justify-between">
+        {/* To-Dos — square tile */}
+        <Card className="border-border/50 [--card-spacing:--spacing(5)]">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              To-Dos Today
+            </CardTitle>
+            <ListTodo className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            {todaysTodos.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nothing due today</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {todaysTodos.slice(0, 3).map((t) => (
+                  <li key={t.id} className="flex items-center gap-2 text-xs">
+                    <span
+                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                        t.completed ? "bg-green-500" : "bg-primary"
+                      }`}
+                    />
+                    <span className={t.completed ? "line-through text-muted-foreground" : "text-foreground"}>
+                      {t.text}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-2 flex items-center justify-between">
+              <Link
+                href="/todo"
+                className="inline-flex items-center gap-0.5 text-xs font-medium text-primary"
+              >
+                <Plus className="h-3 w-3" /> Add a task
+              </Link>
+              {todaysTodos.length > 3 && (
                 <Link
                   href="/todo"
-                  className="inline-flex items-center gap-0.5 text-xs font-medium text-primary"
+                  className="inline-flex items-center gap-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  <Plus className="h-3 w-3" /> Add a task
+                  View all {todaysTodos.length} <ChevronRight className="h-3 w-3" />
                 </Link>
-                {todaysTodos.length > 3 && (
-                  <Link
-                    href="/todo"
-                    className="inline-flex items-center gap-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    View all {todaysTodos.length} <ChevronRight className="h-3 w-3" />
-                  </Link>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Free time today */}
-          <Card className="border-border/50">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Free Time Today
-              </CardTitle>
-              <Coffee className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              {schedules === null ? (
-                <Skeleton className="h-4 w-40" />
-              ) : freeToday.isFullyFree ? (
-                <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    You&apos;re free today
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    No schedule today — perfect time to relax or catch up on tasks.
-                  </p>
-                </div>
-              ) : longestBreakToday ? (
-                <div className="flex items-end gap-2">
-                  <span className="text-2xl font-bold tracking-tight text-foreground">
-                    {minutesToHoursLabel(longestBreakToday.durationMinutes)}
-                  </span>
-                  <span className="pb-1 text-xs text-muted-foreground">
-                    longest break · {formatClock(longestBreakToday.startMinutes)} – {formatClock(longestBreakToday.endMinutes)}
-                  </span>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-sm font-semibold text-foreground">No long breaks today</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Packed day — squeeze in short breaks between classes.
-                  </p>
-                </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Today's Schedule + Insights side by side */}
-      <div className="grid grid-cols-2 items-stretch gap-3">
-        {/* Today's Schedule */}
-        <section aria-label="Today's schedule" className="flex h-full flex-col">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">Today&apos;s Schedule</h2>
+        {/* Free Time Today — square tile */}
+        <Card className="border-border/50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Free Time Today
+            </CardTitle>
+            <Coffee className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            {schedules === null ? (
+              <Skeleton className="h-4 w-40" />
+            ) : freeToday.isFullyFree ? (
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  You&apos;re free today
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  No schedule today — perfect time to relax or catch up on tasks.
+                </p>
+              </div>
+            ) : longestBreakToday ? (
+              <div className="flex items-end gap-2">
+                <span className="text-2xl font-bold tracking-tight text-foreground">
+                  {minutesToHoursLabel(longestBreakToday.durationMinutes)}
+                </span>
+                <span className="pb-1 text-xs text-muted-foreground">
+                  longest break · {formatClock(longestBreakToday.startMinutes)} – {formatClock(longestBreakToday.endMinutes)}
+                </span>
+              </div>
+            ) : (
+              <div>
+                <p className="text-sm font-semibold text-foreground">No long breaks today</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Packed day — squeeze in short breaks between classes.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Today's Schedule — landscape tile */}
+        <Card className="col-span-2 border-border/50 [--card-spacing:--spacing(5)]">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Today&apos;s Schedule
+            </CardTitle>
             <Link
               href="/schedule"
               className="inline-flex items-center gap-0.5 text-xs font-medium text-primary"
             >
               Full timetable <ChevronRight className="h-3 w-3" />
             </Link>
-          </div>
-          {schedules === null ? (
-            <div className="flex-1 space-y-2">
-              {[1, 2].map((i) => (
-                <Skeleton key={i} className="h-12 w-full rounded-xl" />
-              ))}
-            </div>
-          ) : todaysClasses.length === 0 ? (
-            <Card className="flex-1 border-border/50 [--card-spacing:--spacing(5)]">
-              <CardContent className="flex items-center gap-3 py-4">
+          </CardHeader>
+          <CardContent>
+            {schedules === null ? (
+              <div className="space-y-2">
+                {[1, 2].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full rounded-xl" />
+                ))}
+              </div>
+            ) : todaysClasses.length === 0 ? (
+              <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <Coffee className="h-5 w-5" />
                 </span>
@@ -559,11 +554,9 @@ export default function DashboardPage() {
                     You&apos;re free all day — perfect time to relax or catch up on tasks.
                   </p>
                 </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="flex-1 border-border/50 [--card-spacing:--spacing(5)]">
-              <CardContent className="divide-y divide-border/60 py-1">
+              </div>
+            ) : (
+              <div className="divide-y divide-border/60">
                 {todaysClasses.map((c) => {
                   const name = c.shortName?.trim() || c.code?.trim() || c.subject;
                   const done = new Date(c.endTime).getTime() <= now.getTime();
@@ -593,47 +586,46 @@ export default function DashboardPage() {
                     </div>
                   );
                 })}
-              </CardContent>
-            </Card>
-          )}
-        </section>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-        {/* Insights — auto weekly insight + optional AI tips */}
+        {/* Insights — landscape tile */}
         {schedules && allClasses.length > 0 && (
-          <section aria-label="Schedule insights" className="flex h-full flex-col">
-            <div className="mb-3 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <h2 className="text-lg font-semibold text-foreground">Insights</h2>
-            </div>
-
-            <Card className="flex-1 border-border/50 [--card-spacing:--spacing(5)]">
-              <CardContent className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">{weeklyInsightText}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{weeklyInsightSub}</p>
-                </div>
+          <Card className="col-span-2 border-border/50 [--card-spacing:--spacing(5)]">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Insights
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
                 <Button
                   variant="outline"
                   size="sm"
-                  className="shrink-0"
+                  className="h-7 shrink-0"
                   onClick={handleGenerateInsights}
                   disabled={aiLoading}
                 >
                   {aiLoading ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Working…</>
+                    <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Working…</>
                   ) : aiSuggestions ? (
                     "More AI tips"
                   ) : (
-                    <><Sparkles className="mr-2 h-4 w-4 text-primary" /> AI tips</>
+                    <><Sparkles className="mr-2 h-3.5 w-3.5 text-primary" /> AI tips</>
                   )}
                 </Button>
-              </CardContent>
-            </Card>
-          </section>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm font-semibold text-foreground">{weeklyInsightText}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{weeklyInsightSub}</p>
+            </CardContent>
+          </Card>
         )}
       </div>
 
-      {/* AI tips output below the two cards */}
+      {/* AI tips output below the bento grid */}
       {schedules && allClasses.length > 0 && aiError && (
         <p className="mt-2 text-xs text-destructive">{aiError}</p>
       )}
