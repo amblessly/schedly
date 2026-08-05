@@ -107,8 +107,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   // A swipe down from the very top would normally refresh the page by
-  // accident. Native pull-to-refresh is disabled via CSS, so detect the
-  // gesture here and ask before reloading.
+  // accident. In the browser, the browser's own refresh icon shows during the
+  // pull; detect the gesture here and ask before actually reloading.
   const [refreshOpen, setRefreshOpen] = useState(false);
   const pullStartY = useRef<number | null>(null);
 

@@ -157,11 +157,17 @@ body {
   display: none;
 }
 
-/* App behaves like a native page: don't let the browser's pull-to-refresh
-   or overscroll glow hijack swipe gestures. Refresh is confirmed by the
-   app itself instead. */
+/* Allow the browser's native pull-to-refresh so pulling down at the top shows
+   the browser's own refresh icon — the user sees a clear refresh cue. The app's
+   confirmation dialog still guards against accidental reloads. In the native
+   app (no browser chrome, `is-native` on <html>) overscroll stays contained to
+   avoid rubber-banding/edge-glow. */
 html,
 body {
+  overscroll-behavior-y: auto;
+}
+.is-native,
+.is-native body {
   overscroll-behavior-y: contain;
 }
 
