@@ -1,13 +1,11 @@
 "use client";
 
 import {
-  Clock,
-  Coffee,
   Flame,
   Feather,
-  Timer,
-  BarChart3,
   CalendarOff,
+  Coffee,
+  AlertTriangle,
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
@@ -20,74 +18,91 @@ import {
   DAY_SHORT,
 } from "./compute-insights";
 
-function MetricCard({
+const PACKED_WEEK_THRESHOLD_PCT = 60;
+
+function InsightCard({
   icon: Icon,
   label,
-  value,
-  sub,
+  children,
   accent = "text-primary",
+  tone = "default",
 }: {
   icon: LucideIcon;
   label: string;
-  value: string;
-  sub?: string;
+  children: React.ReactNode;
   accent?: string;
+  tone?: "default" | "warning";
 }) {
   return (
     <Card className="border-border/50 [--card-spacing:--spacing(5)]">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-xs font-medium text-muted-foreground">{label}</CardTitle>
-        <Icon className={`h-4 w-4 ${accent}`} />
+        <Icon className={`h-4 w-4 ${tone === "warning" ? "text-amber-500" : accent}`} />
       </CardHeader>
-      <CardContent>
-        <p className="text-2xl font-bold tracking-tight text-foreground">{value}</p>
-        {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
-      </CardContent>
+      <CardContent className="space-y-1">{children}</CardContent>
     </Card>
   );
 }
 
-function UtilCard({ pct }: { pct: number }) {
+/** Answers: "Which day should I NOT add plans to?" */
+function HeaviestDayCard({ insights }: { insights: ScheduleInsights }) {
+  if (!insights.busiestDay) return null;
   return (
-    <Card className="border-border/50 [--card-spacing:--spacing(5)]">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-xs font-medium text-muted-foreground">Weekly Utilization</CardTitle>
-        <BarChart3 className="h-4 w-4 text-primary" />
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-end gap-1">
-          <span className="text-2xl font-bold tracking-tight text-foreground">{pct}%</span>
-          <span className="pb-1 text-xs text-muted-foreground">of your week</span>
-        </div>
-        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-primary/10">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-primary to-primary/60 transition-all duration-500"
-            style={{ width: `${Math.min(100, pct)}%` }}
-          />
-        </div>
-      </CardContent>
-    </Card>
+    <InsightCard icon={Flame} label="Heaviest Day" accent="text-orange-500">
+      <p className="text-lg font-bold tracking-tight text-foreground">
+        {DAY_FULL[insights.busiestDay.day] ?? insights.busiestDay.day}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {minutesToHoursLabel(insights.busiestDay.busyMinutes)} booked — try to keep this day free of extra plans.
+      </p>
+    </InsightCard>
   );
 }
 
-function FreeTimeCard({ insights }: { insights: ScheduleInsights }) {
-  const recurring = insights.recurringFree;
-  const fullyFree = insights.fullyFreeDays;
+/** Answers: "When is the best time to schedule errands or appointments?" */
+function LightestDayCard({ insights }: { insights: ScheduleInsights }) {
+  if (!insights.lightestDay) return null;
+  return (
+    <InsightCard icon={Feather} label="Best Day for Plans" accent="text-sky-500">
+      <p className="text-lg font-bold tracking-tight text-foreground">
+        {DAY_FULL[insights.lightestDay.day] ?? insights.lightestDay.day}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Only {minutesToHoursLabel(insights.lightestDay.busyMinutes)} booked — schedule errands, appointments, or study time here.
+      </p>
+    </InsightCard>
+  );
+}
 
+/** Answers: "Which days are completely open?" */
+function FreeDaysCard({ insights }: { insights: ScheduleInsights }) {
+  if (insights.fullyFreeDays.length === 0) return null;
+  return (
+    <InsightCard icon={CalendarOff} label="Completely Free" accent="text-emerald-500">
+      <p className="text-lg font-bold tracking-tight text-foreground">
+        {insights.fullyFreeDays.map((d) => DAY_SHORT[d] ?? d).join(", ")}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        No commitments — a good day to rest or work on personal projects.
+      </p>
+    </InsightCard>
+  );
+}
+
+/** Answers: "Is there a repeatable window I can build a routine around?" */
+function RoutineWindowsCard({ insights }: { insights: ScheduleInsights }) {
+  if (insights.recurringFree.length === 0) return null;
   return (
     <Card className="border-border/50 [--card-spacing:--spacing(5)]">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-xs font-medium text-muted-foreground">Free Time Finder</CardTitle>
-        <Sparkles className="h-4 w-4 text-primary" />
+        <CardTitle className="text-xs font-medium text-muted-foreground">
+          Build a Routine
+        </CardTitle>
+        <Coffee className="h-4 w-4 text-primary" />
       </CardHeader>
-      <CardContent className="space-y-2.5">
-        {recurring.length === 0 && fullyFree.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            Your week looks fully booked — consider scheduling some breathing room.
-          </p>
-        )}
-        {recurring.slice(0, 3).map((r, i) => {
-          const days = r.days.map((d) => DAY_SHORT[d]).join(", ");
+      <CardContent className="space-y-2">
+        {insights.recurringFree.slice(0, 3).map((r, i) => {
+          const days = r.days.map((d) => DAY_SHORT[d] ?? d).join(", ");
           return (
             <div key={i} className="flex items-start gap-2 rounded-lg bg-primary/5 px-2.5 py-2">
               <Coffee className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
@@ -95,28 +110,41 @@ function FreeTimeCard({ insights }: { insights: ScheduleInsights }) {
                 <span className="font-semibold">
                   {minutesToHoursLabel(r.endMinutes - r.startMinutes)} free
                 </span>{" "}
-                every {days} ({formatClock(r.startMinutes)} – {formatClock(r.endMinutes)})
+                every {days} ({formatClock(r.startMinutes)} – {formatClock(r.endMinutes)}) — reserve it for a recurring habit.
               </p>
             </div>
           );
         })}
-        {fullyFree.length > 0 && (
-          <div className="flex items-start gap-2 rounded-lg bg-primary/5 px-2.5 py-2">
-            <CalendarOff className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            <p className="text-xs leading-snug text-foreground">
-              <span className="font-semibold">
-                {fullyFree.map((d) => DAY_FULL[d]).join(", ")}
-              </span>{" "}
-              {fullyFree.length === 1 ? "is" : "are"} completely free
-            </p>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
 }
 
+/** Answers: "Am I overcommitting this week?" — shown only when utilization is high. */
+function PackedWeekCard({ insights }: { insights: ScheduleInsights }) {
+  if (insights.weeklyUtilizationPct < PACKED_WEEK_THRESHOLD_PCT) return null;
+  return (
+    <InsightCard icon={AlertTriangle} label="Week Looks Packed" tone="warning">
+      <p className="text-lg font-bold tracking-tight text-foreground">
+        {insights.weeklyUtilizationPct}% booked
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Your week is heavily scheduled — consider rescheduling or dropping one thing to keep breathing room.
+      </p>
+    </InsightCard>
+  );
+}
+
 export function ScheduleInsightsCards({ insights }: { insights: ScheduleInsights }) {
+  const hasActionable =
+    Boolean(insights.busiestDay) ||
+    Boolean(insights.lightestDay) ||
+    insights.fullyFreeDays.length > 0 ||
+    insights.recurringFree.length > 0 ||
+    insights.weeklyUtilizationPct >= PACKED_WEEK_THRESHOLD_PCT;
+
+  if (!hasActionable) return null;
+
   return (
     <section aria-label="Schedule insights">
       <div className="mb-3 flex items-center gap-2">
@@ -124,53 +152,11 @@ export function ScheduleInsightsCards({ insights }: { insights: ScheduleInsights
         <h2 className="text-lg font-semibold text-foreground">Insights</h2>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <MetricCard
-          icon={Clock}
-          label="Weekly Hours"
-          value={minutesToHoursLabel(insights.totalWeeklyMinutes)}
-          sub={`${insights.activeDayCount} active day${insights.activeDayCount !== 1 ? "s" : ""}`}
-        />
-        <MetricCard
-          icon={Coffee}
-          label="Free Hours"
-          value={minutesToHoursLabel(insights.freeHours * 60)}
-          sub="this week"
-          accent="text-emerald-500"
-        />
-        {insights.busiestDay && (
-          <MetricCard
-            icon={Flame}
-            label="Busiest Day"
-            value={DAY_FULL[insights.busiestDay.day] ?? insights.busiestDay.day}
-            sub={minutesToHoursLabel(insights.busiestDay.busyMinutes)}
-            accent="text-orange-500"
-          />
-        )}
-        {insights.lightestDay && (
-          <MetricCard
-            icon={Feather}
-            label="Lightest Day"
-            value={DAY_FULL[insights.lightestDay.day] ?? insights.lightestDay.day}
-            sub={minutesToHoursLabel(insights.lightestDay.busyMinutes)}
-            accent="text-sky-500"
-          />
-        )}
-        {insights.longestEvent && (
-          <MetricCard
-            icon={Timer}
-            label="Longest Event"
-            value={insights.longestEvent.subject}
-            sub={minutesToHoursLabel(insights.longestEvent.durationMinutes)}
-          />
-        )}
-        <MetricCard
-          icon={BarChart3}
-          label="Avg Daily Load"
-          value={minutesToHoursLabel(insights.averageDailyMinutes)}
-          sub="per day"
-        />
-        <UtilCard pct={insights.weeklyUtilizationPct} />
-        <FreeTimeCard insights={insights} />
+        <HeaviestDayCard insights={insights} />
+        <LightestDayCard insights={insights} />
+        <FreeDaysCard insights={insights} />
+        <RoutineWindowsCard insights={insights} />
+        <PackedWeekCard insights={insights} />
       </div>
     </section>
   );

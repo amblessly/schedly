@@ -7,7 +7,7 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
 import { retry } from "@/lib/retry";
 import { SchedulePreview } from "@/features/schedule/components/schedule-preview";
-import { useTodos, isToday } from "@/features/todo/use-todos";
+import { useTodos } from "@/features/todo/use-todos";
 import {
   computeScheduleInsights,
   getFreeTimeToday,
@@ -16,6 +16,7 @@ import {
   formatClock,
   minutesToHoursLabel,
   type InsightItem,
+  type FreePeriod,
 } from "@/features/insights/compute-insights";
 import { ScheduleInsightsCards } from "@/features/insights/insight-cards";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   CalendarClock,
   ListTodo,
-  CheckCircle2,
   Download,
   Loader2,
   Clock,
@@ -87,7 +87,6 @@ function getNextClass(classes: ClassData[]) {
   if (!classes.length) return null;
   const now = new Date();
   const nowDay = now.getDay();
-  const nowMin = toMin(now);
   let best: { class: ClassData; startMs: number; endMs: number } | null = null;
 
   for (const c of classes) {
@@ -168,8 +167,12 @@ export default function DashboardPage() {
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const todaysTodos = todos.filter((t) => t.dueDate === todayStr);
-  const completedToday = todos.filter((t) => t.completed && t.completedAt && isToday(t.completedAt)).length;
-  const activeTodos = todos.filter((t) => !t.completed).length;
+
+  // The longest free window today — the practical answer to "when can I study / rest?"
+  const longestBreakToday = freeToday.freePeriods.reduce<FreePeriod | null>(
+    (best, p) => (best === null || p.durationMinutes > best.durationMinutes ? p : best),
+    null
+  );
 
   const handleDownload = async () => {
       const node = captureRef.current || scheduleRef.current;
@@ -311,24 +314,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Quick Stats */}
-        <Card className="border-border/50 sm:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Quick Stats
-            </CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-end gap-2">
-              <span className="text-3xl font-bold text-foreground">{completedToday}</span>
-              <span className="pb-1 text-xs text-muted-foreground">done today</span>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {activeTodos} task{activeTodos !== 1 ? "s" : ""} remaining
-            </p>
-          </CardContent>
-        </Card>
         {/* Free time today */}
         <Card className="border-border/50 sm:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -344,24 +329,19 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground">
                 No classes today — enjoy the {DAY_FULL[todayDay]}.
               </p>
-            ) : freeToday.freePeriods.length === 0 ? (
+            ) : longestBreakToday ? (
+              <div className="flex items-end gap-2">
+                <span className="text-2xl font-bold tracking-tight text-foreground">
+                  {minutesToHoursLabel(longestBreakToday.durationMinutes)}
+                </span>
+                <span className="pb-1 text-xs text-muted-foreground">
+                  longest break · {formatClock(longestBreakToday.startMinutes)} – {formatClock(longestBreakToday.endMinutes)}
+                </span>
+              </div>
+            ) : (
               <p className="text-sm text-muted-foreground">
                 Packed day — no long breaks available.
               </p>
-            ) : (
-              <ul className="space-y-1.5">
-                {freeToday.freePeriods.map((p, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm">
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-                    <span className="text-foreground">
-                      {formatClock(p.startMinutes)} – {formatClock(p.endMinutes)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      ({minutesToHoursLabel(p.durationMinutes)} free)
-                    </span>
-                  </li>
-                ))}
-              </ul>
             )}
           </CardContent>
         </Card>
