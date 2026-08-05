@@ -8,6 +8,16 @@ import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
 import { retry } from "@/lib/retry";
 import { SchedulePreview } from "@/features/schedule/components/schedule-preview";
 import { useTodos, isToday } from "@/features/todo/use-todos";
+import {
+  computeScheduleInsights,
+  getFreeTimeToday,
+  DAY_ORDER,
+  DAY_FULL,
+  formatClock,
+  minutesToHoursLabel,
+  type InsightItem,
+} from "@/features/insights/compute-insights";
+import { ScheduleInsightsCards } from "@/features/insights/insight-cards";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,6 +30,7 @@ import {
   Clock,
   MapPin,
   GraduationCap,
+  Coffee,
 } from "lucide-react";
 import { publishScheduleToWidget } from "@/features/widget/widget-data";
 import { useMounted } from "@/lib/use-mounted";
@@ -143,6 +154,17 @@ export default function DashboardPage() {
 
   const allClasses = (schedules ?? []).flatMap((s) => s.classes);
   const nextClass = getNextClass(allClasses);
+
+  // Schedule insights are derived purely from class times (client-side, offline).
+  const insightItems: InsightItem[] = allClasses.map((c) => ({
+    subject: c.shortName?.trim() || c.code?.trim() || c.subject,
+    days: c.days,
+    startMinutes: toMin(c.startTime),
+    endMinutes: toMin(c.endTime),
+  }));
+  const insights = computeScheduleInsights(insightItems);
+  const todayDay = DAY_ORDER[(new Date().getDay() + 6) % 7] ?? "monday";
+  const freeToday = getFreeTimeToday(insightItems, todayDay);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const todaysTodos = todos.filter((t) => t.dueDate === todayStr);
@@ -307,7 +329,48 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
+        {/* Free time today */}
+        <Card className="border-border/50 sm:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Free Time Today
+            </CardTitle>
+            <Coffee className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            {schedules === null ? (
+              <Skeleton className="h-4 w-40" />
+            ) : freeToday.isFullyFree ? (
+              <p className="text-sm text-muted-foreground">
+                No classes today — enjoy the {DAY_FULL[todayDay]}.
+              </p>
+            ) : freeToday.freePeriods.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Packed day — no long breaks available.
+              </p>
+            ) : (
+              <ul className="space-y-1.5">
+                {freeToday.freePeriods.map((p, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                    <span className="text-foreground">
+                      {formatClock(p.startMinutes)} – {formatClock(p.endMinutes)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      ({minutesToHoursLabel(p.durationMinutes)} free)
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Schedule Insights */}
+      {schedules && allClasses.length > 0 && (
+        <ScheduleInsightsCards insights={insights} />
+      )}
 
       {/* Generated Schedule Table */}
       <div>
