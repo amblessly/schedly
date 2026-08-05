@@ -135,7 +135,13 @@ function PackedWeekCard({ insights }: { insights: ScheduleInsights }) {
   );
 }
 
-export function ScheduleInsightsCards({ insights }: { insights: ScheduleInsights }) {
+export function ScheduleInsightsCards({
+  insights,
+  action,
+}: {
+  insights: ScheduleInsights;
+  action?: React.ReactNode;
+}) {
   const hasActionable =
     Boolean(insights.busiestDay) ||
     Boolean(insights.lightestDay) ||
@@ -147,9 +153,12 @@ export function ScheduleInsightsCards({ insights }: { insights: ScheduleInsights
 
   return (
     <section aria-label="Schedule insights">
-      <div className="mb-3 flex items-center gap-2">
-        <Sparkles className="h-4 w-4 text-primary" />
-        <h2 className="text-lg font-semibold text-foreground">Insights</h2>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <h2 className="text-lg font-semibold text-foreground">Insights</h2>
+        </div>
+        {action}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <HeaviestDayCard insights={insights} />

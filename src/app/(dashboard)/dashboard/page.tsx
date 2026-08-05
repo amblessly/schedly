@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type FormEvent } from "react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import html2canvas from "html2canvas-pro";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
+import { getAiInsights } from "@/app/(dashboard)/dashboard/actions";
 import { retry } from "@/lib/retry";
 import { SchedulePreview } from "@/features/schedule/components/schedule-preview";
 import { useTodos } from "@/features/todo/use-todos";
@@ -31,6 +32,9 @@ import {
   MapPin,
   GraduationCap,
   Coffee,
+  Bell,
+  Sparkles,
+  Plus,
 } from "lucide-react";
 import { publishScheduleToWidget } from "@/features/widget/widget-data";
 import { useMounted } from "@/lib/use-mounted";
@@ -83,6 +87,22 @@ function fmtDuration(ms: number) {
   return m ? `${h}h ${m}m` : `${h}h`;
 }
 
+function reminderKind(c: ClassData): { label: string; cls: string } {
+  const now = new Date();
+  const dayIdx = DAY_NAMES.indexOf(c.days[0] ?? "");
+  if (dayIdx < 0) return { label: "Upcoming", cls: "text-slate-400" };
+  const diff = (dayIdx - now.getDay() + 7) % 7;
+  const start = new Date(now);
+  start.setDate(now.getDate() + diff);
+  start.setHours(c.startTime.getHours(), c.startTime.getMinutes(), 0, 0);
+  const ms = start.getTime() - now.getTime();
+  const dayLabel = c.days.length > 1 ? `${c.days.map((d) => d.slice(0, 3).toUpperCase()).join("/")}` : c.days[0]?.slice(0, 3).toUpperCase();
+  if (ms < 0) return { label: "Done", cls: "text-slate-400" };
+  if (diff === 0) return { label: "Today", cls: "text-emerald-600" };
+  if (diff === 1) return { label: `Tomorrow ${dayLabel}`, cls: "text-amber-600" };
+  return { label: `${dayLabel} ${formatClock(start.getHours() * 60 + start.getMinutes())}`, cls: "text-slate-400" };
+}
+
 function getNextClass(classes: ClassData[]) {
   if (!classes.length) return null;
   const now = new Date();
@@ -117,9 +137,13 @@ const GallerySave = registerPlugin<GallerySavePlugin>("GallerySave");
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { todos } = useTodos();
+  const { todos, addTodo } = useTodos();
   const [schedules, setSchedules] = useState<ScheduleData[] | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [newTodo, setNewTodo] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<string[] | null>(null);
   const scheduleRef = useRef<HTMLDivElement>(null);
   const captureRef = useRef<HTMLDivElement>(null);
 
@@ -173,6 +197,35 @@ export default function DashboardPage() {
     (best, p) => (best === null || p.durationMinutes > best.durationMinutes ? p : best),
     null
   );
+
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+  const todaysClasses = allClasses
+    .filter((c) => c.days.includes(todayDay))
+    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+
+  const handleAddTodo = (e: FormEvent) => {
+    e.preventDefault();
+    const text = newTodo.trim();
+    if (!text) return;
+    addTodo(text, "medium", todayStr);
+    setNewTodo("");
+  };
+
+  const handleGenerateInsights = async () => {
+    if (aiLoading) return;
+    setAiLoading(true);
+    setAiError(null);
+    const payload = insightItems.map((it) => ({
+      subject: it.subject,
+      days: it.days,
+      startTime: `${String(Math.floor(it.startMinutes / 60)).padStart(2, "0")}:${String(it.startMinutes % 60).padStart(2, "0")}`,
+      endTime: `${String(Math.floor(it.endMinutes / 60)).padStart(2, "0")}:${String(it.endMinutes % 60).padStart(2, "0")}`,
+    }));
+    const res = await getAiInsights(payload);
+    setAiLoading(false);
+    if (res.success) setAiSuggestions(res.suggestions);
+    else setAiError(res.error);
+  };
 
   const handleDownload = async () => {
       const node = captureRef.current || scheduleRef.current;
@@ -311,11 +364,78 @@ export default function DashboardPage() {
                 )}
               </ul>
             )}
+            <form onSubmit={handleAddTodo} className="mt-3 flex items-center gap-1.5">
+              <input
+                value={newTodo}
+                onChange={(e) => setNewTodo(e.target.value)}
+                placeholder="Add a task for today…"
+                className="h-8 min-w-0 flex-1 rounded-md border border-border/60 bg-transparent px-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <button
+                type="submit"
+                aria-label="Add task"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border/60 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                disabled={!newTodo.trim()}
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Reminders Today */}
+        <Card className="border-border/50 [--card-spacing:--spacing(5)]">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Reminders
+            </CardTitle>
+            <Bell className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            {schedules === null ? (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            ) : todaysClasses.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No classes today</p>
+            ) : (
+              <ul className="space-y-2">
+                {todaysClasses.slice(0, 4).map((c, i) => {
+                  const startMin = c.startTime.getHours() * 60 + c.startTime.getMinutes();
+                  const endMin = c.endTime.getHours() * 60 + c.endTime.getMinutes();
+                  const isLive = nowMin >= startMin && nowMin <= endMin;
+                  const kind = reminderKind(c);
+                  return (
+                    <li key={`${c.subject}-${i}`} className="flex items-start gap-2 text-sm">
+                      <Clock className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${isLive ? "text-primary" : "text-muted-foreground/60"}`} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-foreground">
+                          {c.shortName?.trim() || c.code?.trim() || c.subject}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatClock(startMin)} – {formatClock(endMin)}
+                          {c.room ? ` · ${c.room}` : ""}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 text-xs font-medium ${kind.cls}`}>
+                        {isLive ? "Now" : kind.label}
+                      </span>
+                    </li>
+                  );
+                })}
+                {todaysClasses.length > 4 && (
+                  <li className="text-xs text-muted-foreground">
+                    +{todaysClasses.length - 4} more
+                  </li>
+                )}
+              </ul>
+            )}
           </CardContent>
         </Card>
 
         {/* Free time today */}
-        <Card className="border-border/50 sm:col-span-2">
+        <Card className="border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Free Time Today
@@ -349,7 +469,40 @@ export default function DashboardPage() {
 
       {/* Schedule Insights */}
       {schedules && allClasses.length > 0 && (
-        <ScheduleInsightsCards insights={insights} />
+        <>
+          <ScheduleInsightsCards
+            insights={insights}
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateInsights}
+                disabled={aiLoading}
+              >
+                {aiLoading ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating…</>
+                ) : (
+                  <><Sparkles className="mr-2 h-4 w-4 text-primary" /> Generate insights</>
+                )}
+              </Button>
+            }
+          />
+          {aiError && (
+            <p className="text-xs text-destructive">{aiError}</p>
+          )}
+          {aiSuggestions && aiSuggestions.length > 0 && (
+            <Card className="border-border/50 [--card-spacing:--spacing(5)]">
+              <CardContent className="space-y-2">
+                {aiSuggestions.map((s, i) => (
+                  <div key={i} className="flex items-start gap-2.5 rounded-lg bg-primary/5 px-3 py-2.5">
+                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <p className="text-sm leading-snug text-foreground">{s}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
 
       {/* Generated Schedule Table */}

@@ -306,6 +306,59 @@ export async function validateExtractedData(extractedJson: Record<string, unknow
 }
 
 /* ----------------------------------------------------------------------
+   AI Schedule Suggestions (natural-language planning tips)
+   ---------------------------------------------------------------------- */
+
+const SUGGESTIONS_PROMPT = `You are Schedly's smart schedule assistant. Analyze the user's weekly class schedule (JSON) and give 3-5 concise, actionable suggestions that help them plan their week.
+
+Focus on:
+- Best days/times to schedule appointments, errands, or study blocks
+- Recurring free windows they could use for a routine (study, gym, rest)
+- Any day that looks overloaded and how to lighten it
+- Long gaps before or after classes
+- Anything genuinely useful about their free time
+
+Rules:
+- Each suggestion must be a single short sentence (under 25 words), plain and specific.
+- Do NOT invent classes, times, rooms, or people.
+- Do NOT mention "AI", "analysis", or "assistant".
+- Return ONLY valid JSON: {"suggestions": ["...", "..."]}`;
+
+export type ScheduleSuggestionInput = {
+  subject: string;
+  days: string[];
+  startTime: string;
+  endTime: string;
+};
+
+/**
+ * Generates natural-language planning suggestions for a schedule. Text-only
+ * call against the same free models — no image needed.
+ */
+export async function generateScheduleSuggestions(
+  classes: ScheduleSuggestionInput[],
+): Promise<string[]> {
+  const models = VISION_MODELS;
+  const data = await runWithModelFallback(
+    (model) =>
+      callOpenRouter(model, [
+        {
+          role: "user",
+          content:
+            `${SUGGESTIONS_PROMPT}\n\nWeekly schedule:\n${JSON.stringify(classes, null, 2)}`,
+        },
+      ]).then(parseAiResponse),
+    models,
+  );
+
+  const suggestions = (data as { suggestions?: unknown })?.suggestions;
+  if (!Array.isArray(suggestions)) return [];
+  return suggestions
+    .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+    .slice(0, 5);
+}
+
+/* ----------------------------------------------------------------------
    Schedule Consistency Check
    ---------------------------------------------------------------------- */
 
