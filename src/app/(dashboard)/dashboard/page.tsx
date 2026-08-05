@@ -351,7 +351,7 @@ export default function DashboardPage() {
                 <Skeleton className="h-3 w-20" />
               </div>
             ) : upcomingClasses.length > 0 ? (
-              <ul className="max-h-[112px] space-y-2 overflow-y-auto pr-1">
+              <ul className="max-h-[150px] space-y-2 overflow-y-auto pr-1">
                 {upcomingClasses.map((item, i) => {
                   const { class: c, startMs, endMs, dayLabel, isNear } = item;
                   const happeningNow = startMs <= 0;
@@ -527,9 +527,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Today's Schedule + Insights side by side */}
-      <div className="grid grid-cols-2 items-start gap-3">
+      <div className="grid grid-cols-2 items-stretch gap-3">
         {/* Today's Schedule */}
-        <section aria-label="Today's schedule">
+        <section aria-label="Today's schedule" className="flex h-full flex-col">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground">Today&apos;s Schedule</h2>
             <Link
@@ -540,13 +540,13 @@ export default function DashboardPage() {
             </Link>
           </div>
           {schedules === null ? (
-            <div className="space-y-2">
+            <div className="flex-1 space-y-2">
               {[1, 2].map((i) => (
                 <Skeleton key={i} className="h-12 w-full rounded-xl" />
               ))}
             </div>
           ) : todaysClasses.length === 0 ? (
-            <Card className="border-border/50 [--card-spacing:--spacing(5)]">
+            <Card className="flex-1 border-border/50 [--card-spacing:--spacing(5)]">
               <CardContent className="flex items-center gap-3 py-4">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <Coffee className="h-5 w-5" />
@@ -562,7 +562,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           ) : (
-            <Card className="border-border/50 [--card-spacing:--spacing(5)]">
+            <Card className="flex-1 border-border/50 [--card-spacing:--spacing(5)]">
               <CardContent className="divide-y divide-border/60 py-1">
                 {todaysClasses.map((c) => {
                   const name = c.shortName?.trim() || c.code?.trim() || c.subject;
@@ -600,13 +600,13 @@ export default function DashboardPage() {
 
         {/* Insights — auto weekly insight + optional AI tips */}
         {schedules && allClasses.length > 0 && (
-          <section aria-label="Schedule insights">
+          <section aria-label="Schedule insights" className="flex h-full flex-col">
             <div className="mb-3 flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
               <h2 className="text-lg font-semibold text-foreground">Insights</h2>
             </div>
 
-            <Card className="border-border/50 [--card-spacing:--spacing(5)]">
+            <Card className="flex-1 border-border/50 [--card-spacing:--spacing(5)]">
               <CardContent className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground">{weeklyInsightText}</p>
