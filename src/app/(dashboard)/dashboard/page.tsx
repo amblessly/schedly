@@ -526,123 +526,129 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Today's Schedule */}
-      <section aria-label="Today's schedule">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">Today&apos;s Schedule</h2>
-          <Link
-            href="/schedule"
-            className="inline-flex items-center gap-0.5 text-xs font-medium text-primary"
-          >
-            Full timetable <ChevronRight className="h-3 w-3" />
-          </Link>
-        </div>
-        {schedules === null ? (
-          <div className="space-y-2">
-            {[1, 2].map((i) => (
-              <Skeleton key={i} className="h-12 w-full rounded-xl" />
-            ))}
+      {/* Today's Schedule + Insights side by side */}
+      <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
+        {/* Today's Schedule */}
+        <section aria-label="Today's schedule">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">Today&apos;s Schedule</h2>
+            <Link
+              href="/schedule"
+              className="inline-flex items-center gap-0.5 text-xs font-medium text-primary"
+            >
+              Full timetable <ChevronRight className="h-3 w-3" />
+            </Link>
           </div>
-        ) : todaysClasses.length === 0 ? (
-          <Card className="border-border/50 [--card-spacing:--spacing(5)]">
-            <CardContent className="flex items-center gap-3 py-4">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Coffee className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  No classes on {DAY_FULL[todayDay]}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  You&apos;re free all day — perfect time to relax or catch up on tasks.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="border-border/50 [--card-spacing:--spacing(5)]">
-            <CardContent className="divide-y divide-border/60 py-1">
-              {todaysClasses.map((c) => {
-                const name = c.shortName?.trim() || c.code?.trim() || c.subject;
-                const done = new Date(c.endTime).getTime() <= now.getTime();
-                return (
-                  <div key={c.id} className="flex items-center gap-3 py-2.5">
-                    <span className="w-14 shrink-0 text-xs font-semibold tabular-nums text-foreground">
-                      {formatClockTime(c.startTime)}
-                    </span>
-                    <span className="h-8 w-1 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={`truncate text-sm font-medium ${
-                          done ? "text-muted-foreground line-through" : "text-foreground"
-                        }`}
-                      >
-                        {name}
-                      </p>
-                      {c.room?.trim() && (
-                        <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
-                          <MapPin className="h-3 w-3 shrink-0" /> {c.room.trim()}
-                        </p>
-                      )}
-                    </div>
-                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                      {formatClockTime(c.endTime)}
-                    </span>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        )}
-      </section>
-
-      {/* Insights — auto weekly insight + optional AI tips */}
-      {schedules && allClasses.length > 0 && (
-        <section aria-label="Schedule insights">
-          <div className="mb-3 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <h2 className="text-lg font-semibold text-foreground">Insights</h2>
-          </div>
-
-          <Card className="border-border/50 [--card-spacing:--spacing(5)]">
-            <CardContent className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground">{weeklyInsightText}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{weeklyInsightSub}</p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="shrink-0"
-                onClick={handleGenerateInsights}
-                disabled={aiLoading}
-              >
-                {aiLoading ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Working…</>
-                ) : aiSuggestions ? (
-                  "More AI tips"
-                ) : (
-                  <><Sparkles className="mr-2 h-4 w-4 text-primary" /> AI tips</>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-
-          {aiError && <p className="mt-2 text-xs text-destructive">{aiError}</p>}
-
-          {aiSuggestions && aiSuggestions.length > 0 && (
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              {aiSuggestions.map((s, i) => (
-                <Card key={i} className="border-border/50 [--card-spacing:--spacing(5)]">
-                  <CardContent className="flex items-start gap-2.5">
-                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                    <p className="text-sm leading-snug text-foreground">{s}</p>
-                  </CardContent>
-                </Card>
+          {schedules === null ? (
+            <div className="space-y-2">
+              {[1, 2].map((i) => (
+                <Skeleton key={i} className="h-12 w-full rounded-xl" />
               ))}
             </div>
+          ) : todaysClasses.length === 0 ? (
+            <Card className="border-border/50 [--card-spacing:--spacing(5)]">
+              <CardContent className="flex items-center gap-3 py-4">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Coffee className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    No classes on {DAY_FULL[todayDay]}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    You&apos;re free all day — perfect time to relax or catch up on tasks.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-border/50 [--card-spacing:--spacing(5)]">
+              <CardContent className="divide-y divide-border/60 py-1">
+                {todaysClasses.map((c) => {
+                  const name = c.shortName?.trim() || c.code?.trim() || c.subject;
+                  const done = new Date(c.endTime).getTime() <= now.getTime();
+                  return (
+                    <div key={c.id} className="flex items-center gap-3 py-2.5">
+                      <span className="w-14 shrink-0 text-xs font-semibold tabular-nums text-foreground">
+                        {formatClockTime(c.startTime)}
+                      </span>
+                      <span className="h-8 w-1 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={`truncate text-sm font-medium ${
+                            done ? "text-muted-foreground line-through" : "text-foreground"
+                          }`}
+                        >
+                          {name}
+                        </p>
+                        {c.room?.trim() && (
+                          <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
+                            <MapPin className="h-3 w-3 shrink-0" /> {c.room.trim()}
+                          </p>
+                        )}
+                      </div>
+                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                        {formatClockTime(c.endTime)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
           )}
         </section>
+
+        {/* Insights — auto weekly insight + optional AI tips */}
+        {schedules && allClasses.length > 0 && (
+          <section aria-label="Schedule insights">
+            <div className="mb-3 flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <h2 className="text-lg font-semibold text-foreground">Insights</h2>
+            </div>
+
+            <Card className="border-border/50 [--card-spacing:--spacing(5)]">
+              <CardContent className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">{weeklyInsightText}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{weeklyInsightSub}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={handleGenerateInsights}
+                  disabled={aiLoading}
+                >
+                  {aiLoading ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Working…</>
+                  ) : aiSuggestions ? (
+                    "More AI tips"
+                  ) : (
+                    <><Sparkles className="mr-2 h-4 w-4 text-primary" /> AI tips</>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          </section>
+        )}
+      </div>
+
+      {/* AI tips output below the two cards */}
+      {schedules && allClasses.length > 0 && aiError && (
+        <p className="mt-2 text-xs text-destructive">{aiError}</p>
+      )}
+
+      {schedules && allClasses.length > 0 && aiSuggestions && aiSuggestions.length > 0 && (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {aiSuggestions.map((s, i) => (
+            <Card key={i} className="border-border/50 [--card-spacing:--spacing(5)]">
+              <CardContent className="flex items-start gap-2.5">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <p className="text-sm leading-snug text-foreground">{s}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
 
       {/* Generated Schedule Table */}
