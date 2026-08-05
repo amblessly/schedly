@@ -327,8 +327,8 @@ export default function DashboardPage() {
 
       {/* Bento grid — mixed-size tiles (landscape, square) for a glanceable day */}
       <div className="grid grid-cols-2 items-stretch gap-3">
-        {/* Next Class — landscape tile */}
-        <Card className="col-span-2 border-border/50 [--card-spacing:--spacing(5)]">
+        {/* Next Class — tall tile filling the left column (rows 1–2) */}
+        <Card className="col-span-1 row-span-2 flex h-full flex-col border-border/50 [--card-spacing:--spacing(5)]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Next Class
@@ -342,7 +342,7 @@ export default function DashboardPage() {
               <CalendarClock className="h-4 w-4 text-primary" />
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex min-h-0 flex-1 flex-col">
             {schedules === null ? (
               <div className="space-y-2">
                 <Skeleton className="h-6 w-24" />
@@ -350,7 +350,7 @@ export default function DashboardPage() {
                 <Skeleton className="h-3 w-20" />
               </div>
             ) : upcomingClasses.length > 0 ? (
-              <ul className="max-h-[150px] space-y-2 overflow-y-auto pr-1">
+              <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                 {upcomingClasses.map((item, i) => {
                   const { class: c, startMs, endMs, dayLabel, isNear } = item;
                   const happeningNow = startMs <= 0;
