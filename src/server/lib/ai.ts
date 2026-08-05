@@ -52,6 +52,9 @@ For each real class extract:
 
 Rules:
 - 24-hour "HH:MM" time only
+- READ TIMES EXACTLY AS PRINTED. Do NOT round, shift, estimate, or "correct" them — the minutes must match the image (e.g. "7:30" is 07:30, never 07:35 or 08:00).
+- Convert AM/PM carefully: a class printed as 7:30-9:00 AM is 07:30–09:00; PM classes are 13:00–23:59. Never swap the two halves of the day.
+- If a time is faint or hard to read, output your best exact reading of what is printed — never leave it blank and never invent a different time.
 - days is always an ARRAY
 - Unseen fields -> null (never guess)
 - Ignore duplicate OCR text, headers, decorative elements

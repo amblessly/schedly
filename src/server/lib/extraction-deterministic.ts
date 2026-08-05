@@ -21,18 +21,20 @@ const TIME_24H = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 /**
  * Normalize a time string to 24-hour "HH:MM". Handles "01:30 PM", "1:30pm",
- * "13:00", etc. Returns the input unchanged when it cannot be parsed.
+ * "13:00", and "7:30" (hour without leading zero → padded). Returns the input
+ * unchanged when it cannot be parsed.
  */
 export function normalizeTime(raw: unknown): string {
   if (typeof raw !== "string") return String(raw ?? "");
   const s = raw.trim();
   if (TIME_24H.test(s)) return s;
 
-  const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/i);
+  const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
   if (m) {
     let h = parseInt(m[1]!, 10);
     const min = m[2] ? m[2] : "00";
-    const mer = m[3]!.toLowerCase();
+    const mer = m[3]?.toLowerCase();
+    if (Number.isNaN(h) || h < 0 || h > 23) return s;
     if (mer === "pm" && h !== 12) h += 12;
     if (mer === "am" && h === 12) h = 0;
     return `${String(h).padStart(2, "0")}:${min}`;

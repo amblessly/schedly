@@ -7,6 +7,7 @@ import { aiValidationResultSchema } from "@/server/validators/ai.schema";
 import { ok, fail, type Result } from "@/server/lib/errors";
 import { PipelineLogger } from "@/server/lib/structured-logger";
 import { extractionCache, computeImageHash } from "@/server/lib/image-cache";
+import { preprocessImage } from "@/server/lib/image-processing";
 import {
   buildResult,
   finalizeValidated,
@@ -39,12 +40,14 @@ export const aiService = {
     PipelineLogger.info("pipeline", "Pipeline start", { runId, imageUrl });
 
     try {
-      // 0. Cache lookup by perceptual image hash (skips all AI work on repeats).
-      let imageBuffer: Buffer | null = null;
+      // 0. Fetch the bytes once — used for the cache hash AND reprocessed
+      // before the model call, so the image is never downloaded twice.
+      const ct0 = performance.now();
+      const imageBuffer = await fetchImageBytes(imageUrl);
+
+      // 1. Cache lookup by perceptual image hash (skips all AI work on repeats).
       let hash: string | null = null;
       if (process.env.AI_CACHE_ENABLED !== "false") {
-        const ct0 = performance.now();
-        imageBuffer = await fetchImageBytes(imageUrl);
         hash = await computeImageHash(imageBuffer);
         const cached = await extractionCache.get(hash);
         if (cached) {
@@ -60,13 +63,24 @@ export const aiService = {
         PipelineLogger.debug("cache", "Cache miss", { runId, hash, cacheMs: Math.round(performance.now() - ct0) });
       }
 
-      // 1. Primary vision extraction (single pass — the common path is ONE
+      // 2. Preprocess BEFORE the AI call so the model reads an auto-rotated,
+      // cropped, perspective-corrected table. Skipping this made times and
+      // rooms easy to misread. Preprocessing is deterministic, so the cache key
+      // above (a hash of the raw bytes) stays valid for repeat uploads.
+      const pt0 = performance.now();
+      const processedImage = await preprocessImage(imageBuffer);
+      PipelineLogger.info("preprocess", "Image preprocessed", {
+        runId,
+        preprocessMs: Math.round(performance.now() - pt0),
+      });
+
+      // 3. Primary vision extraction (single pass — the common path is ONE
       // AI call). Any usable result is returned immediately; low-confidence
       // results are fixed by the user in the review screen instead of burning
       // 2-3 more slow model calls.
       const primary = await extractScheduleFromImage(
         imageUrl,
-        imageBuffer ? { base64: imageBuffer.toString("base64"), contentType: "image/jpeg" } : undefined,
+        { base64: processedImage.toString("base64"), contentType: "image/jpeg" },
       );
       const raw = primary.data;
 

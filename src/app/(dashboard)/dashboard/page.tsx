@@ -95,6 +95,8 @@ type UpcomingClass = {
   startMs: number;
   endMs: number;
   dayLabel: string;
+  /** True when the class is today or tomorrow (close enough for a countdown). */
+  isNear: boolean;
 };
 
 function getUpcomingClasses(classes: ClassData[], now: Date): UpcomingClass[] {
@@ -118,6 +120,7 @@ function getUpcomingClasses(classes: ClassData[], now: Date): UpcomingClass[] {
         startMs: start.getTime() - now.getTime(),
         endMs: end.getTime() - now.getTime(),
         dayLabel: diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : DAY_FULL[day] ?? day,
+        isNear: diff === 0 || diff === 1,
       });
     }
   }
@@ -349,7 +352,7 @@ export default function DashboardPage() {
             ) : upcomingClasses.length > 0 ? (
               <ul className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
                 {upcomingClasses.map((item, i) => {
-                  const { class: c, startMs, endMs, dayLabel } = item;
+                  const { class: c, startMs, endMs, dayLabel, isNear } = item;
                   const happeningNow = startMs <= 0;
                   const name = c.shortName?.trim() || c.code?.trim() || c.subject;
                   const featured = i === 0;
@@ -384,6 +387,7 @@ export default function DashboardPage() {
                           {dayLabel}
                         </span>
                       </div>
+
                       <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <CalendarClock className="h-3 w-3 shrink-0" />
@@ -400,22 +404,27 @@ export default function DashboardPage() {
                           </span>
                         )}
                       </div>
-                      <p
-                        className={`mt-1 flex items-center gap-1 text-xs ${
-                          happeningNow ? "font-semibold text-primary" : "text-muted-foreground"
-                        }`}
-                      >
-                        <Clock className="h-3 w-3 shrink-0" />
-                        {happeningNow
-                          ? `Happening now · ends in ${fmtCountdown(endMs)}`
-                          : `Starts in ${fmtCountdown(startMs)}`}
-                      </p>
-                      <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-foreground/10">
-                        <div
-                          className="h-full rounded-full transition-all duration-1000 ease-linear"
-                          style={{ width: `${classProgress(item, now)}%`, backgroundColor: c.color }}
-                        />
-                      </div>
+
+                      {isNear && (
+                        <>
+                          <p
+                            className={`mt-1.5 flex items-center gap-1 text-xs ${
+                              happeningNow ? "font-semibold text-primary" : "text-muted-foreground"
+                            }`}
+                          >
+                            <Clock className="h-3 w-3 shrink-0" />
+                            {happeningNow
+                              ? `Happening now · ends in ${fmtCountdown(endMs)}`
+                              : `Starts in ${fmtCountdown(startMs)}`}
+                          </p>
+                          <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-foreground/10">
+                            <div
+                              className="h-full rounded-full transition-all duration-1000 ease-linear"
+                              style={{ width: `${classProgress(item, now)}%`, backgroundColor: c.color }}
+                            />
+                          </div>
+                        </>
+                      )}
                     </li>
                   );
                 })}

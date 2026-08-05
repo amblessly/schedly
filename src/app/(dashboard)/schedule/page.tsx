@@ -205,21 +205,33 @@ export default function SchedulePage() {
   };
 
   // Extraction continues in the background and the client polls for status
-  // (see use-upload). While status is "processing", show a lightweight
-  // counting progress bar so the UI never feels stuck.
+  // (see use-upload). Real upload progress maps onto the first 40%. While the
+  // AI reads the image there is no true percentage, so we show a slow
+  // asymptotic climb from 40% toward ~95% — it never jumps straight to 99 and
+  // sits there, which felt stuck. It only hits 100% once extraction actually
+  // finishes.
   const isAiWorking = isProcessing || (isUploading && progress >= 100);
 
   const [fakeProgress, setFakeProgress] = useState(0);
 
   useEffect(() => {
     if (!isAiWorking) return;
+    setFakeProgress(0);
     const startedAt = Date.now();
     const timer = setInterval(() => {
-      const elapsed = Date.now() - startedAt;
-      setFakeProgress(Math.min(99, Math.floor((elapsed / 12000) * 99)));
-    }, 100);
+      const elapsedMin = (Date.now() - startedAt) / 60000;
+      // ~50% of the processing range reached after ~20s, topping out near 95%.
+      setFakeProgress(Math.round(55 * (1 - Math.exp(-elapsedMin * 1.1))));
+    }, 250);
     return () => clearInterval(timer);
   }, [isAiWorking]);
+
+  const displayProgress =
+    upload?.status === "completed"
+      ? 100
+      : isAiWorking
+        ? Math.min(95, 40 + fakeProgress)
+        : Math.min(40, Math.round((progress / 100) * 40));
 
   return (
     <div className="mx-auto max-w-4xl pt-8 md:pt-0">
@@ -341,13 +353,13 @@ export default function SchedulePage() {
                             {isAiWorking ? "Reading your schedule" : "Uploading your schedule"}
                           </span>
                           <span className="text-xs font-semibold tabular-nums text-muted-foreground">
-                            {isAiWorking ? fakeProgress : progress}%
+                            {displayProgress}%
                           </span>
                         </div>
                         <div className="relative h-2 w-full overflow-hidden rounded-full bg-primary/10">
                           <div
                             className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-200 ease-out"
-                            style={{ width: `${isAiWorking ? fakeProgress : progress}%` }}
+                            style={{ width: `${displayProgress}%` }}
                           />
                         </div>
                       </div>
