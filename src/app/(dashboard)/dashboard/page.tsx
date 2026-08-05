@@ -527,7 +527,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Today's Schedule + Insights side by side */}
-      <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-2 items-start gap-3">
         {/* Today's Schedule */}
         <section aria-label="Today's schedule">
           <div className="mb-3 flex items-center justify-between">
