@@ -526,7 +526,7 @@ export default function DashboardPage() {
                     {aiLoading ? (
                       <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Working…</>
                     ) : (
-                      <><Sparkles className="mr-2 h-3.5 w-3.5 text-primary" /> AI tips</>
+                      <><Sparkles className="mr-2 h-3.5 w-3.5 text-primary" /> Tips</>
                     )}
                   </Button>
                 )}
