@@ -231,9 +231,9 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Today's Classes — carousel left, status cards right */}
-      <div className="grid items-stretch gap-4 md:grid-cols-[1fr_240px]">
-        <div>
+      {/* Today's Classes — bento: carousel left, two stacked status cards right */}
+      <div className="flex items-stretch gap-3">
+        <div className="min-w-0 flex-1">
           <div className="flex items-end justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold tracking-tight text-foreground">
@@ -249,7 +249,7 @@ export default function DashboardPage() {
             </div>
             <Link
               href="/schedule"
-              className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-primary"
+              className="hidden shrink-0 items-center gap-0.5 text-xs font-medium text-primary sm:inline-flex"
             >
               Full timetable <ChevronRight className="h-3.5 w-3.5" />
             </Link>
@@ -271,62 +271,58 @@ export default function DashboardPage() {
         </div>
 
         {/* Status cards — tasks + free time, stacked on the right */}
-        <div className="flex flex-col gap-3">
+        <div className="flex w-[112px] shrink-0 flex-col gap-3 sm:w-[130px]">
           <Link
             href="/todo"
-            className="flex items-center gap-3 rounded-3xl border border-border/60 bg-card p-4 transition-colors hover:bg-muted"
+            className="flex flex-1 flex-col items-center justify-center gap-2 rounded-3xl border border-border/60 bg-card p-3 text-center transition-colors hover:bg-muted"
           >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <ListTodo className="h-5 w-5" />
             </span>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">
-                {todaysTodos.length > 0
-                  ? `${todaysTodos.length} task${todaysTodos.length !== 1 ? "s" : ""}`
-                  : "Plan your day"}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {todaysTodos.length > 0 ? "due today" : "Add something to do"}
-              </p>
-            </div>
+            <p className="text-xs font-semibold leading-tight text-foreground">
+              {todaysTodos.length > 0
+                ? `${todaysTodos.length} task${todaysTodos.length !== 1 ? "s" : ""}`
+                : "Plan your day"}
+            </p>
+            <p className="text-[10px] leading-tight text-muted-foreground">
+              {todaysTodos.length > 0 ? "due today" : "Add something to do"}
+            </p>
           </Link>
 
           {schedules !== null &&
             (freeToday.isFullyFree ? (
-              <div className="flex items-center gap-3 rounded-3xl border border-border/60 bg-card p-4">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-green-500/15 text-green-600">
+              <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-3xl border border-border/60 bg-card p-3 text-center">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-green-500/15">
                   <span className="h-3 w-3 rounded-full bg-green-500" />
                 </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">Free all day</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    Nothing scheduled today
-                  </p>
-                </div>
+                <p className="text-xs font-semibold leading-tight text-foreground">Free all day</p>
+                <p className="text-[10px] leading-tight text-muted-foreground">
+                  Nothing scheduled
+                </p>
               </div>
             ) : longestBreakToday ? (
-              <div className="flex items-center gap-3 rounded-3xl border border-border/60 bg-card p-4">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-green-500/15 text-green-600">
+              <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-3xl border border-border/60 bg-card p-3 text-center">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-green-500/15">
                   <span className="h-3 w-3 rounded-full bg-green-500" />
                 </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">
-                    Free until {formatClock(longestBreakToday.endMinutes)}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    Longest break · {minutesToHoursLabel(longestBreakToday.durationMinutes)}
-                  </p>
-                </div>
+                <p className="text-xs font-semibold leading-tight text-foreground">
+                  Free until {formatClock(longestBreakToday.endMinutes)}
+                </p>
+                <p className="text-[10px] leading-tight text-muted-foreground">
+                  {minutesToHoursLabel(longestBreakToday.durationMinutes)} break
+                </p>
               </div>
             ) : (
-              <div className="flex items-center gap-3 rounded-3xl border border-border/60 bg-card p-4">
+              <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-3xl border border-border/60 bg-card p-3 text-center">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                   <span className="h-3 w-3 rounded-full bg-primary" />
                 </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">Class starts soon</p>
-                  <p className="truncate text-xs text-muted-foreground">No long breaks today</p>
-                </div>
+                <p className="text-xs font-semibold leading-tight text-foreground">
+                  Class starts soon
+                </p>
+                <p className="text-[10px] leading-tight text-muted-foreground">
+                  No long breaks
+                </p>
               </div>
             ))}
         </div>
