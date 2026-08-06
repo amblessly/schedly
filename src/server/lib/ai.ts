@@ -312,19 +312,21 @@ export async function validateExtractedData(extractedJson: Record<string, unknow
    AI Schedule Suggestions (natural-language planning tips)
    ---------------------------------------------------------------------- */
 
-const SUGGESTIONS_PROMPT = `You are Schedly's smart schedule assistant. Analyze the user's weekly class schedule (JSON) and give 3-5 concise, actionable suggestions that help them plan their week.
+const SUGGESTIONS_PROMPT = `You are a friendly classmate sharing practical study and life tips about this weekly class schedule (JSON). Read it like a person would and give 3-5 short, useful suggestions to help them plan their week.
 
 Focus on:
-- Best days/times to schedule appointments, errands, or study blocks
-- Recurring free windows they could use for a routine (study, gym, rest)
+- Best days/times to fit in appointments, errands, or study blocks
+- Recurring free windows they could keep for a routine (study, gym, rest)
 - Any day that looks overloaded and how to lighten it
 - Long gaps before or after classes
 - Anything genuinely useful about their free time
 
 Rules:
-- Each suggestion must be a single short sentence (under 25 words), plain and specific.
+- Talk naturally, like a friend giving advice — no corporate or robotic wording, no bullet-point jargon.
+- Mention times in 12-HOUR format with AM/PM (e.g. "1 PM to 4 PM", never "13:00-16:00").
+- Each suggestion must be a single short sentence (under 25 words), plain, specific, and personal ("you", "your").
 - Do NOT invent classes, times, rooms, or people.
-- Do NOT mention "AI", "analysis", or "assistant".
+- Do NOT mention "AI", "algorithm", "analysis", or "assistant".
 - Return ONLY valid JSON: {"suggestions": ["...", "..."]}`;
 
 export type ScheduleSuggestionInput = {
