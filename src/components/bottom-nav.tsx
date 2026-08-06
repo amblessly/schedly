@@ -62,7 +62,7 @@ export function BottomNav() {
       )}
       style={{ paddingBottom: "calc(1rem + var(--sab))" }}
     >
-      <div className="bottom-nav flex items-center justify-center gap-1 rounded-full border border-border/70 bg-card/95 px-16 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.18)] backdrop-blur-md">
+      <div className="bottom-nav flex items-center justify-center gap-1 rounded-full border border-border/70 bg-card/95 px-4 py-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.18)] backdrop-blur-md sm:px-8">
         {items.map((item) => {
           const Icon = iconMap[item.icon] || Calendar;
           const active =
@@ -76,7 +76,7 @@ export function BottomNav() {
               aria-label={item.label}
               title={item.label}
               className={cn(
-                "relative flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+                "relative flex h-11 w-11 items-center justify-center rounded-full transition-colors active:scale-90 sm:h-10 sm:w-10",
                 active
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"

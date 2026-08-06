@@ -100,7 +100,7 @@ export default function TodoPage() {
       </Card>
 
       {/* Filters & Stats */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-1 rounded-lg bg-muted p-1">
           {(["all", "active", "completed"] as const).map((f) => (
             <button
