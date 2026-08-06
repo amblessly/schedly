@@ -160,6 +160,21 @@ export default function DashboardPage() {
     .filter((c) => c.days.includes(todayDay))
     .sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
 
+  // The next class on a day after today (e.g. tomorrow's earliest subject),
+  // shown compactly inside the Today's Classes card without expanding it.
+  const nextDayClass = (() => {
+    if (schedules === null) return null;
+    const startDayIdx = new Date().getDay();
+    for (let offset = 1; offset <= 7; offset++) {
+      const day = DAY_ORDER[(startDayIdx + 6 + offset) % 7] ?? "monday";
+      const dayClasses = allClasses
+        .filter((c) => c.days.includes(day))
+        .sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
+      if (dayClasses.length > 0) return { day, cls: dayClasses[0]! };
+    }
+    return null;
+  })();
+
   const busyDay = weeklyInsights.busiestDay;
   const weeklyInsightText = busyDay
     ? `${DAY_FULL[busyDay.day]} is your busiest day`
@@ -357,6 +372,29 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground">
                 No classes today — time to relax or catch up on tasks.
               </p>
+            )}
+
+            {nextDayClass && (
+              <div className="mt-2 shrink-0 border-t border-border/60 pt-2">
+                <p className="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <CalendarClock className="h-3 w-3 shrink-0" />
+                  Upcoming · {DAY_FULL[nextDayClass.day]}
+                </p>
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-border/40 p-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: nextDayClass.cls.color }}
+                    />
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {nextDayClass.cls.shortName?.trim() || nextDayClass.cls.code?.trim() || nextDayClass.cls.subject}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                    {formatClockTime(nextDayClass.cls.startTime)}
+                  </span>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
