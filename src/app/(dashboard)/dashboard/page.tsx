@@ -36,7 +36,6 @@ import {
   Sparkles,
   Plus,
   ChevronRight,
-  ChevronDown,
 } from "lucide-react";
 import { publishScheduleToWidget } from "@/features/widget/widget-data";
 import { useMounted } from "@/lib/use-mounted";
@@ -351,13 +350,8 @@ export default function DashboardPage() {
                 <Skeleton className="h-3 w-20" />
               </div>
             ) : upcomingClasses.length > 0 ? (
-              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-                <div className="flex h-full min-h-28 flex-col items-center justify-center gap-1 text-center text-muted-foreground">
-                  <ChevronDown className="h-4 w-4 animate-bounce" />
-                  <p className="text-xs">Scroll to see your upcoming classes</p>
-                </div>
-                <ul className="space-y-2">
-                  {upcomingClasses.map((item, i) => {
+              <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                {upcomingClasses.map((item, i) => {
                   const { class: c, startMs, endMs, dayLabel, isNear } = item;
                   const happeningNow = startMs <= 0;
                   const name = c.shortName?.trim() || c.code?.trim() || c.subject;
@@ -434,8 +428,7 @@ export default function DashboardPage() {
                     </li>
                   );
                 })}
-                </ul>
-              </div>
+              </ul>
             ) : (
               <p className="text-sm text-muted-foreground">No upcoming classes</p>
             )}
