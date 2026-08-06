@@ -10,6 +10,7 @@ import { getAiInsights } from "@/app/(dashboard)/dashboard/actions";
 import { retry } from "@/lib/retry";
 import { SchedulePreview } from "@/features/schedule/components/schedule-preview";
 import { ClassCarousel } from "@/features/schedule/components/class-carousel";
+import { UpcomingDays } from "@/features/schedule/components/upcoming-days";
 import { useTodos } from "@/features/todo/use-todos";
 import {
   getFreeTimeToday,
@@ -231,40 +232,51 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Today's Classes — horizontal carousel, one class per card */}
-      <div>
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold tracking-tight text-foreground">
-              Today&apos;s Classes
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {schedules === null
-                ? "Loading…"
-                : todaysClasses.length === 0
-                  ? "No classes today"
-                  : `${todaysClasses.length} class${todaysClasses.length !== 1 ? "es" : ""} today`}
-            </p>
+      {/* Today's Classes — horizontal carousel, one class per card + upcoming sidebar */}
+      <div className="grid items-start gap-4 lg:grid-cols-[1fr_320px]">
+        <div>
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                Today&apos;s Classes
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {schedules === null
+                  ? "Loading…"
+                  : todaysClasses.length === 0
+                    ? "No classes today"
+                    : `${todaysClasses.length} class${todaysClasses.length !== 1 ? "es" : ""} today`}
+              </p>
+            </div>
+            <Link
+              href="/schedule"
+              className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-primary"
+            >
+              Full timetable <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
           </div>
-          <Link
-            href="/schedule"
-            className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-primary"
-          >
-            Full timetable <ChevronRight className="h-3.5 w-3.5" />
-          </Link>
+
+          <div className="mt-3">
+            {schedules === null ? (
+              <div className="space-y-3">
+                <Skeleton className="h-[190px] w-[78%] max-w-[340px] rounded-3xl" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-2 w-6 rounded-full" />
+                  <Skeleton className="h-2 w-2 rounded-full" />
+                </div>
+              </div>
+            ) : (
+              <ClassCarousel classes={todaysClasses} now={now} />
+            )}
+          </div>
         </div>
 
-        <div className="mt-3">
+        {/* Upcoming days — side panel on desktop, below carousel on mobile */}
+        <div>
           {schedules === null ? (
-            <div className="space-y-3">
-              <Skeleton className="h-[190px] w-[78%] max-w-[340px] rounded-3xl" />
-              <div className="flex gap-2">
-                <Skeleton className="h-2 w-6 rounded-full" />
-                <Skeleton className="h-2 w-2 rounded-full" />
-              </div>
-            </div>
+            <Skeleton className="h-56 w-full rounded-3xl" />
           ) : (
-            <ClassCarousel classes={todaysClasses} now={now} />
+            <UpcomingDays classes={allClasses} now={now} />
           )}
         </div>
       </div>
