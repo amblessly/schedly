@@ -205,9 +205,9 @@ export default function SchedulePage() {
   };
 
   // Extraction continues in the background and the client polls for status
-  // (see use-upload). Real upload progress maps onto the first 40%. While the
+  // (see use-upload). Real upload progress maps onto the first ~10%. While the
   // AI reads the image there is no true percentage, so we show a slow
-  // asymptotic climb from 40% toward ~95% — it never jumps straight to 99 and
+  // asymptotic climb from ~1% toward ~95% — it never jumps straight to 99 and
   // sits there, which felt stuck. It only hits 100% once extraction actually
   // finishes.
   const isAiWorking = isProcessing || (isUploading && progress >= 100);
@@ -220,8 +220,8 @@ export default function SchedulePage() {
     const startedAt = Date.now();
     const timer = setInterval(() => {
       const elapsedMin = (Date.now() - startedAt) / 60000;
-      // ~50% of the processing range reached after ~20s, topping out near 95%.
-      setFakeProgress(Math.round(55 * (1 - Math.exp(-elapsedMin * 1.1))));
+      // Slow, steady climb: ~25% after 20s, ~56% after a minute, ~95% after ~3min.
+      setFakeProgress(Math.round(94 * (1 - Math.exp(-elapsedMin * 0.9))));
     }, 250);
     return () => clearInterval(timer);
   }, [isAiWorking]);
@@ -230,8 +230,8 @@ export default function SchedulePage() {
     upload?.status === "completed"
       ? 100
       : isAiWorking
-        ? Math.min(95, 40 + fakeProgress)
-        : Math.min(40, Math.round((progress / 100) * 40));
+        ? Math.min(95, Math.max(1, fakeProgress))
+        : Math.max(1, Math.min(10, Math.round((progress / 100) * 10)));
 
   return (
     <div className="mx-auto max-w-4xl pt-8 md:pt-0">
