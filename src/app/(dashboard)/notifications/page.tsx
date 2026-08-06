@@ -203,7 +203,7 @@ export default function NotificationsPage() {
                     {timeAgo(notification.createdAt)}
                   </p>
                 </div>
-                <div className="flex shrink-0 gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
+                <div className="flex shrink-0 gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   {!notification.read && (
                     <Button
                       variant="ghost"

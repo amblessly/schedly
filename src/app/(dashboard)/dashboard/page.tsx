@@ -279,9 +279,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Bento grid — mixed-size tiles (landscape, square) for a glanceable day */}
-      <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 items-stretch gap-3">
         {/* Today's Classes — tall tile filling the left column (rows 1–2) */}
-        <Card className="flex h-full flex-col border-border/50 [--card-spacing:--spacing(5)] sm:col-span-1 sm:row-span-2">
+        <Card className="col-span-1 row-span-2 flex h-full flex-col border-border/50 [--card-spacing:--spacing(5)]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Today&apos;s Classes
@@ -492,7 +492,7 @@ export default function DashboardPage() {
 
         {/* Insights — landscape tile */}
         {schedules && allClasses.length > 0 && (
-          <Card className="col-span-1 border-border/50 [--card-spacing:--spacing(5)] sm:col-span-2">
+          <Card className="col-span-2 border-border/50 [--card-spacing:--spacing(5)]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Insights
