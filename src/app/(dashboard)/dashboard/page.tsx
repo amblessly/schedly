@@ -215,13 +215,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Auto-hide the generated AI tips after 20 seconds.
-  useEffect(() => {
-    if (!aiVisible) return;
-    const t = setTimeout(() => setAiVisible(false), 20000);
-    return () => clearTimeout(t);
-  }, [aiVisible]);
-
   const handleDownload = async () => {
       const node = captureRef.current || scheduleRef.current;
       if (!node) return;
