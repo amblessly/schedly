@@ -11,8 +11,8 @@ export function parseTime(timeStr: string): { hours: number; minutes: number } |
 }
 
 export function timeToString(date: Date): string {
-  const hours = date.getHours().toString().padStart(2, "0");
-  const minutes = date.getMinutes().toString().padStart(2, "0");
+  const hours = date.getUTCHours().toString().padStart(2, "0");
+  const minutes = date.getUTCMinutes().toString().padStart(2, "0");
   return `${hours}:${minutes}`;
 }
 
@@ -21,11 +21,11 @@ export function formatTimeRange(start: Date, end: Date): string {
 }
 
 export function formatTime(date: Date): string {
-  return date.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+  let h = date.getUTCHours();
+  const m = date.getUTCMinutes();
+  const ampm = h < 12 ? "AM" : "PM";
+  h = h % 12 === 0 ? 12 : h % 12;
+  return `${h}:${String(m).padStart(2, "0")} ${ampm}`;
 }
 
 export function isCurrentClass(startTime: Date, endTime: Date): boolean {
@@ -40,8 +40,8 @@ export function isUpcomingClass(startTime: Date): boolean {
 export function getNextOccurrence(days: DayOfWeek[], startTime: Date): Date {
   const now = new Date();
 
-  const startHour = startTime.getHours();
-  const startMinute = startTime.getMinutes();
+  const startHour = startTime.getUTCHours();
+  const startMinute = startTime.getUTCMinutes();
 
   for (let offset = 0; offset < 7; offset++) {
     const checkDate = new Date(now);

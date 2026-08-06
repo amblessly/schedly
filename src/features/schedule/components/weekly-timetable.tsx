@@ -32,7 +32,7 @@ const DAY_LABELS: Record<string, string> = {
 
 function timeToMinutes(dateOrTime: Date): number {
   const d = new Date(dateOrTime);
-  return d.getHours() * 60 + d.getMinutes();
+  return d.getUTCHours() * 60 + d.getUTCMinutes();
 }
 
 function minutesToTime(mins: number): string {

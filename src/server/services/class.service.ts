@@ -38,13 +38,13 @@ export const classService = {
     if (input.startTime !== undefined) {
       const [h = 0, m = 0] = input.startTime.split(":").map(Number);
       const d = new Date(now);
-      d.setHours(h, m, 0, 0);
+      d.setUTCHours(h, m, 0, 0);
       classData.startTime = d;
     }
     if (input.endTime !== undefined) {
       const [h = 0, m = 0] = input.endTime.split(":").map(Number);
       const d = new Date(now);
-      d.setHours(h, m, 0, 0);
+      d.setUTCHours(h, m, 0, 0);
       classData.endTime = d;
     }
     if (input.days !== undefined) classData.days = input.days;

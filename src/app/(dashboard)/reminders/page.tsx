@@ -48,8 +48,8 @@ const DAY_KEYS: Day[] = [
 
 function fmtTime(value: string | Date): string {
   const d = new Date(value);
-  const h = d.getHours();
-  const m = d.getMinutes();
+  const h = d.getUTCHours();
+  const m = d.getUTCMinutes();
   const period = h >= 12 ? "PM" : "AM";
   const h12 = h % 12 || 12;
   return `${h12}:${String(m).padStart(2, "0")} ${period}`;
@@ -57,7 +57,7 @@ function fmtTime(value: string | Date): string {
 
 function startMinutes(value: string | Date): number {
   const d = new Date(value);
-  return d.getHours() * 60 + d.getMinutes();
+  return d.getUTCHours() * 60 + d.getUTCMinutes();
 }
 
 export default function RemindersPage() {
@@ -91,9 +91,10 @@ export default function RemindersPage() {
   );
 
   const todayKey = DAY_KEYS[now.getDay()]!;
+  const nowMin = now.getHours() * 60 + now.getMinutes();
 
   const todays = allClasses
-    .filter((c) => c.days.includes(todayKey) && new Date(c.startTime) > now)
+    .filter((c) => c.days.includes(todayKey) && startMinutes(c.startTime) > nowMin)
     .sort((a, b) => startMinutes(a.startTime) - startMinutes(b.startTime));
 
   let visible = todays;

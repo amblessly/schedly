@@ -14,7 +14,7 @@ const DEFAULT_COLORS = [
 function parseTime(time: string, reference: Date): Date {
   const [h = 0, m = 0] = time.split(":").map(Number);
   const d = new Date(reference);
-  d.setHours(h, m, 0, 0);
+  d.setUTCHours(h, m, 0, 0);
   return d;
 }
 

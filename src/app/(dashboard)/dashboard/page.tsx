@@ -67,7 +67,7 @@ type ScheduleData = {
 };
 
 function toMin(d: Date) {
-  return d.getHours() * 60 + d.getMinutes();
+  return d.getUTCHours() * 60 + d.getUTCMinutes();
 }
 
 function fmtCountdown(ms: number) {
@@ -81,8 +81,8 @@ function fmtCountdown(ms: number) {
 }
 
 function formatClockTime(d: Date) {
-  let h = d.getHours();
-  const m = d.getMinutes();
+  let h = d.getUTCHours();
+  const m = d.getUTCMinutes();
   const ampm = h < 12 ? "AM" : "PM";
   h = h % 12 === 0 ? 12 : h % 12;
   return `${h}:${String(m).padStart(2, "0")} ${ampm}`;
@@ -286,9 +286,11 @@ export default function DashboardPage() {
               <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                 {todaysClasses.map((c, i) => {
                   const name = c.shortName?.trim() || c.code?.trim() || c.subject;
-                  const finished = new Date(c.endTime).getTime() <= now.getTime();
-                  const ongoing =
-                    !finished && new Date(c.startTime).getTime() <= now.getTime();
+                  const nowMin = now.getHours() * 60 + now.getMinutes();
+                  const startMin = toMin(c.startTime);
+                  const endMin = toMin(c.endTime);
+                  const finished = nowMin > endMin;
+                  const ongoing = !finished && nowMin >= startMin;
                   const featured = i === 0;
                   return (
                     <li
@@ -344,7 +346,7 @@ export default function DashboardPage() {
                       {ongoing && (
                         <p className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-primary">
                           <Clock className="h-3 w-3 shrink-0" />
-                          Happening now · ends in {fmtCountdown(c.endTime.getTime() - now.getTime())}
+                          Happening now · ends in {fmtCountdown((endMin - nowMin) * 60000)}
                         </p>
                       )}
                     </li>
