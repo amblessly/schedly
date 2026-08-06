@@ -105,6 +105,7 @@ export default function DashboardPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<string[] | null>(null);
+  const [aiVisible, setAiVisible] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const scheduleRef = useRef<HTMLDivElement>(null);
   const captureRef = useRef<HTMLDivElement>(null);
@@ -206,9 +207,20 @@ export default function DashboardPage() {
     }));
     const res = await getAiInsights(payload);
     setAiLoading(false);
-    if (res.success) setAiSuggestions(res.suggestions);
-    else setAiError(res.error);
+    if (res.success) {
+      setAiSuggestions(res.suggestions);
+      setAiVisible(true);
+    } else {
+      setAiError(res.error);
+    }
   };
+
+  // Auto-hide the generated AI tips after 20 seconds.
+  useEffect(() => {
+    if (!aiVisible) return;
+    const t = setTimeout(() => setAiVisible(false), 20000);
+    return () => clearTimeout(t);
+  }, [aiVisible]);
 
   const handleDownload = async () => {
       const node = captureRef.current || scheduleRef.current;
@@ -494,48 +506,57 @@ export default function DashboardPage() {
               </CardTitle>
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 shrink-0"
-                  onClick={handleGenerateInsights}
-                  disabled={aiLoading}
-                >
-                  {aiLoading ? (
-                    <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Working…</>
-                  ) : aiSuggestions ? (
-                    "More AI tips"
-                  ) : (
-                    <><Sparkles className="mr-2 h-3.5 w-3.5 text-primary" /> AI tips</>
-                  )}
-                </Button>
+                {aiVisible && aiSuggestions && aiSuggestions.length > 0 ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 shrink-0 text-muted-foreground hover:text-foreground"
+                    onClick={() => setAiVisible(false)}
+                  >
+                    Hide
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 shrink-0"
+                    onClick={handleGenerateInsights}
+                    disabled={aiLoading}
+                  >
+                    {aiLoading ? (
+                      <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Working…</>
+                    ) : (
+                      <><Sparkles className="mr-2 h-3.5 w-3.5 text-primary" /> AI tips</>
+                    )}
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
               <p className="text-sm font-semibold text-foreground">{weeklyInsightText}</p>
               <p className="mt-0.5 text-xs text-muted-foreground">{weeklyInsightSub}</p>
+
+              {aiError && (
+                <p className="mt-2 text-xs text-destructive">{aiError}</p>
+              )}
+
+              {aiVisible && aiSuggestions && aiSuggestions.length > 0 && (
+                <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {aiSuggestions.map((s, i) => (
+                    <li
+                      key={i}
+                      className="flex items-start gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5"
+                    >
+                      <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                      <span className="text-xs leading-snug text-foreground">{s}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </CardContent>
           </Card>
         )}
       </div>
-
-      {/* AI tips output below the bento grid */}
-      {schedules && allClasses.length > 0 && aiError && (
-        <p className="mt-2 text-xs text-destructive">{aiError}</p>
-      )}
-
-      {schedules && allClasses.length > 0 && aiSuggestions && aiSuggestions.length > 0 && (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          {aiSuggestions.map((s, i) => (
-            <Card key={i} className="border-border/50 [--card-spacing:--spacing(5)]">
-              <CardContent className="flex items-start gap-2.5">
-                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <p className="text-sm leading-snug text-foreground">{s}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
 
       {/* Generated Schedule Table */}
       <div>
