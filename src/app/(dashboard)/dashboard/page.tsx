@@ -37,7 +37,6 @@ import {
   Plus,
   ChevronRight,
 } from "lucide-react";
-import { publishScheduleToWidget } from "@/features/widget/widget-data";
 import { useMounted } from "@/lib/use-mounted";
 
 type ClassData = {
@@ -109,6 +108,7 @@ export default function DashboardPage() {
   const [now, setNow] = useState(() => new Date());
   const scheduleRef = useRef<HTMLDivElement>(null);
   const captureRef = useRef<HTMLDivElement>(null);
+  const todayListRef = useRef<HTMLDivElement>(null);
 
   // Tick every second so countdowns visibly move.
   useEffect(() => {
@@ -134,16 +134,6 @@ export default function DashboardPage() {
       .catch(() => setSchedules([]));
   }, []);
 
-  // Publish the active schedule to the home-screen widget whenever schedules change.
-  useEffect(() => {
-    if (!schedules) return;
-    const active =
-      schedules.find((s) => s.isActive && s.classes.length > 0) ??
-      schedules.find((s) => s.classes.length > 0) ??
-      null;
-    publishScheduleToWidget(active);
-  }, [schedules]);
-
   const allClasses = (schedules ?? []).flatMap((s) => s.classes);
 
   // Schedule insights are derived purely from class times (client-side, offline).
@@ -160,6 +150,20 @@ export default function DashboardPage() {
   const todaysClasses = allClasses
     .filter((c) => c.days.includes(todayDay))
     .sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
+
+  // Open the Today's Classes snap-scroll on the NEXT (ongoing or upcoming)
+  // subject so the first thing you see is a class that still matters — not a
+  // finished one. Rescrolls when schedules first load in.
+  useEffect(() => {
+    if (schedules === null || todaysClasses.length < 2) return;
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const nextIdx = todaysClasses.findIndex((c) => nowMin < toMin(c.endTime));
+    if (nextIdx <= 0) return;
+    const list = todayListRef.current;
+    const item = list?.children[nextIdx] as HTMLElement | undefined;
+    if (list && item) list.scrollTop = item.offsetTop;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schedules]);
 
   // The next class on a day after today (e.g. tomorrow's earliest subject),
   // shown compactly inside the Today's Classes card without expanding it.
@@ -302,22 +306,24 @@ export default function DashboardPage() {
                 <Skeleton className="h-3 w-36" />
                 <Skeleton className="h-3 w-20" />
               </div>
-            ) : todaysClasses.length > 0 ? (
-              <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                {todaysClasses.map((c, i) => {
+            ) : todaysClasses.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No classes today — time to relax or catch up on tasks.
+              </p>
+            ) : (
+              // One compact subject visible at a time — snap-scroll through the rest.
+              <div ref={todayListRef} className="my-auto h-[6.5rem] snap-y snap-mandatory overflow-y-auto pr-1">
+                {todaysClasses.map((c) => {
                   const name = c.shortName?.trim() || c.code?.trim() || c.subject;
                   const nowMin = now.getHours() * 60 + now.getMinutes();
                   const startMin = toMin(c.startTime);
                   const endMin = toMin(c.endTime);
                   const finished = nowMin > endMin;
                   const ongoing = !finished && nowMin >= startMin;
-                  const featured = i === 0;
                   return (
-                    <li
+                    <div
                       key={`${c.id}`}
-                      className={`rounded-xl border p-3 ${
-                        featured ? "border-primary/25 bg-primary/[0.04]" : "border-border/40"
-                      }`}
+                      className="flex h-full snap-start flex-col rounded-xl border border-primary/25 bg-primary/[0.04] p-3"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex min-w-0 items-center gap-2">
@@ -325,11 +331,7 @@ export default function DashboardPage() {
                             className="h-2.5 w-2.5 shrink-0 rounded-full"
                             style={{ backgroundColor: c.color }}
                           />
-                          <p
-                            className={`truncate text-foreground ${
-                              featured ? "text-[15px] font-semibold" : "text-sm font-medium"
-                            }`}
-                          >
+                          <p className="truncate text-[15px] font-semibold text-foreground">
                             {name}
                           </p>
                         </div>
@@ -346,7 +348,7 @@ export default function DashboardPage() {
                         </span>
                       </div>
 
-                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                      <div className="mt-auto flex flex-wrap gap-x-3 gap-y-0.5 pt-1.5 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <CalendarClock className="h-3 w-3 shrink-0" />
                           {formatTimeRange(c.startTime, c.endTime)}
@@ -369,14 +371,10 @@ export default function DashboardPage() {
                           Happening now · ends in {fmtCountdown((endMin - nowMin) * 60000)}
                         </p>
                       )}
-                    </li>
+                    </div>
                   );
                 })}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No classes today — time to relax or catch up on tasks.
-              </p>
+              </div>
             )}
 
             {nextDayClass && (
@@ -492,7 +490,7 @@ export default function DashboardPage() {
 
         {/* Insights — landscape tile */}
         {schedules && allClasses.length > 0 && (
-          <Card className="col-span-2 border-border/50 [--card-spacing:--spacing(5)]">
+          <Card className="col-span-2 border-border/50 [--card-spacing:--spacing(3)]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Insights
@@ -534,11 +532,11 @@ export default function DashboardPage() {
               )}
 
               {aiVisible && aiSuggestions && aiSuggestions.length > 0 && (
-                <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                <ul className="mt-2 grid max-h-36 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-2">
                   {aiSuggestions.map((s, i) => (
                     <li
                       key={i}
-                      className="flex items-start gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5"
+                      className="flex items-start gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2"
                     >
                       <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
                       <span className="text-xs leading-snug text-foreground">{s}</span>

@@ -2,7 +2,7 @@ import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/server/lib/security";
 
-const publicRoutes = ["/login", "/register", "/", "/widget"];
+const publicRoutes = ["/login", "/register", "/"];
 const publicApiRoutes = ["/api/auth", "/api/version", "/api/admin/apk", "/api/admin/apk-download"];
 const verificationRoutes = ["/verify-email"];
 

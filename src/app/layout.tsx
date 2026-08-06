@@ -53,8 +53,19 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {/* Applies the zoom-lock before first paint, so refreshes don't flash
+            the page at the browser's raw zoom level. Same math as ZoomLock —
+            on native (Capacitor) the runtime is injected before this script. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{if(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())return;var o=window.outerWidth,i=window.innerWidth;var z=o&&i?o/i:1;var c=0.9/Math.max(0.1,z);c=Math.min(1.5,Math.max(0.5,c));var s=Math.abs(c-1)<0.001?"":c.toFixed(4);var h=document.documentElement;if(h.style.zoom!==s)h.style.zoom=s;}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <Warmup />
         <CopyProtection />

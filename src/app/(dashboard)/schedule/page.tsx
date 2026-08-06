@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useUpload } from "@/features/upload";
 import { ScheduleReview } from "@/features/upload";
@@ -13,10 +14,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Camera, Image, AlertCircle, CheckCircle, ArrowLeft,
-  Plus, Calendar, Trash2, Upload, Loader2,
+  Plus, Calendar, Trash2, Upload, Loader2, X,
 } from "lucide-react";
 import { validateExtractedClasses, type ValidationIssue } from "@/server/services/validation.service";
-import { publishScheduleToWidget } from "@/features/widget/widget-data";
 import {
   getReviewState,
   getReviewImage,
@@ -24,6 +24,14 @@ import {
   saveReviewImage,
   clearReviewState,
 } from "@/features/upload/lib/review-state";
+import {
+  getUploadState,
+  saveUploadState,
+  clearUploadState,
+  getProcessingStarted,
+  saveProcessingStarted,
+  clearProcessingStarted,
+} from "@/features/upload/lib/upload-state";
 
 type ClassData = {
   id: string;
@@ -74,10 +82,18 @@ export default function SchedulePage() {
     uploadFile, isUploading, progress, upload, isProcessing,
     extractedClasses, metadata,
     updateExtractedClass, removeExtractedClass, addExtractedClass, resetUpload,
-    restoreExtractedClasses, setMetadata,
+    restoreExtractedClasses, setMetadata, resumeUpload,
   } = useUpload();
 
   const userId = (u as { id?: string } | null)?.id || "anon";
+
+  // The FAB must not live inside the dashboard's animated content wrapper:
+  // its fill-mode leaves a transform behind, which turns the wrapper into a
+  // containing block for fixed descendants, so `bottom-0` would anchor to the
+  // wrapper instead of the viewport. Rendering it via a portal to <body>
+  // keeps it glued to the actual bottom-right corner of the screen.
+  const [fabMounted, setFabMounted] = useState(false);
+  useEffect(() => setFabMounted(true), []);
 
   useEffect(() => {
     if (!authLoading) {
@@ -90,17 +106,62 @@ export default function SchedulePage() {
 
   // Resume an in-progress review (e.g., after coming back from the design
   // editor, which unmounts this page and clears its React state).
+  const resumedRef = useRef(false);
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || resumedRef.current) return;
     const saved = getReviewState(userId);
     if (saved && saved.classes.length > 0) {
+      clearUploadState(userId);
       restoreExtractedClasses(saved.classes);
       setMetadata(saved.confidence != null ? { confidence: saved.confidence } : null);
       setValidationIssues(saved.validationIssues);
       setPreviewUrl(getReviewImage(userId));
       setPhase("review");
+      return;
     }
-  }, [authLoading, userId, restoreExtractedClasses, setMetadata]);
+
+    // No review yet — maybe the user left while the AI was still reading the
+    // photo. Re-attach to the in-flight upload so the progress isn't lost.
+    const pending = getUploadState(userId);
+    if (pending && !selectedFile && !upload) {
+      resumedRef.current = true;
+      setSelectedFile({
+        name: pending.fileName,
+        size: pending.fileSize,
+        type: pending.fileType,
+      } as File);
+      setPreviewUrl(pending.previewUrl);
+      setPhase("upload-select");
+      resumeUpload(pending.uploadId)
+        .then((data) => {
+          const classes = (data as { classes?: unknown[] }).classes;
+          if (classes && classes.length > 0) {
+            const result = validateExtractedClasses(
+              classes as Parameters<typeof validateExtractedClasses>[0]
+            );
+            setValidationIssues(result.issues);
+            setPhase("review");
+          }
+        })
+        .catch(() => {
+          // The failed status is reflected in `upload.error`.
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, userId]);
+
+  // While the AI reads the photo, keep the upload id + preview in
+  // sessionStorage so a tab switch doesn't lose the progress.
+  useEffect(() => {
+    if (phase !== "upload-select" || !selectedFile || upload?.status !== "processing" || !upload.id) return;
+    saveUploadState(userId, {
+      uploadId: upload.id,
+      fileName: selectedFile.name,
+      fileSize: selectedFile.size,
+      fileType: selectedFile.type,
+      previewUrl,
+    });
+  }, [phase, selectedFile, upload, userId, previewUrl]);
 
   // Keep the in-progress review in sessionStorage so it survives remounts.
   const reviewReady = phase === "review" && extractedClasses.length > 0;
@@ -155,16 +216,20 @@ export default function SchedulePage() {
     setSelectedFile(null);
     setPreviewUrl(null);
     resetUpload();
+    clearUploadState(userId);
+    clearProcessingStarted(userId);
   };
 
   const handleUpload = async () => {
     if (!selectedFile) return;
+    clearProcessingStarted(userId);
     setFakeProgress(0);
     try {
       const data = await uploadFile(selectedFile) as { classes?: unknown[] };
       if (data.classes && data.classes.length > 0) {
         const result = validateExtractedClasses(data.classes as Parameters<typeof validateExtractedClasses>[0]);
         setValidationIssues(result.issues);
+        clearUploadState(userId);
         setPhase("review");
       }
     } catch (err) {
@@ -179,14 +244,11 @@ export default function SchedulePage() {
     setValidationIssues([]);
     resetUpload();
     clearReviewState(userId);
+    clearUploadState(userId);
+    clearProcessingStarted(userId);
     const data = await getUserSchedules();
     const schedules = data as ScheduleData[];
     setSchedules(schedules);
-    const active =
-      schedules.find((s) => s.isActive && s.classes.length > 0) ??
-      schedules.find((s) => s.classes.length > 0) ??
-      null;
-    publishScheduleToWidget(active);
   };
 
   const handleBackToList = () => {
@@ -196,7 +258,6 @@ export default function SchedulePage() {
     clearReviewState(userId);
     setPhase("list");
   };
-
   const handleBackToSelect = () => {
     removeFile();
     setValidationIssues([]);
@@ -212,19 +273,30 @@ export default function SchedulePage() {
   // finishes.
   const isAiWorking = isProcessing || (isUploading && progress >= 100);
 
-  const [fakeProgress, setFakeProgress] = useState(0);
+  // The reading progress is an asymptotic climb toward ~95% keyed off a
+  // persisted start timestamp, so a remount (tab switch, navigating away and
+  // back, refresh) resumes the climb from where it was instead of 1%.
+  const [fakeProgress, setFakeProgress] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    const origin = getProcessingStarted(userId);
+    if (!origin) return 0;
+    const elapsedMin = (Date.now() - origin) / 60000;
+    return Math.round(94 * (1 - Math.exp(-elapsedMin * 0.9)));
+  });
 
   useEffect(() => {
     if (!isAiWorking) return;
-    setFakeProgress(0);
-    const startedAt = Date.now();
-    const timer = setInterval(() => {
-      const elapsedMin = (Date.now() - startedAt) / 60000;
+    const origin = getProcessingStarted(userId) ?? Date.now();
+    saveProcessingStarted(userId, origin);
+    const tick = () => {
+      const elapsedMin = (Date.now() - origin) / 60000;
       // Slow, steady climb: ~25% after 20s, ~56% after a minute, ~95% after ~3min.
       setFakeProgress(Math.round(94 * (1 - Math.exp(-elapsedMin * 0.9))));
-    }, 250);
+    };
+    tick();
+    const timer = setInterval(tick, 250);
     return () => clearInterval(timer);
-  }, [isAiWorking]);
+  }, [isAiWorking, userId]);
 
   const displayProgress =
     upload?.status === "completed"
@@ -260,8 +332,12 @@ export default function SchedulePage() {
                 </div>
               </div>
               {previewUrl && (
-                <div className="relative overflow-hidden rounded-xl bg-muted">
-                  <img src={previewUrl} alt="Uploaded schedule" className="mx-auto h-auto max-h-48 max-w-full object-contain" />
+                <div className="relative overflow-hidden rounded-xl bg-card ring-1 ring-border/50">
+                  <img
+                    src={previewUrl}
+                    alt="Uploaded schedule"
+                    className="mx-auto h-auto w-full max-w-2xl"
+                  />
                 </div>
               )}
               <ScheduleReview
@@ -300,7 +376,7 @@ export default function SchedulePage() {
                     <p className="mt-1 max-w-xs text-sm text-muted-foreground leading-relaxed">
                       Schedly will extract your classes automatically.
                     </p>
-                     <div className="mt-5 flex w-full max-w-xs flex-col gap-3 sm:flex-row">
+                     <div className="mt-5 flex w-full max-w-sm flex-row gap-3">
                       <Button className="flex-1 h-11 px-6 font-medium" onClick={() => document.getElementById("upload-camera")?.click()}>
                         <Camera className="mr-2 h-4 w-4" /> Take Photo
                       </Button>
@@ -331,14 +407,23 @@ export default function SchedulePage() {
                         </div>
                       )}
                       {!isUploading && !isProcessing && (
-                        <button onClick={removeFile} className="absolute right-2 top-2 rounded-full bg-background/80 p-1 hover:bg-background" aria-label="Remove">
-                          <span className="text-lg">&times;</span>
+                        <button
+                          onClick={removeFile}
+                          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-card/90 text-muted-foreground shadow-sm transition-colors hover:bg-card hover:text-foreground"
+                          aria-label="Remove file"
+                        >
+                          <X className="h-4 w-4" />
                         </button>
                       )}
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-foreground">{selectedFile.name}</p>
-                      <p className="text-xs text-muted-foreground">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB &middot; {selectedFile.type}</p>
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-muted/40 px-3 py-2.5">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Image className="h-4 w-4 shrink-0 text-primary" />
+                        <p className="truncate text-sm font-medium text-foreground">{selectedFile.name}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-primary">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </span>
                     </div>
 
                     {isUploading || isProcessing ? (
@@ -365,8 +450,10 @@ export default function SchedulePage() {
                       </div>
                     ) : (
                       <div className="flex gap-3">
-                        <Button variant="outline" onClick={removeFile} className="flex-1">Cancel</Button>
-                        <Button onClick={handleUpload} className="flex-1">
+                        <Button variant="outline" onClick={removeFile} className="flex-1 h-12">
+                          Cancel
+                        </Button>
+                        <Button onClick={handleUpload} className="flex-[1.4] h-12">
                           <CheckCircle className="mr-2 h-4 w-4" /> Extract Schedule
                         </Button>
                       </div>
@@ -496,16 +583,17 @@ export default function SchedulePage() {
           )}
 
           {/* FAB for New Schedule (list phase only) */}
-          {phase === "list" && (
+          {phase === "list" && fabMounted && createPortal(
             <button
               type="button"
               onClick={() => setPhase("upload-select")}
-              className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition-transform active:scale-95 md:bottom-6"
+              className="fixed bottom-4 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition-transform active:scale-95"
               aria-label="New schedule"
               style={{ marginBottom: "var(--sab)" }}
             >
               <Plus className="h-5 w-5" />
-            </button>
+            </button>,
+            document.body
           )}
     </div>
   );

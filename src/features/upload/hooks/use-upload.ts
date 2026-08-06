@@ -26,6 +26,13 @@ type UploadStatus = {
   fileUrl?: string;
 };
 
+type PollResult = {
+  classes?: ExtractedClass[];
+  metadata?: { confidence: number; notes?: string | null };
+  fileUrl?: string;
+  uploadId?: string;
+};
+
 export function useUpload() {
   const [upload, setUpload] = useState<UploadStatus | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -33,6 +40,36 @@ export function useUpload() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedClasses, setExtractedClasses] = useState<ExtractedClass[]>([]);
   const [metadata, setMetadata] = useState<{ confidence: number; notes?: string | null } | null>(null);
+
+  const settleCompleted = (result: Record<string, unknown>, fallbackId: string) => {
+    const r = result as PollResult;
+    setExtractedClasses(
+      (r.classes || []).map((c) => ({
+        ...c,
+        shortName: c.shortName ?? (generateShortName(c.subject) || null),
+      }))
+    );
+    setMetadata(r.metadata || { confidence: 0 });
+    setUpload((prev) => prev ? {
+      ...prev,
+      status: "completed" as const,
+      progress: 100,
+      fileUrl: r.fileUrl,
+      id: r.uploadId ?? fallbackId,
+      error: undefined,
+    } : null);
+    setIsProcessing(false);
+  };
+
+  const settleFailed = (err: unknown, prefix = "") => {
+    const msg = err instanceof Error ? err.message : "Upload failed";
+    setUpload((prev) => prev ? {
+      ...prev,
+      status: "failed" as const,
+      error: prefix ? `${prefix}${msg}` : msg,
+    } : null);
+    setIsProcessing(false);
+  };
 
   const pollStatus = (uploadId: string): Promise<Record<string, unknown>> =>
     new Promise((resolve, reject) => {
@@ -123,34 +160,11 @@ export function useUpload() {
 
           pollStatus(returnedUploadId)
             .then((result) => {
-              const r = result as {
-                classes?: ExtractedClass[];
-                metadata?: { confidence: number; notes?: string | null };
-                fileUrl?: string;
-                uploadId?: string;
-              };
-              setExtractedClasses(
-                (r.classes || []).map((c) => ({
-                  ...c,
-                  shortName: c.shortName ?? (generateShortName(c.subject) || null),
-                }))
-              );
-              setMetadata(r.metadata || { confidence: 0 });
-              setUpload((prev) => prev ? {
-                ...prev,
-                status: "completed" as const,
-                progress: 100,
-                fileUrl: r.fileUrl,
-                id: r.uploadId ?? returnedUploadId,
-                error: undefined,
-              } : null);
-              setIsProcessing(false);
+              settleCompleted(result, returnedUploadId);
               resolve(result);
             })
             .catch((pollErr) => {
-              const msg = pollErr instanceof Error ? pollErr.message : "Upload failed";
-              setUpload((prev) => prev ? { ...prev, status: "failed", error: msg } : null);
-              setIsProcessing(false);
+              settleFailed(pollErr);
               reject(pollErr);
             });
         } else {
@@ -197,6 +211,25 @@ export function useUpload() {
     return retry(doUpload, { maxRetries: 1, delayMs: 2000 });
   };
 
+    // Re-attach to an upload that was started earlier (e.g. the user left the
+  // page while the AI was still reading the photo). Picks up the server-side
+  // progress and resolves with the classes once extraction completes.
+  const resumeUpload = (uploadId: string): Promise<Record<string, unknown>> => {
+    setUpload({ id: uploadId, status: "processing", progress: 100 });
+    setIsUploading(false);
+    setIsProcessing(true);
+    setProgress(100);
+    return pollStatus(uploadId)
+      .then((result) => {
+        settleCompleted(result, uploadId);
+        return result;
+      })
+      .catch((err) => {
+        settleFailed(err);
+        throw err;
+      });
+  };
+
   const resetUpload = () => {
     setUpload(null);
     setIsUploading(false);
@@ -239,6 +272,7 @@ export function useUpload() {
     progress,
     isProcessing,
     uploadFile,
+    resumeUpload,
     resetUpload,
     extractedClasses,
     metadata,

@@ -12,18 +12,17 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { ZoomLock } from "@/components/zoom-lock";
 
 // The drawer's open state lives in a tiny external store so its initial
-// value can come from matchMedia only AFTER hydration: the server always
-// renders "open" (the desktop default), and on narrow windows the drawer
-// closes itself right after hydration — with no hydration mismatch.
+// value can come from matchMedia only AFTER hydration. The server renders
+// "closed" by default — otherwise narrow (mobile) windows would paint the
+// open sidebar briefly during SSR, then slide it shut right after hydration
+// (the flash the user saw). On desktop the drawer slides open once hydration
+// computes the true viewport, with no hydration mismatch.
 let openState: boolean | null = null;
 const openListeners = new Set<() => void>();
 
 function getOpenSnapshot(): boolean {
   if (openState === null) {
-    openState =
-      typeof window === "undefined"
-        ? true
-        : window.matchMedia("(min-width: 768px)").matches;
+    openState = window.matchMedia("(min-width: 768px)").matches;
   }
   return openState;
 }
@@ -42,7 +41,7 @@ function setOpen(next: boolean) {
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const { themeVars, activeId } = useThemeConfig();
-  const open = useSyncExternalStore(subscribeOpen, getOpenSnapshot, () => true);
+  const open = useSyncExternalStore(subscribeOpen, getOpenSnapshot, () => false);
   const showButton = !open;
   const pathname = usePathname();
   const router = useRouter();
@@ -57,7 +56,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   }, [needsOnboarding, router]);
   // The design editor is immersive on mobile: no fixed header, drawer,
   // backdrop, or bottom nav covering it — the canvas fills the screen.
-  const isImmersive = pathname === "/design" || pathname === "/widget";
+  const isImmersive = pathname === "/design";
 
   // Account settings is a full-screen page — hide the bottom nav there.
   const isSettings = pathname === "/settings";
@@ -108,17 +107,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     StatusBar.setStyle({ style: activeId === "midnight" ? Style.Light : Style.Dark }).catch(() => {});
   }, [activeId]);
 
-  // Never show the dashboard until we know who the user is: while the
-  // session is loading, or when the user hasn't finished onboarding, show a
-  // blank loading screen instead of flashing the dashboard behind it.
-  if (isLoading || needsOnboarding) {
-    return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-white">
-        <div className="animate-pulse text-sm text-muted-foreground">Loading…</div>
-      </div>
-    );
-  }
-
+  // The shell always renders: while the session loads, each page shows its
+  // own skeletons instead of a full-screen loading state, so a refresh feels
+  // like the cards are simply refreshing in place.
   const sidebarWrap = [
     "sidebar-slide fixed right-3 z-40 w-[304px] max-w-[calc(100vw-1.5rem)] will-change-transform",
     "top-16 max-h-[70vh] md:top-0 md:bottom-0 md:max-h-none md:right-0",

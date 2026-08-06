@@ -23,14 +23,5 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: "maskable",
       },
     ],
-    shortcuts: [
-      {
-        name: "Schedule Widget",
-        short_name: "Schedule",
-        description: "Open the schedule widget",
-        url: "/widget",
-        icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
-      },
-    ],
   };
 }

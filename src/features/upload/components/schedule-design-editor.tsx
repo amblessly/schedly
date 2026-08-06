@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import html2canvas from "html2canvas-pro";
 import type { ExtractedClass } from "@/features/upload/hooks/use-upload";
 import { PALETTE } from "@/features/upload/lib/palette";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  ArrowLeft, Download, Move, ImageIcon, ImagePlus, RotateCcw,
+  ArrowLeft, Download, ImageIcon, ImagePlus, RotateCcw,
   Undo2, Redo2, Copy, BringToFront, SendToBack, Eraser, Type,
   Grid3x3, Palette, Plus, Trash2, Loader2, Sparkles,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, Check,
 } from "lucide-react";
 
 const DAY_LABELS: Record<string, string> = {
@@ -28,6 +28,42 @@ function formatTime(time: string): string {
   return `${hour}:${String(m).padStart(2, "0")} ${period}`;
 }
 
+// Samples the photo and estimates whether it is dark overall, so text placed
+// on top (timetable subjects/times) can pick a contrasting color.
+function isImageDark(img: HTMLImageElement): boolean {
+  try {
+    const c = document.createElement("canvas");
+    const size = 24;
+    c.width = size;
+    c.height = size;
+    const ctx = c.getContext("2d");
+    if (!ctx) return false;
+    ctx.drawImage(img, 0, 0, size, size);
+    const data = ctx.getImageData(0, 0, size, size).data;
+    let sum = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i] ?? 0;
+      const g = data[i + 1] ?? 0;
+      const b = data[i + 2] ?? 0;
+      sum += 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+    return sum / (data.length / 4) < 128;
+  } catch {
+    return false;
+  }
+}
+
+type TimetableEntry = {
+  subject: string;
+  time: string;
+  color: string;
+};
+
+type DesignTable = {
+  days: string[];
+  rows: { time: string; cells: TimetableEntry[][] }[];
+};
+
 type DesignItem = {
   id: string;
   label: string;
@@ -37,7 +73,14 @@ type DesignItem = {
   y: number; // % from top
   scale: number;
   z: number;
+  table?: DesignTable;
 };
+
+type ResizeDir = "e" | "w" | "n" | "s" | "se" | "sw" | "ne" | "nw";
+
+const DAY_ORDER = [
+  "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+] as const;
 
 type Tool = "text" | "classes" | "background" | "color";
 
@@ -68,7 +111,7 @@ function RailButton({
       className={`flex w-16 shrink-0 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[10px] font-medium transition-colors md:w-full ${
         active
           ? "bg-primary/10 text-primary"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          : "text-muted-foreground hover:text-primary"
       } disabled:cursor-not-allowed disabled:opacity-40`}
     >
       <Icon className="h-5 w-5" />
@@ -82,6 +125,9 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
   const bgInputRef = useRef<HTMLInputElement>(null);
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
   const [bgDims, setBgDims] = useState<{ w: number; h: number } | null>(null);
+  // Whether the background photo is dark — the timetable text switches between
+  // light/dark so it always stays readable over the photo.
+  const [bgDark, setBgDark] = useState(false);
   // Display size of the background canvas: scaled to fit the screen while
   // preserving the image's aspect ratio (the export uses the full size).
   const [bgSize, setBgSize] = useState<{ w: number; h: number } | null>(null);
@@ -97,20 +143,23 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const dragState = useRef<{
-    type: "move" | "resize";
+    type: "move" | ResizeDir;
     id: string;
     startX: number;
     startY: number;
     itemX: number;
     itemY: number;
     itemScale: number;
-    startDist: number;
+    natW: number;
+    natH: number;
   } | null>(null);
   const zCounter = useRef(1);
   const dupCounter = useRef(1);
   const textCounter = useRef(1);
 
   const addedIds = new Set(items.map((i) => i.id));
+  const hasTimetable = items.some((i) => i.table);
+  const tableLine = bgDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.07)";
   const selectedItem = items.find((i) => i.id === selectedId) ?? null;
 
   const commit = (updater: (prev: DesignItem[]) => DesignItem[]) => {
@@ -163,6 +212,55 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
     // Close the tool panel so the whole canvas is visible again and the
     // newly added item can be dragged anywhere (the panel would otherwise
     // cover the bottom of the canvas).
+    setActiveTool(null);
+  };
+
+  // "Select all" — places one timetable item (like the dashboard's schedule
+  // grid): columns per active day, rows per start time, colored class blocks.
+  const addAllClasses = () => {
+    if (classes.length === 0) return;
+    const toMinutes = (t: string) => {
+      const [hh, mm] = t.split(":").map(Number);
+      return (hh || 0) * 60 + (mm || 0);
+    };
+    const clsDays = DAY_ORDER.filter((d) => classes.some((c) => c.days.includes(d)));
+    if (clsDays.length === 0) return;
+    const slots = Array.from(new Set(classes.map((c) => toMinutes(c.startTime)))).sort(
+      (a, b) => a - b
+    );
+    const rows = slots.map((slot) => ({
+      time: formatTime(
+        `${Math.floor(slot / 60)}:${String(slot % 60).padStart(2, "0")}`
+      ),
+      cells: clsDays.map((day) =>
+        classes
+          .map((c, i) => ({ c, i }))
+          .filter(
+            ({ c }) =>
+              c.days.includes(day) && toMinutes(c.startTime) === slot
+          )
+          .map(({ c, i }) => ({
+            subject: c.shortName || c.subject,
+            time: `${formatTime(c.startTime)} – ${formatTime(c.endTime || c.startTime)}`,
+            color: PALETTE[i % PALETTE.length]!,
+          }))
+      ),
+    }));
+    commit((prev) => [
+      ...prev,
+      {
+        id: "table-all",
+        label: "Weekly Schedule",
+        sub: null,
+        color: "transparent",
+        table: { days: clsDays.map((d) => DAY_LABELS[d] ?? d), rows },
+        x: 5,
+        y: 5,
+        scale: 1,
+        z: zCounter.current++,
+      },
+    ]);
+    setSelectedId("table-all");
     setActiveTool(null);
   };
 
@@ -259,21 +357,22 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
     commit((prev) => prev.map((i) => (i.id === item.id ? { ...i, color } : i)));
   };
 
-  // Fit the canvas on screen: at most ~768px wide and 70vh tall (leaving
-  // room for the top bar and tool rail), keeping the image's ratio.
+  // Fit the canvas on screen at the image's TRUE proportions: it fills the
+  // available width (never exceeding the image's natural resolution) so there
+  // is no white letterboxing on the sides. Tall canvases are only capped at a
+  // generous height and simply scroll instead of being squished.
   const bgDimsRef = useRef<{ w: number; h: number } | null>(null);
 
-  // The canvas is capped on both mobile and desktop so the uploaded image
-  // never covers the whole page; very tall images still fit proportionally
-  // and the canvas area remains scrollable as a fallback.
   const fitBg = () => {
     const dims = bgDimsRef.current;
     if (!dims) return;
     const isMd = window.matchMedia("(min-width: 768px)").matches;
-    const maxW = isMd ? 768 : Math.max(200, window.innerWidth - 48);
-    const maxH = Math.min(window.innerHeight * 0.7, Math.max(260, window.innerHeight - 160));
+    const maxW = isMd
+      ? Math.max(400, window.innerWidth - 340)
+      : Math.max(200, window.innerWidth - 48);
+    const maxH = Math.max(window.innerHeight * 1.5, 1200);
     const ratio = dims.w / dims.h;
-    let w = maxW;
+    let w = Math.min(maxW, dims.w);
     let h = w / ratio;
     if (h > maxH) {
       h = maxH;
@@ -294,6 +393,7 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
       bgDimsRef.current = dims;
       setBgDims(dims);
       fitBg();
+      setBgDark(isImageDark(img));
     };
     img.onerror = () => {
       bgDimsRef.current = null;
@@ -311,12 +411,13 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
       const url = reader.result as string;
       setBackgroundUrl(url);
       loadBgDims(url);
+      setActiveTool(null);
     };
     reader.readAsDataURL(file);
     e.target.value = "";
   };
 
-  const handlePointerDown = (e: React.PointerEvent, id: string, type: "move" | "resize") => {
+  const handlePointerDown = (e: React.PointerEvent, id: string, type: "move" | ResizeDir) => {
     e.preventDefault();
     e.stopPropagation();
     const item = items.find((i) => i.id === id);
@@ -325,9 +426,12 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
     setSelectedId(id);
     setUndoStack((past) => [...past.slice(-49), items]);
     setRedoStack([]);
-    const centerX = rect.left + (rect.width * item.x) / 100;
-    const centerY = rect.top + (rect.height * item.y) / 100;
-    const dist = Math.max(1, Math.hypot(e.clientX - centerX, e.clientY - centerY));
+    // Natural (unscaled) size: the item div's layout size. CSS transforms do
+    // not affect offsetWidth/offsetHeight, so this stays stable while scaling.
+    const host = e.currentTarget as HTMLElement;
+    const el = type === "move" ? host : (host.parentElement as HTMLElement);
+    const natW = el.offsetWidth;
+    const natH = el.offsetHeight;
     dragState.current = {
       type, id,
       startX: e.clientX,
@@ -335,7 +439,8 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
       itemX: item.x,
       itemY: item.y,
       itemScale: item.scale,
-      startDist: dist,
+      natW,
+      natH,
     };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
@@ -352,15 +457,58 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
       setItems((prev) =>
         prev.map((i) => (i.id === drag.id ? { ...i, x: nx, y: ny } : i))
       );
-    } else {
-      const centerX = rect.left + (rect.width * drag.itemX) / 100;
-      const centerY = rect.top + (rect.height * drag.itemY) / 100;
-      const dist = Math.max(1, Math.hypot(e.clientX - centerX, e.clientY - centerY));
-      const scale = Math.min(3, Math.max(0.4, (drag.itemScale * dist) / drag.startDist));
-      setItems((prev) =>
-        prev.map((i) => (i.id === drag.id ? { ...i, scale } : i))
-      );
+      return;
     }
+    // Directional resize (Canva-style): the anchor edge stays put while the
+    // item grows toward the pointer, so x/y are compensated for w/n/ne/nw.
+    const dir = drag.type;
+    const W = Math.max(1, drag.natW);
+    const H = Math.max(1, drag.natH);
+    const xPct = 100 / rect.width;
+    const yPct = 100 / rect.height;
+    let scale = drag.itemScale;
+    let nx = drag.itemX;
+    let ny = drag.itemY;
+    switch (dir) {
+      case "e":
+        scale += dx / W;
+        break;
+      case "w":
+        scale -= dx / W;
+        nx = drag.itemX - W * (scale - drag.itemScale) * xPct;
+        break;
+      case "s":
+        scale += dy / H;
+        break;
+      case "n":
+        scale -= dy / H;
+        ny = drag.itemY - H * (scale - drag.itemScale) * yPct;
+        break;
+      case "se":
+        scale += Math.max(dx / W, dy / H);
+        break;
+      case "sw":
+        scale += Math.max(-dx / W, dy / H);
+        nx = drag.itemX - W * (scale - drag.itemScale) * xPct;
+        break;
+      case "ne":
+        scale += Math.max(dx / W, -dy / H);
+        ny = drag.itemY - H * (scale - drag.itemScale) * yPct;
+        break;
+      case "nw":
+        scale += Math.max(-dx / W, -dy / H);
+        nx = drag.itemX - W * (scale - drag.itemScale) * xPct;
+        ny = drag.itemY - H * (scale - drag.itemScale) * yPct;
+        break;
+    }
+    scale = Math.min(3, Math.max(0.4, scale));
+    const ox = Math.min(92, Math.max(-20, nx));
+    const oy = Math.min(92, Math.max(-20, ny));
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === drag.id ? { ...i, scale, x: ox, y: oy } : i
+      )
+    );
   };
 
   const handlePointerUp = () => {
@@ -419,7 +567,13 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
       {/* Top bar — spans the full width on desktop */}
       <div className="flex shrink-0 items-center justify-between gap-2 md:col-span-3">
         <div className="flex min-w-0 items-center gap-2">
-          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Back">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onClose}
+            aria-label="Back"
+            className="text-foreground hover:bg-transparent hover:text-primary"
+          >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex min-w-0 items-center gap-2">
@@ -470,7 +624,10 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
             screen (ratio preserved) but is exported at full size */}
         <div
           ref={canvasRef}
-          onPointerDown={() => setSelectedId(null)}
+          onPointerDown={() => {
+            setSelectedId(null);
+            setPanelHidden(true);
+          }}
           className={`relative overflow-hidden rounded-xl border border-border bg-white ${
             bgDims && bgSize
               ? "mx-auto flex-none"
@@ -515,35 +672,140 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
                 top: `${item.y}%`,
                 transform: `scale(${item.scale})`,
                 transformOrigin: "top left",
-                backgroundColor: item.color,
+                backgroundColor: item.color === "transparent" ? undefined : item.color,
+                // "Transparent" color = glossy glass: translucent white gradient
+                // with a bright inner highlight so it reads as shiny glass over
+                // any background photo. (The timetable item handles its own
+                // glass background instead.)
+                ...(item.color === "transparent" && !item.table
+                  ? {
+                      background:
+                        "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.55) 45%, rgba(255,255,255,0.85) 100%)",
+                      border: "1px solid rgba(255,255,255,0.9)",
+                      boxShadow:
+                        "0 1px 4px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 2px rgba(255,255,255,0.4)",
+                    }
+                  : {}),
                 zIndex: item.z,
-                outline: selectedId === item.id ? "2px dashed rgba(255,255,255,0.9)" : undefined,
+                outline: selectedId === item.id
+                  ? "2px solid hsl(var(--primary))"
+                  : undefined,
                 outlineOffset: 2,
               }}
             >
-              <div className="text-sm font-semibold leading-tight">{item.label}</div>
-              {item.sub && <div className="text-[10px] font-medium leading-tight opacity-90">{item.sub}</div>}
+              {item.table ? (
+                <div
+                  className="w-full min-w-[260px] rounded-xl overflow-hidden"
+                  style={{
+                    // Transparent color = clear glass: transparent panel with
+                    // backdrop blur. A picked color switches to a frosted tint.
+                    backgroundColor:
+                      item.color && item.color !== "transparent"
+                        ? bgDark
+                          ? "rgba(10,10,10,0.62)"
+                          : "rgba(255,255,255,0.82)"
+                        : "transparent",
+                    backdropFilter: "blur(8px) saturate(150%)",
+                    border: item.color && item.color !== "transparent"
+                      ? `2px solid ${item.color}`
+                      : "none",
+                  }}
+                >
+                  <div
+                    className="grid px-1 pb-1 pt-1"
+                    style={{
+                      gridTemplateColumns: `repeat(${item.table!.days.length}, minmax(0, 1fr))`,
+                    }}
+                  >
+                    {item.table!.days.map((d, di) => (
+                      <div
+                        key={d}
+                        className="px-1 py-1.5 text-center text-[10px] font-semibold"
+                        style={{
+                          color: bgDark ? "#ffffff" : "#1a1416",
+                          borderLeft: di > 0 ? `1px solid ${tableLine}` : undefined,
+                          borderBottom: `1px solid ${tableLine}`,
+                        }}
+                      >
+                        {d}
+                      </div>
+                    ))}
+                    {item.table!.rows.map((row, ri) => (
+                      <Fragment key={ri}>
+                        {row.cells.map((cell, ci) => (
+                          <div
+                            key={ci}
+                            className="min-h-[38px] p-0.5"
+                            style={{
+                              borderLeft: ci > 0 ? `1px solid ${tableLine}` : undefined,
+                              borderTop: ri > 0 ? `1px solid ${tableLine}` : undefined,
+                            }}
+                          >
+                            {cell.length > 0 ? (
+                              <div className="flex flex-col gap-1">
+                                {cell.map((e, ei) => (
+                                  <div
+                                    key={ei}
+                                    className="rounded-md px-1.5 py-1 text-center text-white"
+                                    style={{
+                                      backgroundColor: e.color,
+                                      boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
+                                    }}
+                                  >
+                                    <div className="text-[10px] font-semibold leading-tight break-words">
+                                      {e.subject}
+                                    </div>
+                                    <div className="mt-0.5 text-[9px] leading-tight opacity-80">
+                                      {e.time}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="h-full min-h-[38px]" />
+                            )}
+                          </div>
+                        ))}
+                      </Fragment>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="text-sm font-semibold leading-tight">{item.label}</div>
+                  {item.sub && <div className="text-[10px] font-medium leading-tight opacity-90">{item.sub}</div>}
+                </>
+              )}
               {selectedId === item.id && (
                 <>
                   <button
                     type="button"
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => removeItem(item.id)}
-                    className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white shadow"
+                    className="absolute -right-2 -top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white shadow"
                     aria-label={`Remove ${item.label}`}
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
-                  <div
-                    onPointerDown={(e) => handlePointerDown(e, item.id, "resize")}
-                    onPointerMove={handlePointerMove}
-                    onPointerUp={handlePointerUp}
-                    onPointerCancel={handlePointerUp}
-                    className="absolute -bottom-2 -right-2 flex h-5 w-5 cursor-nwse-resize touch-none items-center justify-center rounded-full bg-white text-slate-700 shadow"
-                    aria-label="Resize"
-                  >
-                    <Move className="h-3 w-3" />
-                  </div>
+                  {(
+                    [
+                      ["n", "absolute -top-1.5 left-1/2 -translate-x-1/2 cursor-ns-resize"],
+                      ["s", "absolute -bottom-1.5 left-1/2 -translate-x-1/2 cursor-ns-resize"],
+                      ["e", "absolute -right-1.5 top-1/2 -translate-y-1/2 cursor-ew-resize"],
+                      ["w", "absolute -left-1.5 top-1/2 -translate-y-1/2 cursor-ew-resize"],
+                      ["se", "absolute -bottom-1.5 -right-1.5 cursor-nwse-resize"],
+                    ] as [ResizeDir, string][]
+                  ).map(([dir, pos]) => (
+                    <div
+                      key={dir}
+                      onPointerDown={(e) => handlePointerDown(e, item.id, dir)}
+                      onPointerMove={handlePointerMove}
+                      onPointerUp={handlePointerUp}
+                      onPointerCancel={handlePointerUp}
+                      className={`absolute z-10 flex h-3.5 w-3.5 touch-none items-center justify-center rounded-full border border-slate-400 bg-white shadow-sm ${pos}`}
+                      aria-label={`Resize ${dir}`}
+                    />
+                  ))}
                 </>
               )}
             </div>
@@ -553,40 +815,64 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
 
       {/* Side panel — bottom sheet on mobile, right column on desktop */}
       {activeTool && !panelHidden && (
-        <div className="fixed inset-x-0 bottom-0 z-20 max-h-[45dvh] w-full shrink-0 space-y-3 overflow-y-auto rounded-t-2xl border border-border border-b-0 bg-card p-3 shadow-[0_-10px_40px_rgba(0,0,0,0.2)] pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:static md:inset-auto md:col-start-3 md:row-start-2 md:max-h-none md:w-60 md:self-start md:rounded-xl md:border-b md:shadow-none md:overflow-visible md:pb-3">
+        <div className="fixed inset-x-0 bottom-0 z-20 max-h-[45dvh] w-full shrink-0 space-y-4 overflow-y-auto rounded-t-2xl border border-border border-b-0 bg-card p-3.5 shadow-[0_-10px_40px_rgba(0,0,0,0.2)] pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:static md:inset-auto md:col-start-3 md:row-start-2 md:max-h-none md:w-64 md:self-start md:rounded-xl md:border-b md:shadow-none md:overflow-visible md:pb-4">
             {activeTool === "classes" && (
-              <>
-                <p className="text-xs font-medium text-muted-foreground">Your classes</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {classes.map((cls, i) => {
-                    const added = addedIds.has(String(i));
-                    return (
-                      <button
-                        key={i}
-                        type="button"
-                        disabled={added}
-                        onClick={() => addItem(i)}
-                        className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                          added
-                            ? "cursor-default bg-muted text-muted-foreground/50 line-through"
-                            : "bg-primary/10 text-primary hover:bg-primary/20"
-                        }`}
-                      >
-                        <Plus className="h-3 w-3" />
-                        {cls.shortName || cls.subject}
-                      </button>
-                    );
-                  })}
-                  {classes.length === 0 && (
-                    <p className="text-xs text-muted-foreground">No classes to place yet.</p>
-                  )}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground">Your Classes</h3>
+                  <div className="flex items-center gap-2">
+                    {classes.length > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        {addedIds.size} / {classes.length} added
+                      </span>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 px-2 text-xs hover:bg-transparent hover:text-primary"
+                      onClick={addAllClasses}
+                      disabled={classes.length === 0 || hasTimetable}
+                    >
+                      <Sparkles className="h-3.5 w-3.5" /> Select All
+                    </Button>
+                  </div>
                 </div>
-              </>
+                {classes.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {classes.map((cls, i) => {
+                      const added = addedIds.has(String(i));
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          disabled={added}
+                          onClick={() => addItem(i)}
+                          className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all min-w-[120px] ${
+                            added
+                              ? "bg-muted text-muted-foreground/60 cursor-default"
+                              : "bg-primary/10 text-primary hover:bg-primary/20 active:bg-primary/30"
+                          }`}
+                        >
+                          <Plus className="h-4 w-4 shrink-0" />
+                          <span className="truncate">{cls.shortName || cls.subject}</span>
+                          {added && <Check className="h-4 w-4 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-2 py-6 text-center border-2 border-dashed border-border/50 rounded-xl">
+                    <Palette className="h-6 w-6 opacity-40" />
+                    <p className="text-sm text-muted-foreground">No classes extracted yet</p>
+                    <p className="text-[11px] text-muted-foreground/70">Go to Review to extract from photo</p>
+                  </div>
+                )}
+              </div>
             )}
 
             {activeTool === "text" && (
               <>
-                <p className="text-xs font-medium text-muted-foreground">Add text</p>
+                <h3 className="text-sm font-semibold text-foreground">Add Text</h3>
                 <Input
                   value={textInput}
                   onChange={(e) => setTextInput(e.target.value)}
@@ -594,6 +880,7 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
                     if (e.key === "Enter") addTextItem();
                   }}
                   placeholder="Type your text"
+                  className="mb-1"
                 />
                 <Button size="sm" className="w-full" onClick={addTextItem} disabled={!textInput.trim()}>
                   <Type className="mr-1 h-3 w-3" /> Add Text
@@ -602,45 +889,70 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
             )}
 
             {activeTool === "background" && (
-              <>
-                <p className="text-xs font-medium text-muted-foreground">Background</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => bgInputRef.current?.click()}
-                >
-                  <ImagePlus className="mr-1 h-3 w-3" /> Upload photo
-                </Button>
-                {imageUrl && backgroundUrl !== imageUrl && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground">Background</h3>
+                {/* Actions first so the buttons are always visible even if the
+                    preview is large */}
+                <div className="flex flex-col gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     className="w-full"
-                    onClick={() => {
-                      setBackgroundUrl(imageUrl);
-                      loadBgDims(imageUrl);
-                    }}
+                    onClick={() => bgInputRef.current?.click()}
                   >
-                    <ImageIcon className="mr-1 h-3 w-3" /> Use schedule photo
+                    <ImagePlus className="mr-2 h-4 w-4" /> Upload photo
                   </Button>
+                  {imageUrl && backgroundUrl !== imageUrl && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setBackgroundUrl(imageUrl);
+                        loadBgDims(imageUrl);
+                        setActiveTool(null);
+                      }}
+                    >
+                      <ImageIcon className="mr-2 h-4 w-4" /> Use schedule photo
+                    </Button>
+                  )}
+                  {backgroundUrl && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-destructive hover:text-destructive hover:bg-transparent"
+                      onClick={() => {
+                        setBackgroundUrl(null);
+                        bgDimsRef.current = null;
+                        setBgDims(null);
+                        setBgSize(null);
+                      }}
+                    >
+                      <RotateCcw className="mr-2 h-4 w-4" /> Remove background
+                    </Button>
+                  )}
+                  {!backgroundUrl && !imageUrl && (
+                    <p className="text-[11px] text-center text-muted-foreground/60 pt-1">
+                      No background set — canvas uses solid white
+                    </p>
+                  )}
+                </div>
+                {/* Current background preview — shows the whole image */}
+                {(backgroundUrl || imageUrl) && (
+                  <div className="relative h-24 w-full shrink-0 overflow-hidden rounded-lg border border-border/50 bg-muted/40 md:h-32">
+                    <img
+                      src={backgroundUrl || imageUrl!}
+                      alt="Current background"
+                      className="h-full w-full object-contain"
+                    />
+                    <div className="absolute bottom-1.5 left-2 right-2 flex items-center justify-between text-[11px] text-white/90">
+                      <span className="rounded bg-black/40 px-1.5 py-0.5 truncate max-w-[160px]">
+                        {backgroundUrl === imageUrl ? "Schedule photo" : "Custom upload"}
+                      </span>
+                    </div>
+                  </div>
                 )}
-                {backgroundUrl && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full text-destructive hover:text-destructive"
-                    onClick={() => {
-                      setBackgroundUrl(null);
-                      bgDimsRef.current = null;
-                      setBgDims(null);
-                      setBgSize(null);
-                    }}
-                  >
-                    <RotateCcw className="mr-1 h-3 w-3" /> Remove background
-                  </Button>
-                )}
-              </>
+              </div>
             )}
 
             {activeTool === "color" && (
