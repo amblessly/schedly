@@ -9,6 +9,7 @@ import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
 import { getAiInsights } from "@/app/(dashboard)/dashboard/actions";
 import { retry } from "@/lib/retry";
 import { SchedulePreview } from "@/features/schedule/components/schedule-preview";
+import { ClassCarousel } from "@/features/schedule/components/class-carousel";
 import { useTodos } from "@/features/todo/use-todos";
 import {
   getFreeTimeToday,
@@ -21,23 +22,15 @@ import {
   type FreePeriod,
 } from "@/features/insights/compute-insights";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  CalendarClock,
   ListTodo,
   Download,
   Loader2,
-  Clock,
-  MapPin,
-  User,
   GraduationCap,
-  Coffee,
   Sparkles,
-  Plus,
   ChevronRight,
-  ChevronDown,
-  Sunrise,
 } from "lucide-react";
 import { publishScheduleToWidget } from "@/features/widget/widget-data";
 import { useMounted } from "@/lib/use-mounted";
@@ -68,96 +61,8 @@ type ScheduleData = {
   classes: ClassData[];
 };
 
-const DAY_NAMES = [
-  "sunday",
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-];
-
 function toMin(d: Date) {
   return d.getHours() * 60 + d.getMinutes();
-}
-
-function fmtCountdown(ms: number) {
-  const total = Math.max(0, Math.round(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  if (h > 0) return `${h}h ${m}m ${s}s`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
-}
-
-type UpcomingClass = {
-  class: ClassData;
-  startMs: number;
-  endMs: number;
-  dayLabel: string;
-  /** True when the class is today or tomorrow (close enough for a countdown). */
-  isNear: boolean;
-};
-
-function getUpcomingClasses(classes: ClassData[], now: Date): UpcomingClass[] {
-  const items: UpcomingClass[] = [];
-  const nowDay = now.getDay();
-
-  for (const c of classes) {
-    for (const day of c.days) {
-      const dayIdx = DAY_NAMES.indexOf(day);
-      if (dayIdx < 0) continue;
-      const diff = (dayIdx - nowDay + 7) % 7;
-      const start = new Date(now);
-      start.setDate(now.getDate() + diff);
-      start.setHours(c.startTime.getHours(), c.startTime.getMinutes(), 0, 0);
-      const end = new Date(now);
-      end.setDate(now.getDate() + diff);
-      end.setHours(c.endTime.getHours(), c.endTime.getMinutes(), 0, 0);
-      if (end.getTime() <= now.getTime()) continue; // fully past
-      items.push({
-        class: c,
-        startMs: start.getTime() - now.getTime(),
-        endMs: end.getTime() - now.getTime(),
-        dayLabel: diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : DAY_FULL[day] ?? day,
-        isNear: diff === 0 || diff === 1,
-      });
-    }
-  }
-
-  items.sort((a, b) => a.startMs - b.startMs);
-  return items;
-}
-
-function formatClockTime(d: Date) {
-  let h = d.getHours();
-  const m = d.getMinutes();
-  const ampm = h < 12 ? "AM" : "PM";
-  h = h % 12 === 0 ? 12 : h % 12;
-  return `${h}:${String(m).padStart(2, "0")} ${ampm}`;
-}
-
-function formatTimeRange(start: Date, end: Date) {
-  return `${formatClockTime(start)} – ${formatClockTime(end)}`;
-}
-
-// Fills toward the class: elapsed while it's running, or how far the day has
-// advanced toward a still-pending class.
-function classProgress(item: UpcomingClass, now: Date) {
-  if (item.startMs <= 0) {
-    const span = item.startMs - item.endMs; // negative duration
-    if (span >= 0) return 0;
-    return Math.min(100, Math.max(0, (-item.startMs / -span) * 100));
-  }
-  const dayStart = new Date(now.getTime() + item.startMs);
-  dayStart.setHours(0, 0, 0, 0);
-  const start = new Date(now.getTime() + item.startMs);
-  const total = start.getTime() - dayStart.getTime();
-  if (total <= 0) return 0;
-  const elapsed = now.getTime() - dayStart.getTime();
-  return Math.min(100, Math.max(0, (elapsed / total) * 100));
 }
 
 interface GallerySavePlugin {
@@ -212,7 +117,6 @@ export default function DashboardPage() {
   }, [schedules]);
 
   const allClasses = (schedules ?? []).flatMap((s) => s.classes);
-  const upcomingClasses = getUpcomingClasses(allClasses, now);
 
   // Schedule insights are derived purely from class times (client-side, offline).
   const insightItems: InsightItem[] = allClasses.map((c) => ({
@@ -327,327 +231,122 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Bento grid — mixed-size tiles (landscape, square) for a glanceable day */}
-      <div className="grid grid-cols-2 items-stretch gap-3">
-        {/* Next Class — tall tile filling the left column (rows 1–2) */}
-        <Card className="col-span-1 row-span-2 flex h-full flex-col border-border/50 [--card-spacing:--spacing(5)]">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Next Class
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              {upcomingClasses.length > 1 && (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                  {upcomingClasses.length} upcoming
-                </span>
-              )}
-              <CalendarClock className="h-4 w-4 text-primary" />
+      {/* Today's Classes — horizontal carousel, one class per card */}
+      <div>
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">
+              Today&apos;s Classes
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {schedules === null
+                ? "Loading…"
+                : todaysClasses.length === 0
+                  ? "No classes today"
+                  : `${todaysClasses.length} class${todaysClasses.length !== 1 ? "es" : ""} today`}
+            </p>
+          </div>
+          <Link
+            href="/schedule"
+            className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-primary"
+          >
+            Full timetable <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        <div className="mt-3">
+          {schedules === null ? (
+            <div className="space-y-3">
+              <Skeleton className="h-[190px] w-[78%] max-w-[340px] rounded-3xl" />
+              <div className="flex gap-2">
+                <Skeleton className="h-2 w-6 rounded-full" />
+                <Skeleton className="h-2 w-2 rounded-full" />
+              </div>
             </div>
-          </CardHeader>
-          <CardContent className="flex min-h-0 flex-1 flex-col">
-            {schedules === null ? (
-              <div className="space-y-2">
-                <Skeleton className="h-6 w-24" />
-                <Skeleton className="h-3 w-36" />
-                <Skeleton className="h-3 w-20" />
-              </div>
-            ) : upcomingClasses.length > 0 ? (
-              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-                <div className="flex h-full min-h-28 flex-col items-center justify-center gap-1 text-center text-muted-foreground">
-                  <ChevronDown className="h-4 w-4 animate-bounce" />
-                  <p className="text-xs">Scroll to see your upcoming classes</p>
-                </div>
-                <ul className="space-y-2">
-                  {upcomingClasses.map((item, i) => {
-                  const { class: c, startMs, endMs, dayLabel, isNear } = item;
-                  const happeningNow = startMs <= 0;
-                  const name = c.shortName?.trim() || c.code?.trim() || c.subject;
-                  const featured = i === 0;
-                  return (
-                    <li
-                      key={`${c.id}-${dayLabel}-${startMs}`}
-                      className={`rounded-xl border p-3 ${
-                        featured ? "border-primary/25 bg-primary/[0.04]" : "border-border/40"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <span
-                            className="h-2.5 w-2.5 shrink-0 rounded-full"
-                            style={{ backgroundColor: c.color }}
-                          />
-                          <p
-                            className={`truncate text-foreground ${
-                              featured ? "text-[15px] font-semibold" : "text-sm font-medium"
-                            }`}
-                          >
-                            {name}
-                          </p>
-                        </div>
-                        <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                            happeningNow
-                              ? "bg-destructive/10 text-destructive"
-                              : "bg-primary/10 text-primary"
-                          }`}
-                        >
-                          {dayLabel}
-                        </span>
-                      </div>
-
-                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <CalendarClock className="h-3 w-3 shrink-0" />
-                          {formatTimeRange(c.startTime, c.endTime)}
-                        </span>
-                        {c.room?.trim() && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3 shrink-0" /> {c.room.trim()}
-                          </span>
-                        )}
-                        {c.instructor?.trim() && (
-                          <span className="flex items-center gap-1">
-                            <User className="h-3 w-3 shrink-0" /> {c.instructor.trim()}
-                          </span>
-                        )}
-                      </div>
-
-                      {isNear && (
-                        <>
-                          <p
-                            className={`mt-1.5 flex items-center gap-1 text-xs ${
-                              happeningNow ? "font-semibold text-primary" : "text-muted-foreground"
-                            }`}
-                          >
-                            <Clock className="h-3 w-3 shrink-0" />
-                            {happeningNow
-                              ? `Happening now · ends in ${fmtCountdown(endMs)}`
-                              : `Starts in ${fmtCountdown(startMs)}`}
-                          </p>
-                          <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-foreground/10">
-                            <div
-                              className="h-full rounded-full transition-all duration-1000 ease-linear"
-                              style={{ width: `${classProgress(item, now)}%`, backgroundColor: c.color }}
-                            />
-                          </div>
-                        </>
-                      )}
-                    </li>
-                  );
-                })}
-                </ul>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No upcoming classes</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* To-Dos — square tile */}
-        <Card className="border-border/50 [--card-spacing:--spacing(5)]">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              To-Dos Today
-            </CardTitle>
-            <ListTodo className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            {todaysTodos.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nothing due today</p>
-            ) : (
-              <ul className="space-y-1.5">
-                {todaysTodos.slice(0, 3).map((t) => (
-                  <li key={t.id} className="flex items-center gap-2 text-xs">
-                    <span
-                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                        t.completed ? "bg-green-500" : "bg-primary"
-                      }`}
-                    />
-                    <span className={t.completed ? "line-through text-muted-foreground" : "text-foreground"}>
-                      {t.text}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="mt-2 flex items-center justify-between">
-              <Link
-                href="/todo"
-                className="inline-flex items-center gap-0.5 text-xs font-medium text-primary"
-              >
-                <Plus className="h-3 w-3" /> Add a task
-              </Link>
-              {todaysTodos.length > 3 && (
-                <Link
-                  href="/todo"
-                  className="inline-flex items-center gap-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  View all {todaysTodos.length} <ChevronRight className="h-3 w-3" />
-                </Link>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Free Time Today — square tile */}
-        <Card className="border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Free Time Today
-            </CardTitle>
-            <Coffee className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            {schedules === null ? (
-              <Skeleton className="h-4 w-40" />
-            ) : freeToday.isFullyFree ? (
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  You&apos;re free today
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  No schedule today — perfect time to relax or catch up on tasks.
-                </p>
-              </div>
-            ) : longestBreakToday ? (
-              <div className="flex items-end gap-2">
-                <span className="text-2xl font-bold tracking-tight text-foreground">
-                  {minutesToHoursLabel(longestBreakToday.durationMinutes)}
-                </span>
-                <span className="pb-1 text-xs text-muted-foreground">
-                  longest break · {formatClock(longestBreakToday.startMinutes)} – {formatClock(longestBreakToday.endMinutes)}
-                </span>
-              </div>
-            ) : (
-              <div>
-                <p className="text-sm font-semibold text-foreground">No long breaks today</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Packed day — squeeze in short breaks between classes.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Today's Schedule — landscape tile */}
-        <Card className="col-span-2 border-border/50 [--card-spacing:--spacing(5)]">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Today&apos;s Schedule
-            </CardTitle>
-            <Link
-              href="/schedule"
-              className="inline-flex items-center gap-0.5 text-xs font-medium text-primary"
-            >
-              Full timetable <ChevronRight className="h-3 w-3" />
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {schedules === null ? (
-              <div className="space-y-2">
-                {[1, 2].map((i) => (
-                  <Skeleton key={i} className="h-12 w-full rounded-xl" />
-                ))}
-              </div>
-            ) : todaysClasses.length === 0 ? (
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <Coffee className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    No classes on {DAY_FULL[todayDay]}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    You&apos;re free all day — perfect time to relax or catch up on tasks.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="divide-y divide-border/60">
-                {todaysClasses.map((c) => {
-                  const name = c.shortName?.trim() || c.code?.trim() || c.subject;
-                  const done = new Date(c.endTime).getTime() <= now.getTime();
-                  return (
-                    <div key={c.id} className="flex items-center gap-3 py-2.5">
-                      <span className="w-14 shrink-0 text-xs font-semibold tabular-nums text-foreground">
-                        {formatClockTime(c.startTime)}
-                      </span>
-                      <span className="h-8 w-1 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
-                      <div className="min-w-0 flex-1">
-                        <p
-                          className={`truncate text-sm font-medium ${
-                            done ? "text-muted-foreground line-through" : "text-foreground"
-                          }`}
-                        >
-                          {name}
-                        </p>
-                        {c.room?.trim() && (
-                          <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
-                            <MapPin className="h-3 w-3 shrink-0" /> {c.room.trim()}
-                          </p>
-                        )}
-                      </div>
-                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                        {formatClockTime(c.endTime)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Insights — landscape tile */}
-        {schedules && allClasses.length > 0 && (
-          <Card className="col-span-2 border-border/50 [--card-spacing:--spacing(5)]">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Insights
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 shrink-0"
-                  onClick={handleGenerateInsights}
-                  disabled={aiLoading}
-                >
-                  {aiLoading ? (
-                    <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Working…</>
-                  ) : aiSuggestions ? (
-                    "More AI tips"
-                  ) : (
-                    <><Sparkles className="mr-2 h-3.5 w-3.5 text-primary" /> AI tips</>
-                  )}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm font-semibold text-foreground">{weeklyInsightText}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{weeklyInsightSub}</p>
-            </CardContent>
-          </Card>
-        )}
+          ) : (
+            <ClassCarousel classes={todaysClasses} now={now} />
+          )}
+        </div>
       </div>
 
-      {/* AI tips output below the bento grid */}
-      {schedules && allClasses.length > 0 && aiError && (
-        <p className="mt-2 text-xs text-destructive">{aiError}</p>
-      )}
+      {/* Status chips — free time + tasks, one line each */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Link
+          href="/todo"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+        >
+          <ListTodo className="h-3.5 w-3.5 text-primary" />
+          {todaysTodos.length > 0
+            ? `${todaysTodos.length} task${todaysTodos.length !== 1 ? "s" : ""} due today`
+            : "Plan your day"}
+        </Link>
 
-      {schedules && allClasses.length > 0 && aiSuggestions && aiSuggestions.length > 0 && (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          {aiSuggestions.map((s, i) => (
-            <Card key={i} className="border-border/50 [--card-spacing:--spacing(5)]">
-              <CardContent className="flex items-start gap-2.5">
-                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <p className="text-sm leading-snug text-foreground">{s}</p>
-              </CardContent>
-            </Card>
+        {schedules !== null &&
+          (freeToday.isFullyFree ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card px-3.5 py-1.5 text-xs font-medium text-foreground">
+              <span className="h-2 w-2 rounded-full bg-green-500" />
+              Free all day
+            </span>
+          ) : longestBreakToday ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card px-3.5 py-1.5 text-xs font-medium text-foreground">
+              <span className="h-2 w-2 rounded-full bg-green-500" />
+              Free until {formatClock(longestBreakToday.endMinutes)}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card px-3.5 py-1.5 text-xs font-medium text-foreground">
+              <span className="h-2 w-2 rounded-full bg-primary" />
+              Class starts soon
+            </span>
           ))}
+      </div>
+
+      {/* AI daily tip */}
+      {schedules && allClasses.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={handleGenerateInsights}
+            disabled={aiLoading}
+            className="w-full rounded-3xl border border-border/60 bg-card p-4 text-left transition-colors hover:bg-muted disabled:cursor-default"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Sparkles className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {weeklyInsightText}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">{weeklyInsightSub}</p>
+                </div>
+              </div>
+              {aiLoading ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+              ) : aiSuggestions ? (
+                <span className="shrink-0 text-xs font-medium text-primary">More AI tips</span>
+              ) : (
+                <span className="shrink-0 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+                  AI tips
+                </span>
+              )}
+            </div>
+          </button>
+
+          {aiError && <p className="mt-2 text-xs text-destructive">{aiError}</p>}
+
+          {aiSuggestions && aiSuggestions.length > 0 && (
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {aiSuggestions.map((s, i) => (
+                <Card key={i} className="rounded-2xl border-border/60 [--card-spacing:--spacing(4)]">
+                  <CardContent className="flex items-start gap-2.5">
+                    <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                    <p className="text-sm leading-snug text-foreground">{s}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
