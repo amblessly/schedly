@@ -9,6 +9,7 @@ import { Sidebar } from "@/components/sidebar";
 import { BottomNav } from "@/components/bottom-nav";
 import { useThemeConfig } from "@/features/theme";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { ZoomLock } from "@/components/zoom-lock";
 
 // The drawer's open state lives in a tiny external store so its initial
 // value can come from matchMedia only AFTER hydration: the server always
@@ -135,6 +136,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         backgroundSize: "cover",
       }}
     >
+      <ZoomLock />
       {/* Theme-colored wash behind the status bar (edge-to-edge overlay) */}
       {!isImmersive && (
         <div
