@@ -232,7 +232,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Today's Classes — carousel left, status cards right */}
-      <div className="grid items-stretch gap-4 lg:grid-cols-[1fr_240px]">
+      <div className="grid items-stretch gap-4 md:grid-cols-[1fr_240px]">
         <div>
           <div className="flex items-end justify-between gap-3">
             <div>
