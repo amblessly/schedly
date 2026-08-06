@@ -98,7 +98,7 @@ export function ClassCarousel({ classes, now }: Props) {
               data-carousel-card
               className={cn(
                 "relative flex shrink-0 snap-center flex-col rounded-3xl p-5 transition-all duration-300",
-                "w-[78%] max-w-[340px]",
+                "w-[85%] max-w-[420px]",
                 activeCard ? "scale-100 shadow-lg" : "scale-[0.96] opacity-80"
               )}
               style={{ backgroundColor: c.color || "var(--secondary)" }}

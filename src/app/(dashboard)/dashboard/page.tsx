@@ -232,33 +232,33 @@ export default function DashboardPage() {
       </div>
 
       {/* Today's Classes — bento: carousel left, two stacked status cards right */}
-      <div className="flex items-stretch gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                Today&apos;s Classes
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {schedules === null
-                  ? "Loading…"
-                  : todaysClasses.length === 0
-                    ? "No classes today"
-                    : `${todaysClasses.length} class${todaysClasses.length !== 1 ? "es" : ""} today`}
-              </p>
-            </div>
-            <Link
-              href="/schedule"
-              className="hidden shrink-0 items-center gap-0.5 text-xs font-medium text-primary sm:inline-flex"
-            >
-              Full timetable <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
+      <div>
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">
+              Today&apos;s Classes
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {schedules === null
+                ? "Loading…"
+                : todaysClasses.length === 0
+                  ? "No classes today"
+                  : `${todaysClasses.length} class${todaysClasses.length !== 1 ? "es" : ""} today`}
+            </p>
           </div>
+          <Link
+            href="/schedule"
+            className="hidden shrink-0 items-center gap-0.5 text-xs font-medium text-primary sm:inline-flex"
+          >
+            Full timetable <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
 
-          <div className="mt-3">
+        <div className="mt-3 flex items-stretch gap-3">
+          <div className="min-w-0 flex-1">
             {schedules === null ? (
               <div className="space-y-3">
-                <Skeleton className="h-[190px] w-[78%] max-w-[340px] rounded-3xl" />
+                <Skeleton className="h-[190px] w-full rounded-3xl" />
                 <div className="flex gap-2">
                   <Skeleton className="h-2 w-6 rounded-full" />
                   <Skeleton className="h-2 w-2 rounded-full" />
@@ -268,63 +268,63 @@ export default function DashboardPage() {
               <ClassCarousel classes={todaysClasses} now={now} />
             )}
           </div>
-        </div>
 
-        {/* Status cards — tasks + free time, stacked on the right */}
-        <div className="flex w-[112px] shrink-0 flex-col gap-3 sm:w-[130px]">
-          <Link
-            href="/todo"
-            className="flex flex-1 flex-col items-center justify-center gap-2 rounded-3xl border border-border/60 bg-card p-3 text-center transition-colors hover:bg-muted"
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <ListTodo className="h-5 w-5" />
-            </span>
-            <p className="text-xs font-semibold leading-tight text-foreground">
-              {todaysTodos.length > 0
-                ? `${todaysTodos.length} task${todaysTodos.length !== 1 ? "s" : ""}`
-                : "Plan your day"}
-            </p>
-            <p className="text-[10px] leading-tight text-muted-foreground">
-              {todaysTodos.length > 0 ? "due today" : "Add something to do"}
-            </p>
-          </Link>
+          {/* Status cards — tasks + free time, stacked on the right */}
+          <div className="flex w-[112px] shrink-0 flex-col gap-3 sm:w-[130px]">
+            <Link
+              href="/todo"
+              className="flex flex-1 flex-col items-center justify-center gap-2 rounded-3xl border border-border/60 bg-card p-3 text-center transition-colors hover:bg-muted"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <ListTodo className="h-5 w-5" />
+              </span>
+              <p className="text-xs font-semibold leading-tight text-foreground">
+                {todaysTodos.length > 0
+                  ? `${todaysTodos.length} task${todaysTodos.length !== 1 ? "s" : ""}`
+                  : "Plan your day"}
+              </p>
+              <p className="text-[10px] leading-tight text-muted-foreground">
+                {todaysTodos.length > 0 ? "due today" : "Add something to do"}
+              </p>
+            </Link>
 
-          {schedules !== null &&
-            (freeToday.isFullyFree ? (
-              <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-3xl border border-border/60 bg-card p-3 text-center">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-green-500/15">
-                  <span className="h-3 w-3 rounded-full bg-green-500" />
-                </span>
-                <p className="text-xs font-semibold leading-tight text-foreground">Free all day</p>
-                <p className="text-[10px] leading-tight text-muted-foreground">
-                  Nothing scheduled
-                </p>
-              </div>
-            ) : longestBreakToday ? (
-              <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-3xl border border-border/60 bg-card p-3 text-center">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-green-500/15">
-                  <span className="h-3 w-3 rounded-full bg-green-500" />
-                </span>
-                <p className="text-xs font-semibold leading-tight text-foreground">
-                  Free until {formatClock(longestBreakToday.endMinutes)}
-                </p>
-                <p className="text-[10px] leading-tight text-muted-foreground">
-                  {minutesToHoursLabel(longestBreakToday.durationMinutes)} break
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-3xl border border-border/60 bg-card p-3 text-center">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <span className="h-3 w-3 rounded-full bg-primary" />
-                </span>
-                <p className="text-xs font-semibold leading-tight text-foreground">
-                  Class starts soon
-                </p>
-                <p className="text-[10px] leading-tight text-muted-foreground">
-                  No long breaks
-                </p>
-              </div>
-            ))}
+            {schedules !== null &&
+              (freeToday.isFullyFree ? (
+                <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-3xl border border-border/60 bg-card p-3 text-center">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-green-500/15">
+                    <span className="h-3 w-3 rounded-full bg-green-500" />
+                  </span>
+                  <p className="text-xs font-semibold leading-tight text-foreground">Free all day</p>
+                  <p className="text-[10px] leading-tight text-muted-foreground">
+                    Nothing scheduled
+                  </p>
+                </div>
+              ) : longestBreakToday ? (
+                <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-3xl border border-border/60 bg-card p-3 text-center">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-green-500/15">
+                    <span className="h-3 w-3 rounded-full bg-green-500" />
+                  </span>
+                  <p className="text-xs font-semibold leading-tight text-foreground">
+                    Free until {formatClock(longestBreakToday.endMinutes)}
+                  </p>
+                  <p className="text-[10px] leading-tight text-muted-foreground">
+                    {minutesToHoursLabel(longestBreakToday.durationMinutes)} break
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-3xl border border-border/60 bg-card p-3 text-center">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <span className="h-3 w-3 rounded-full bg-primary" />
+                  </span>
+                  <p className="text-xs font-semibold leading-tight text-foreground">
+                    Class starts soon
+                  </p>
+                  <p className="text-[10px] leading-tight text-muted-foreground">
+                    No long breaks
+                  </p>
+                </div>
+              ))}
+          </div>
         </div>
       </div>
       {schedules && allClasses.length > 0 && (
