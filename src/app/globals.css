@@ -292,23 +292,6 @@ body {
   }
 }
 
-/* ===== Mobile legibility ===== */
-/* Bump the smallest text sizes up to a readable floor on phones only, so
-   nothing is cramped at ~300-360px widths. Desktop and tablet typography
-   is untouched (these rules live outside any @layer, so they win over the
-   Tailwind utilities inside @layer utilities on mobile only). */
-@media (max-width: 767px) {
-  .text-\[10px\] {
-    font-size: 12px;
-  }
-  .text-\[11px\] {
-    font-size: 12px;
-  }
-  .text-xs {
-    font-size: 13px;
-  }
-}
-
 /* ===== Global press feedback: fast, smooth, tactile buttons ===== */
 @layer base {
   button {

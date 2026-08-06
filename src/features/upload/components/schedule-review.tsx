@@ -151,7 +151,7 @@ export function ScheduleReview({
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label htmlFor="semester">Semester</Label>
           <Input
@@ -287,7 +287,7 @@ export function ScheduleReview({
                         ))}
                       </div>
                     )}
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">Subject *</Label>
                         <Input
@@ -305,7 +305,7 @@ export function ScheduleReview({
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">Short Name (timetable label)</Label>
                         <div className="flex gap-1.5">
@@ -327,7 +327,7 @@ export function ScheduleReview({
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">Instructor</Label>
                         <Input
@@ -345,7 +345,7 @@ export function ScheduleReview({
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">Section</Label>
                         <Input
@@ -363,7 +363,7 @@ export function ScheduleReview({
                         />
                       </div>
                     </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs">Start Time *</Label>
                       <Input
