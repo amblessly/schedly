@@ -320,7 +320,7 @@ export default function AdminApkPage() {
               logs.map((l, i) => (
                 <div key={i} className="flex gap-2">
                   <span className="shrink-0 text-slate-600">[{l.ts}]</span>
-                  <span className={logColor[l.level]}>{l.text}</span>
+                  <span className={`min-w-0 break-all ${logColor[l.level]}`}>{l.text}</span>
                 </div>
               ))
             )}
