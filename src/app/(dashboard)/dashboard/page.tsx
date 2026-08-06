@@ -66,16 +66,6 @@ type ScheduleData = {
   classes: ClassData[];
 };
 
-const DAY_NAMES = [
-  "sunday",
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-];
-
 function toMin(d: Date) {
   return d.getHours() * 60 + d.getMinutes();
 }
@@ -90,45 +80,6 @@ function fmtCountdown(ms: number) {
   return `${s}s`;
 }
 
-type UpcomingClass = {
-  class: ClassData;
-  startMs: number;
-  endMs: number;
-  dayLabel: string;
-  /** True when the class is today or tomorrow (close enough for a countdown). */
-  isNear: boolean;
-};
-
-function getUpcomingClasses(classes: ClassData[], now: Date): UpcomingClass[] {
-  const items: UpcomingClass[] = [];
-  const nowDay = now.getDay();
-
-  for (const c of classes) {
-    for (const day of c.days) {
-      const dayIdx = DAY_NAMES.indexOf(day);
-      if (dayIdx < 0) continue;
-      const diff = (dayIdx - nowDay + 7) % 7;
-      const start = new Date(now);
-      start.setDate(now.getDate() + diff);
-      start.setHours(c.startTime.getHours(), c.startTime.getMinutes(), 0, 0);
-      const end = new Date(now);
-      end.setDate(now.getDate() + diff);
-      end.setHours(c.endTime.getHours(), c.endTime.getMinutes(), 0, 0);
-      if (end.getTime() <= now.getTime()) continue; // fully past
-      items.push({
-        class: c,
-        startMs: start.getTime() - now.getTime(),
-        endMs: end.getTime() - now.getTime(),
-        dayLabel: diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : DAY_FULL[day] ?? day,
-        isNear: diff === 0 || diff === 1,
-      });
-    }
-  }
-
-  items.sort((a, b) => a.startMs - b.startMs);
-  return items;
-}
-
 function formatClockTime(d: Date) {
   let h = d.getHours();
   const m = d.getMinutes();
@@ -139,23 +90,6 @@ function formatClockTime(d: Date) {
 
 function formatTimeRange(start: Date, end: Date) {
   return `${formatClockTime(start)} – ${formatClockTime(end)}`;
-}
-
-// Fills toward the class: elapsed while it's running, or how far the day has
-// advanced toward a still-pending class.
-function classProgress(item: UpcomingClass, now: Date) {
-  if (item.startMs <= 0) {
-    const span = item.startMs - item.endMs; // negative duration
-    if (span >= 0) return 0;
-    return Math.min(100, Math.max(0, (-item.startMs / -span) * 100));
-  }
-  const dayStart = new Date(now.getTime() + item.startMs);
-  dayStart.setHours(0, 0, 0, 0);
-  const start = new Date(now.getTime() + item.startMs);
-  const total = start.getTime() - dayStart.getTime();
-  if (total <= 0) return 0;
-  const elapsed = now.getTime() - dayStart.getTime();
-  return Math.min(100, Math.max(0, (elapsed / total) * 100));
 }
 
 interface GallerySavePlugin {
@@ -210,7 +144,6 @@ export default function DashboardPage() {
   }, [schedules]);
 
   const allClasses = (schedules ?? []).flatMap((s) => s.classes);
-  const upcomingClasses = getUpcomingClasses(allClasses, now);
 
   // Schedule insights are derived purely from class times (client-side, offline).
   const insightItems: InsightItem[] = allClasses.map((c) => ({
@@ -327,16 +260,16 @@ export default function DashboardPage() {
 
       {/* Bento grid — mixed-size tiles (landscape, square) for a glanceable day */}
       <div className="grid grid-cols-2 items-stretch gap-3">
-        {/* Next Class — tall tile filling the left column (rows 1–2) */}
+        {/* Today's Classes — tall tile filling the left column (rows 1–2) */}
         <Card className="col-span-1 row-span-2 flex h-full flex-col border-border/50 [--card-spacing:--spacing(5)]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Next Class
+              Today&apos;s Classes
             </CardTitle>
             <div className="flex items-center gap-2">
-              {upcomingClasses.length > 1 && (
+              {todaysClasses.length > 0 && (
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                  {upcomingClasses.length} upcoming
+                  {todaysClasses.length} today
                 </span>
               )}
               <CalendarClock className="h-4 w-4 text-primary" />
@@ -349,16 +282,17 @@ export default function DashboardPage() {
                 <Skeleton className="h-3 w-36" />
                 <Skeleton className="h-3 w-20" />
               </div>
-            ) : upcomingClasses.length > 0 ? (
+            ) : todaysClasses.length > 0 ? (
               <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                {upcomingClasses.map((item, i) => {
-                  const { class: c, startMs, endMs, dayLabel, isNear } = item;
-                  const happeningNow = startMs <= 0;
+                {todaysClasses.map((c, i) => {
                   const name = c.shortName?.trim() || c.code?.trim() || c.subject;
+                  const finished = new Date(c.endTime).getTime() <= now.getTime();
+                  const ongoing =
+                    !finished && new Date(c.startTime).getTime() <= now.getTime();
                   const featured = i === 0;
                   return (
                     <li
-                      key={`${c.id}-${dayLabel}-${startMs}`}
+                      key={`${c.id}`}
                       className={`rounded-xl border p-3 ${
                         featured ? "border-primary/25 bg-primary/[0.04]" : "border-border/40"
                       }`}
@@ -379,12 +313,14 @@ export default function DashboardPage() {
                         </div>
                         <span
                           className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                            happeningNow
+                            ongoing
                               ? "bg-destructive/10 text-destructive"
-                              : "bg-primary/10 text-primary"
+                              : finished
+                                ? "bg-foreground/10 text-muted-foreground"
+                                : "bg-primary/10 text-primary"
                           }`}
                         >
-                          {dayLabel}
+                          {ongoing ? "Ongoing" : finished ? "Finished" : "Upcoming"}
                         </span>
                       </div>
 
@@ -405,32 +341,20 @@ export default function DashboardPage() {
                         )}
                       </div>
 
-                      {isNear && (
-                        <>
-                          <p
-                            className={`mt-1.5 flex items-center gap-1 text-xs ${
-                              happeningNow ? "font-semibold text-primary" : "text-muted-foreground"
-                            }`}
-                          >
-                            <Clock className="h-3 w-3 shrink-0" />
-                            {happeningNow
-                              ? `Happening now · ends in ${fmtCountdown(endMs)}`
-                              : `Starts in ${fmtCountdown(startMs)}`}
-                          </p>
-                          <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-foreground/10">
-                            <div
-                              className="h-full rounded-full transition-all duration-1000 ease-linear"
-                              style={{ width: `${classProgress(item, now)}%`, backgroundColor: c.color }}
-                            />
-                          </div>
-                        </>
+                      {ongoing && (
+                        <p className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-primary">
+                          <Clock className="h-3 w-3 shrink-0" />
+                          Happening now · ends in {fmtCountdown(c.endTime.getTime() - now.getTime())}
+                        </p>
                       )}
                     </li>
                   );
                 })}
               </ul>
             ) : (
-              <p className="text-sm text-muted-foreground">No upcoming classes</p>
+              <p className="text-sm text-muted-foreground">
+                No classes today — time to relax or catch up on tasks.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -516,76 +440,6 @@ export default function DashboardPage() {
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   Packed day — squeeze in short breaks between classes.
                 </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Today's Schedule — landscape tile */}
-        <Card className="col-span-2 border-border/50 [--card-spacing:--spacing(5)]">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Today&apos;s Schedule
-            </CardTitle>
-            <Link
-              href="/schedule"
-              className="inline-flex items-center gap-0.5 text-xs font-medium text-primary"
-            >
-              Full timetable <ChevronRight className="h-3 w-3" />
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {schedules === null ? (
-              <div className="space-y-2">
-                {[1, 2].map((i) => (
-                  <Skeleton key={i} className="h-12 w-full rounded-xl" />
-                ))}
-              </div>
-            ) : todaysClasses.length === 0 ? (
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <Coffee className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    No classes on {DAY_FULL[todayDay]}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    You&apos;re free all day — perfect time to relax or catch up on tasks.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="divide-y divide-border/60">
-                {todaysClasses.map((c) => {
-                  const name = c.shortName?.trim() || c.code?.trim() || c.subject;
-                  const done = new Date(c.endTime).getTime() <= now.getTime();
-                  return (
-                    <div key={c.id} className="flex items-center gap-3 py-2.5">
-                      <span className="w-14 shrink-0 text-xs font-semibold tabular-nums text-foreground">
-                        {formatClockTime(c.startTime)}
-                      </span>
-                      <span className="h-8 w-1 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
-                      <div className="min-w-0 flex-1">
-                        <p
-                          className={`truncate text-sm font-medium ${
-                            done ? "text-muted-foreground line-through" : "text-foreground"
-                          }`}
-                        >
-                          {name}
-                        </p>
-                        {c.room?.trim() && (
-                          <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
-                            <MapPin className="h-3 w-3 shrink-0" /> {c.room.trim()}
-                          </p>
-                        )}
-                      </div>
-                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                        {formatClockTime(c.endTime)}
-                      </span>
-                    </div>
-                  );
-                })}
               </div>
             )}
           </CardContent>
