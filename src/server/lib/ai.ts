@@ -106,7 +106,7 @@ async function fetchAndPreprocessImage(imageUrl: string) {
   return { base64, contentType: "image/jpeg" };
 }
 
-async function callOpenRouter(model: string, messages: unknown[]) {
+async function callOpenRouter(model: string, messages: unknown[], temperature = 0.1) {
   const apiKey = process.env.OPENROUTER_API_KEY;
 
   const response = await fetch(OPENROUTER_API_URL, {
@@ -120,7 +120,7 @@ async function callOpenRouter(model: string, messages: unknown[]) {
     body: JSON.stringify({
       model,
       messages,
-      temperature: 0.1,
+      temperature,
       max_tokens: 2048,
     }),
   });
@@ -325,6 +325,7 @@ Rules:
 - Talk naturally, like a friend giving advice — no corporate or robotic wording, no bullet-point jargon.
 - Mention times in 12-HOUR format with AM/PM (e.g. "1 PM to 4 PM", never "13:00-16:00").
 - Each suggestion must be a single short sentence (under 25 words), plain, specific, and personal ("you", "your").
+- Vary the wording, examples, and sentence structure each time you're asked — do not repeat the same phrases from a previous answer.
 - Do NOT invent classes, times, rooms, or people.
 - Do NOT mention "AI", "algorithm", "analysis", or "assistant".
 - Return ONLY valid JSON: {"suggestions": ["...", "..."]}`;
@@ -352,7 +353,7 @@ export async function generateScheduleSuggestions(
           content:
             `${SUGGESTIONS_PROMPT}\n\nWeekly schedule:\n${JSON.stringify(classes, null, 2)}`,
         },
-      ]).then(parseAiResponse),
+      ], 0.9).then(parseAiResponse),
     models,
   );
 
