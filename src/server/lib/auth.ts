@@ -127,6 +127,10 @@ export const auth = betterAuth({
         window: 60,
         max: 3,
       },
+      "/api/auth/sign-in/social": {
+        window: 10,
+        max: 20,
+      },
     },
   },
   socialProviders: {
