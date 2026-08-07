@@ -73,16 +73,36 @@ export function useUpload() {
 
   const pollStatus = (uploadId: string): Promise<Record<string, unknown>> =>
     new Promise((resolve, reject) => {
+      // Transient failures (5xx, 429, network hiccups) must not kill a
+      // processing upload — the server may be cold-starting or scaling.
+      // Only definitive errors (401/403/404) stop the poll right away.
+      let transientFails = 0;
+      const MAX_TRANSIENT = 5;
       const interval = setInterval(async () => {
         try {
           const res = await fetch(`/api/upload/${uploadId}`, {
             headers: { "x-csrf-protection": "1" },
           });
-          if (!res.ok) {
+          if (res.status === 401 || res.status === 403 || res.status === 404) {
             clearInterval(interval);
-            reject(new Error("Failed to check upload status"));
+            reject(
+              new Error(
+                res.status === 401
+                  ? "Your session expired. Please sign in again and retry the upload."
+                  : `Upload status check failed (${res.status}). Please retry.`
+              )
+            );
             return;
           }
+          if (!res.ok) {
+            transientFails += 1;
+            if (transientFails > MAX_TRANSIENT) {
+              clearInterval(interval);
+              reject(new Error(`Failed to check upload status (${res.status}). Please try again.`));
+            }
+            return;
+          }
+          transientFails = 0;
           const text = await res.text();
           let data: Record<string, unknown>;
           try {
@@ -100,8 +120,11 @@ export function useUpload() {
             reject(new Error(typeof data.errorMessage === "string" ? data.errorMessage : "Processing failed"));
           }
         } catch (err) {
-          clearInterval(interval);
-          reject(err);
+          transientFails += 1;
+          if (transientFails > MAX_TRANSIENT) {
+            clearInterval(interval);
+            reject(err);
+          }
         }
       }, 1000);
 

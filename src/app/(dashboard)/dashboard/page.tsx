@@ -36,6 +36,7 @@ import {
   Sparkles,
   Plus,
   ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
 import { useMounted } from "@/lib/use-mounted";
 
@@ -135,6 +136,16 @@ export default function DashboardPage() {
   }, []);
 
   const allClasses = (schedules ?? []).flatMap((s) => s.classes);
+
+  // If the user has several schedules, the big timetable below shows them one
+  // at a time via left/right arrows. `idx` is the state, clamped to bounds so
+  // it can never point past the list (e.g. after a schedule is deleted).
+  const [activeIndex, setActiveIndex] = useState(0);
+  const scheduleCount = schedules?.length ?? 0;
+  const idx = Math.min(activeIndex, Math.max(0, scheduleCount - 1));
+  const activeSchedule =
+    scheduleCount > 0 && schedules ? schedules[idx] ?? null : null;
+  const activeClasses = activeSchedule?.classes ?? [];
 
   // Schedule insights are derived purely from class times (client-side, offline).
   const insightItems: InsightItem[] = allClasses.map((c) => ({
@@ -582,16 +593,48 @@ export default function DashboardPage() {
           <>
             <div ref={scheduleRef}>
               <SchedulePreview
-                classes={allClasses}
+                classes={activeClasses}
                 filename="schedule.png"
                 action={
-                  <Button variant="outline" size="sm" onClick={handleDownload} disabled={downloading}>
-                    {downloading ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
-                    ) : (
-                      <><Download className="mr-2 h-4 w-4" /> Download image</>
+                  <div className="flex items-center gap-1.5">
+                    {/* Left/right arrows appear inside the card, next to the
+                        download button, only when the user has several schedules. */}
+                    {scheduleCount > 1 && (
+                      <div className="flex items-center rounded-full border border-border/60 bg-muted/30 p-0.5">
+                        <button
+                          type="button"
+                          aria-label="Previous schedule"
+                          disabled={idx <= 0}
+                          onClick={() => setActiveIndex((i) => Math.max(0, i - 1))}
+                          className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <span className="max-w-[90px] truncate px-1 text-[11px] font-medium text-foreground sm:max-w-[140px]">
+                          {activeSchedule?.title?.trim() || `Schedule ${idx + 1}`}
+                        </span>
+                        <span className="pl-0.5 pr-1 text-[10px] text-muted-foreground">
+                          {idx + 1}/{scheduleCount}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label="Next schedule"
+                          disabled={idx >= scheduleCount - 1}
+                          onClick={() => setActiveIndex((i) => Math.min(scheduleCount - 1, i + 1))}
+                          className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </div>
                     )}
-                  </Button>
+                    <Button variant="outline" size="sm" onClick={handleDownload} disabled={downloading}>
+                      {downloading ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
+                      ) : (
+                        <><Download className="mr-2 h-4 w-4" /> Download image</>
+                      )}
+                    </Button>
+                  </div>
                 }
               />
             </div>
@@ -606,7 +649,7 @@ export default function DashboardPage() {
                 opacity: 1,
               }}
             >
-              <SchedulePreview classes={allClasses} filename="schedule.png" capture />
+              <SchedulePreview classes={activeClasses} filename="schedule.png" capture />
             </div>
           </>
         )}
