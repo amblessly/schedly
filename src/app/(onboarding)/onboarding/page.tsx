@@ -6,7 +6,6 @@ import { Camera, GraduationCap, Sparkles } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { authClient } from "@/lib/auth-client";
 import { uploadAvatar, removeAvatar } from "@/app/(dashboard)/settings/actions";
-import { AddToHomeScreenCard } from "./add-to-home-screen";
 import { NotificationsCard } from "./notifications-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -242,9 +241,6 @@ export default function OnboardingPage() {
               </div>
 
               <div className="space-y-4">
-                <div className="rounded-2xl border border-border/50 p-4">
-                  <AddToHomeScreenCard />
-                </div>
                 <div className="rounded-2xl border border-border/50 p-4">
                   <NotificationsCard />
                 </div>
