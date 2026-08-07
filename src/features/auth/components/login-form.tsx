@@ -101,7 +101,21 @@ export function LoginForm() {
     setSocialLoading(provider);
     setServerError("");
     try {
-      await signInSocial(provider);
+      const result = await signInSocial(provider);
+      const url = (result as { url?: string })?.url;
+      const errMsg = (result as { error?: string | { code?: string; message?: string } })?.error;
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      const msg =
+        typeof errMsg === "string"
+          ? errMsg
+          : errMsg?.message
+            ? `${provider} sign-in failed: ${errMsg.message}`
+            : `${provider} sign-in isn't configured yet.`;
+      setServerError(msg);
+      setSocialLoading(null);
     } catch (err) {
       console.error(`[LoginForm] ${provider} sign-in failed:`, err);
       setServerError("Social sign-in failed. Please try again.");

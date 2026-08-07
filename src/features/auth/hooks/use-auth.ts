@@ -51,11 +51,19 @@ export function useAuth() {
 
   const signInSocial = useCallback(
     async (provider: "google" | "github") => {
-      await authClient.signIn.social({
+      // disableRedirect: the server returns the provider URL as JSON instead
+      // of a 302. Our fetch can't follow the 302 to Google/GitHub because the
+      // CSP connect-src doesn't allow those hosts — so we navigate manually.
+      const result = await authClient.signIn.social({
         provider,
         callbackURL: "/dashboard",
         newUserCallbackURL: "/dashboard",
+        disableRedirect: true,
       });
+      return result as unknown as {
+        url?: string;
+        error?: string | { code?: string; message?: string };
+      };
     },
     []
   );
