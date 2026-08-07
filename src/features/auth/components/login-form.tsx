@@ -102,6 +102,7 @@ export function LoginForm() {
     setServerError("");
     try {
       const result = await signInSocial(provider);
+      console.log(`[LoginForm] ${provider} result:`, result);
       const url = (result as { url?: string })?.url;
       const errMsg = (result as { error?: string | { code?: string; message?: string } })?.error;
       if (url) {

@@ -60,10 +60,12 @@ export function useAuth() {
         newUserCallbackURL: "/dashboard",
         disableRedirect: true,
       });
-      return result as unknown as {
-        url?: string;
+      // better-auth client returns `{ data, error }`.
+      const data = (result as { data?: { url?: string } }).data;
+      const error = (result as {
         error?: string | { code?: string; message?: string };
-      };
+      }).error;
+      return { url: data?.url, error };
     },
     []
   );
