@@ -4,7 +4,7 @@ import { waitUntil } from "@vercel/functions";
 import { auth } from "@/server/lib/auth";
 import { db } from "@/server/db/client";
 import { uploadService } from "@/server/services/upload.service";
-import { detectImageMime, checkRateLimit, validateCsrf } from "@/server/lib/security";
+import { detectImageMime, checkRateLimitDb, validateCsrf } from "@/server/lib/security";
 import { auditLog } from "@/server/lib/audit";
 import fs from "fs/promises";
 import path from "path";
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const rateCheck = checkRateLimit(`upload:${session.user.id}`, 10, 60_000);
+  const rateCheck = await checkRateLimitDb(`upload:${session.user.id}`, 10, 60_000);
   if (!rateCheck.allowed) {
     return NextResponse.json({ error: "Too many uploads. Try again later." }, { status: 429 });
   }
@@ -94,7 +94,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File must be an image (JPEG, PNG, GIF, WebP, or BMP)" }, { status: 400 });
     }
 
-    const ext = file.name.split(".").pop() || "jpg";
+    // Extension comes from the detected MIME (magic bytes), never from the
+    // user-controlled filename — the raw name could contain path separators
+    // and escape the per-user uploads directory.
+    const EXT_BY_MIME: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/gif": "gif",
+      "image/webp": "webp",
+      "image/bmp": "bmp",
+    };
+    const ext = EXT_BY_MIME[detectedMime] ?? "jpg";
     const key = `schedules/${session.user.id}/${crypto.randomUUID()}.${ext}`;
 
     const stored = await storeFile(buffer, detectedMime, key);
@@ -138,8 +148,10 @@ export async function POST(request: NextRequest) {
       status: "processing",
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
     console.error("[UPLOAD_API] Error:", error);
-    return NextResponse.json({ error: `Upload failed: ${message}` }, { status: 500 });
+    return NextResponse.json(
+      { error: "Upload failed. Please try again." },
+      { status: 500 }
+    );
   }
 }

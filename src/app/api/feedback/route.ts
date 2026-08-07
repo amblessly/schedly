@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/server/lib/auth";
 import { db } from "@/server/db/client";
-import { checkRateLimit, validateCsrf } from "@/server/lib/security";
+import { checkRateLimitDb, validateCsrf } from "@/server/lib/security";
 import { auditLog } from "@/server/lib/audit";
 
 const feedbackSchema = z.object({
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const rateCheck = checkRateLimit(`feedback:${session.user.id}`, 5, 60_000);
+  const rateCheck = await checkRateLimitDb(`feedback:${session.user.id}`, 5, 60_000);
   if (!rateCheck.allowed) {
     return NextResponse.json({ error: "Too many requests. Try again later." }, { status: 429 });
   }

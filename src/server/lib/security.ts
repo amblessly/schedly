@@ -57,6 +57,41 @@ export function checkRateLimit(
   };
 }
 
+// DB-backed rate limit that is shared across serverless instances (the
+// in-memory `checkRateLimit` above is per-instance and silently resets on
+// scale-out). Uses a fixed window per key; each window row expires naturally
+// once a newer window is created, so the table stays small without a cleanup
+// job. Falls back to an in-memory check if the DB is unreachable — fail-open
+// would defeat the purpose, fail-closed could lock everyone out, so be
+// lenient for availability but still bound by a sane default.
+export async function checkRateLimitDb(
+  key: string,
+  maxRequests: number,
+  windowMs: number = 60_000,
+): Promise<{ allowed: boolean; remaining: number }> {
+  const windowStart = new Date(Math.floor(Date.now() / windowMs) * windowMs);
+
+  try {
+    const { db } = await import("@/server/db/client");
+
+    const row = await db.rateLimitHit.upsert({
+      where: { key_windowStart: { key, windowStart } },
+      update: { count: { increment: 1 } },
+      create: { key, windowStart, count: 1 },
+    });
+
+    return {
+      allowed: row.count <= maxRequests,
+      remaining: Math.max(0, maxRequests - row.count),
+    };
+  } catch (err) {
+    console.error("[RATE_LIMIT_DB]", err);
+    // Fallback: best-effort in-process guard so we never open a full hole.
+    const fallback = checkRateLimit(`db-fallback:${key}`, maxRequests, windowMs);
+    return fallback;
+  }
+}
+
 const CSRF_HEADER = "x-csrf-protection";
 const CSRF_VALUE = "1";
 

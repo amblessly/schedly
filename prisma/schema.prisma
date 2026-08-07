@@ -213,3 +213,18 @@ model Feedback {
   @@index([userId])
   @@map("feedback")
 }
+
+// Persistent rate-limit counters shared across serverless instances.
+// Each row tracks one fixed window (start of window, rounded down) for one
+// key, so `count` is always reset when the window rolls over.
+model RateLimitHit {
+  id          String   @id @default(uuid())
+  key         String
+  windowStart DateTime @map("window_start")
+  count       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([key, windowStart])
+  @@index([key])
+  @@map("rate_limit_hits")
+}

@@ -85,10 +85,18 @@ export const scheduleService = {
       await tx.class.createMany({ data: classData });
 
       if (input.uploadId) {
-        await tx.upload.update({
-          where: { id: input.uploadId },
-          data: { scheduleId: s.id },
+        // Only link the upload if it actually belongs to this user — an
+        // arbitrary uploadId from another user must not be re-linked here.
+        const ownedUpload = await tx.upload.findFirst({
+          where: { id: input.uploadId, userId },
+          select: { id: true },
         });
+        if (ownedUpload) {
+          await tx.upload.update({
+            where: { id: input.uploadId },
+            data: { scheduleId: s.id },
+          });
+        }
       }
 
       return s;

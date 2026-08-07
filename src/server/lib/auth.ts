@@ -35,6 +35,7 @@ export const auth = betterAuth({
         type: "boolean",
         required: false,
         defaultValue: false,
+        input: false,
       },
       avatarUrl: {
         type: "string",
@@ -44,10 +45,12 @@ export const auth = betterAuth({
         type: "number",
         required: false,
         defaultValue: 0,
+        input: false,
       },
       lockedUntil: {
         type: "date",
         required: false,
+        input: false,
       },
       onboardingCompleted: {
         type: "boolean",
