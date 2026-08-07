@@ -96,6 +96,18 @@ model Account {
   @@map("accounts")
 }
 
+model Verification {
+  id         String   @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([identifier])
+  @@map("verification")
+}
+
 model Schedule {
   id           String   @id @default(uuid())
   userId       String   @map("user_id")
