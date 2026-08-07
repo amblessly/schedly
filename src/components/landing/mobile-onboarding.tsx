@@ -123,12 +123,12 @@ function PrimaryButton({ onClick, children }: { onClick: () => void; children: R
 
 function ProgressDots({ current }: { current: number }) {
   return (
-    <div className="mt-[clamp(0.75rem,2dvh,1.25rem)] flex items-center justify-center gap-1.5">
+    <div className="mt-3 flex shrink-0 items-center justify-center gap-1.5 pb-[env(safe-area-inset-bottom)]">
       {[0, 1, 2].map((i) => (
         <span
           key={i}
-          className={`h-1.5 rounded-full transition-all duration-500 ease-out ${
-            i === current ? "w-5 bg-neutral-950" : "h-1.5 w-1.5 bg-neutral-300"
+          className={`h-2 rounded-full transition-all duration-500 ease-out ${
+            i === current ? "w-6 bg-neutral-950" : "w-2 bg-neutral-300"
           }`}
         />
       ))}
@@ -192,13 +192,13 @@ function WelcomeScreen({
         </ScreenContent>
       </div>
 
-      <ScreenContent active={active} delay={220} className="pb-[env(safe-area-inset-bottom)]">
+      <ScreenContent active={active} delay={220}>
         <PrimaryButton onClick={onNext}>
           Get Started
           <ChevronRight className="h-5 w-5" />
         </PrimaryButton>
-        <ProgressDots current={0} />
       </ScreenContent>
+      <ProgressDots current={0} />
     </div>
   );
 }
@@ -263,13 +263,13 @@ function FeaturesScreen({
         </div>
       </div>
 
-      <ScreenContent active={active} delay={540} className="pb-[env(safe-area-inset-bottom)]">
+      <ScreenContent active={active} delay={540}>
         <PrimaryButton onClick={onNext}>
           Continue
           <ChevronRight className="h-5 w-5" />
         </PrimaryButton>
-        <ProgressDots current={1} />
       </ScreenContent>
+      <ProgressDots current={1} />
     </div>
   );
 }
@@ -299,7 +299,7 @@ function AuthScreen({ active, onBack }: { active: boolean; onBack: () => void })
       <ScreenContent
         active={active}
         delay={220}
-        className="flex flex-col gap-[clamp(1rem,3.5dvh,1.25rem)] pb-[env(safe-area-inset-bottom)]"
+        className="flex flex-col gap-[clamp(1rem,3.5dvh,1.25rem)]"
       >
         <a
           href="/login"
@@ -323,8 +323,8 @@ function AuthScreen({ active, onBack }: { active: boolean; onBack: () => void })
             </Link>
           </p>
         </div>
-        <ProgressDots current={2} />
       </ScreenContent>
+      <ProgressDots current={2} />
     </div>
   );
 }
