@@ -41,6 +41,10 @@ export const auth = betterAuth({
         type: "string",
         required: false,
       },
+      city: {
+        type: "string",
+        required: false,
+      },
       failedAttempts: {
         type: "number",
         required: false,

@@ -45,6 +45,7 @@ model User {
   failedAttempts Int      @default(0) @map("failed_attempts")
   lockedUntil   DateTime? @map("locked_until")
   avatarUrl String?  @map("avatar_url")
+  city      String?
   school    String?
   course    String?
   year      Int?

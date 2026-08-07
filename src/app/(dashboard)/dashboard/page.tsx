@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import html2canvas from "html2canvas-pro";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
 import { getAiInsights } from "@/app/(dashboard)/dashboard/actions";
+import { getWeatherByCoords, type WeatherData } from "@/app/(dashboard)/dashboard/weather-actions";
 import { retry } from "@/lib/retry";
 import { SchedulePreview } from "@/features/schedule/components/schedule-preview";
-import { useTodos } from "@/features/todo/use-todos";
 import {
   getFreeTimeToday,
   computeScheduleInsights,
@@ -25,7 +24,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   CalendarClock,
-  ListTodo,
   Download,
   Loader2,
   Clock,
@@ -34,9 +32,12 @@ import {
   GraduationCap,
   Coffee,
   Sparkles,
-  Plus,
   ChevronRight,
   ChevronLeft,
+  Sun,
+  Droplets,
+  Wind,
+  RefreshCw,
 } from "lucide-react";
 import { useMounted } from "@/lib/use-mounted";
 
@@ -99,7 +100,6 @@ const GallerySave = registerPlugin<GallerySavePlugin>("GallerySave");
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { todos } = useTodos();
   const [schedules, setSchedules] = useState<ScheduleData[] | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -107,6 +107,9 @@ export default function DashboardPage() {
   const [aiSuggestions, setAiSuggestions] = useState<string[] | null>(null);
   const [aiVisible, setAiVisible] = useState(false);
   const [now, setNow] = useState(() => new Date());
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [weatherError, setWeatherError] = useState<string | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(true);
   const scheduleRef = useRef<HTMLDivElement>(null);
   const captureRef = useRef<HTMLDivElement>(null);
   const todayListRef = useRef<HTMLDivElement>(null);
@@ -133,6 +136,65 @@ export default function DashboardPage() {
     retry(() => getUserSchedules(), { delayMs: 2000 })
       .then((data) => setSchedules(data as ScheduleData[]))
       .catch(() => setSchedules([]));
+  }, []);
+
+  // Fetch weather on mount using browser geolocation
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setWeatherError("Geolocation not supported");
+      setWeatherLoading(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await getWeatherByCoords(pos.coords.latitude, pos.coords.longitude);
+          if (res.success) {
+            setWeather(res.data);
+          } else {
+            setWeatherError(res.error);
+          }
+        } catch {
+          setWeatherError("Failed to fetch weather");
+        }
+        setWeatherLoading(false);
+      },
+      () => {
+        setWeatherError("Location access denied");
+        setWeatherLoading(false);
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+    );
+  }, []);
+
+  const refreshWeather = useCallback(() => {
+    if (!navigator.geolocation) {
+      setWeatherError("Geolocation not supported");
+      return;
+    }
+    setWeatherLoading(true);
+    setWeatherError(null);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await getWeatherByCoords(pos.coords.latitude, pos.coords.longitude);
+          if (res.success) {
+            setWeather(res.data);
+          } else {
+            setWeatherError(res.error);
+          }
+        } catch {
+          setWeatherError("Failed to fetch weather");
+        }
+        setWeatherLoading(false);
+      },
+      () => {
+        setWeatherError("Location access denied");
+        setWeatherLoading(false);
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }
+    );
   }, []);
 
   // If the user has several schedules, the big timetable below shows them one
@@ -235,9 +297,6 @@ export default function DashboardPage() {
     : `${weeklyInsights.freeHours}h free across ${weeklyInsights.activeDayCount} class day${
         weeklyInsights.activeDayCount !== 1 ? "s" : ""
       }`;
-
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const todaysTodos = todos.filter((t) => t.dueDate === todayStr);
 
   // The longest free window today — the practical answer to "when can I study / rest?"
   const longestBreakToday = freeToday.freePeriods.reduce<FreePeriod | null>(
@@ -448,49 +507,59 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* To-Dos — square tile */}
+        {/* Weather — square tile */}
         <Card className="border-border/50 [--card-spacing:--spacing(5)]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              To-Dos Today
+              Weather
             </CardTitle>
-            <ListTodo className="h-4 w-4 text-primary" />
+            <div className="flex items-center gap-2">
+              {weather && (
+                <button
+                  type="button"
+                  aria-label="Refresh weather"
+                  disabled={weatherLoading}
+                  onClick={refreshWeather}
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${weatherLoading ? "animate-spin" : ""}`} />
+                </button>
+              )}
+              <Sun className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            {todaysTodos.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nothing due today</p>
+            {weatherLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-20" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ) : weatherError ? (
+              <p className="text-sm text-destructive">{weatherError}</p>
+            ) : weather ? (
+              <div className="space-y-2">
+                <div className="flex items-baseline gap-2">
+                  <img src={weather.icon} alt={weather.description} className="h-16 w-16" />
+                  <div>
+                    <p className="text-3xl font-bold text-foreground">{weather.temperature}°C</p>
+                    <p className="text-xs text-muted-foreground capitalize">{weather.description}</p>
+                  </div>
+                </div>
+                <p className="text-sm font-medium text-foreground">{weather.city}, {weather.country}</p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Droplets className="h-3.5 w-3.5 shrink-0" />
+                    <span>{weather.humidity}% humidity</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Wind className="h-3.5 w-3.5 shrink-0" />
+                    <span>{weather.windSpeed} km/h wind</span>
+                  </div>
+                </div>
+              </div>
             ) : (
-              <ul className="space-y-1.5">
-                {todaysTodos.slice(0, 3).map((t) => (
-                  <li key={t.id} className="flex items-center gap-2 text-xs">
-                    <span
-                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                        t.completed ? "bg-green-500" : "bg-primary"
-                      }`}
-                    />
-                    <span className={t.completed ? "line-through text-muted-foreground" : "text-foreground"}>
-                      {t.text}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <p className="text-sm text-muted-foreground">No weather data</p>
             )}
-            <div className="mt-2 flex items-center justify-between">
-              <Link
-                href="/todo"
-                className="inline-flex items-center gap-0.5 text-xs font-medium text-primary"
-              >
-                <Plus className="h-3 w-3" /> Add a task
-              </Link>
-              {todaysTodos.length > 3 && (
-                <Link
-                  href="/todo"
-                  className="inline-flex items-center gap-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  View all {todaysTodos.length} <ChevronRight className="h-3 w-3" />
-                </Link>
-              )}
-            </div>
           </CardContent>
         </Card>
 
