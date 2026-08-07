@@ -49,6 +49,17 @@ export function useAuth() {
     []
   );
 
+  const signInSocial = useCallback(
+    async (provider: "google" | "github") => {
+      await authClient.signIn.social({
+        provider,
+        callbackURL: "/dashboard",
+        newUserCallbackURL: "/dashboard",
+      });
+    },
+    []
+  );
+
   const signOut = useCallback(async () => {
     await authClient.signOut();
     router.push("/login");
@@ -62,6 +73,7 @@ export function useAuth() {
     refetchSession: refetch,
     signUp,
     signIn,
+    signInSocial,
     signOut,
   };
 }

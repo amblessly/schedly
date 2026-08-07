@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import { config as loadDotenv } from "dotenv";
+
+// Load .env.secret so secrets stay out of .env.local and git.
+loadDotenv({ path: ".env.secret", quiet: true });
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 const isDev = process.env.NODE_ENV === "development";

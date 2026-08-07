@@ -29,7 +29,7 @@ export async function proxy(request: NextRequest) {
 
   const sessionCookie = getSessionCookie(request);
 
-  if (!sessionCookie && !isPublic) {
+  if (!sessionCookie && !isPublic && !isVerification) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

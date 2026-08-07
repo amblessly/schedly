@@ -132,19 +132,19 @@ export default function OnboardingPage() {
 
   if (isLoading || !user) {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-white">
+      <div className="flex min-h-[100dvh] items-center justify-center">
         <div className="animate-pulse text-sm text-muted-foreground">Loading…</div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-[100dvh] w-full items-center justify-center bg-white p-5">
+    <div className="flex min-h-[100dvh] w-full items-center justify-center p-5">
       <div className="w-full max-w-md">
         {/* Top bar: logo + skip */}
         <div className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <img src="/images/logo.jpg" alt="Schedly" className="h-10 w-10 rounded-xl object-cover" />
+            <img src="/images/logo.jpg" alt="" aria-hidden className="h-10 w-10 rounded-xl object-cover" />
             <span className="text-lg font-bold tracking-tight text-foreground">Schedly</span>
           </div>
           <button

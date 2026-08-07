@@ -61,6 +61,11 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
+    ...(process.env.RESEND_API_KEY
+      ? {
+          requireEmailVerification: true,
+        }
+      : {}),
     password: {
       hash: async (password) => {
         const bcrypt = await import("bcryptjs");
@@ -76,6 +81,7 @@ export const auth = betterAuth({
     ? {
         emailVerification: {
           sendOnSignUp: true,
+          sendOnSignIn: true,
           autoSignInAfterVerification: true,
           sendVerificationEmail: async ({ user, url }) => {
             try {
@@ -120,6 +126,50 @@ export const auth = betterAuth({
       "/api/auth/sign-up/email": {
         window: 60,
         max: 3,
+      },
+    },
+  },
+  socialProviders: {
+    ...(process.env.GOOGLE_CLIENT_ID
+      ? {
+          google: {
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          },
+        }
+      : {}),
+    ...(process.env.GITHUB_CLIENT_ID
+      ? {
+          github: {
+            clientId: process.env.GITHUB_CLIENT_ID,
+            clientSecret: process.env.GITHUB_CLIENT_SECRET,
+          },
+        }
+      : {}),
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          // Social sign-up (Google/GitHub) doesn't send our required fields.
+          // Derive them from the provider profile before the row is inserted.
+          const name = (user.name ?? "").trim();
+          const email = (user.email ?? "").trim();
+          const nameParts = name.split(/\s+/);
+          const firstName = nameParts[0] ?? "";
+          const lastName = nameParts.slice(1).join(" ") || firstName;
+
+          return {
+            data: {
+              ...user,
+              firstName: firstName || email.split("@")[0] || "User",
+              lastName: lastName || "User",
+              // username must be unique; derive from email local-part
+              username: encodeURIComponent(email.split("@")[0] ?? "user").replace(/[^a-zA-Z0-9_.]/g, "") ||
+                `user${Math.random().toString(36).slice(2, 8)}`,
+            },
+          };
+        },
       },
     },
   },

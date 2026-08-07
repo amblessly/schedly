@@ -39,7 +39,7 @@ function setOpen(next: boolean) {
 }
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
-  const { themeVars, activeId } = useThemeConfig();
+  const { themeVars } = useThemeConfig();
   const open = useSyncExternalStore(subscribeOpen, getOpenSnapshot, () => false);
   const showButton = !open;
   const pathname = usePathname();
@@ -47,12 +47,42 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   // First-time users are pushed through the setup flow before using the app.
   const { user, isLoading } = useAuth();
+  const userObj = user as { onboardingCompleted?: boolean; emailVerified?: boolean } | null;
   const needsOnboarding =
-    !isLoading && user && (user as { onboardingCompleted?: boolean }).onboardingCompleted === false;
+    !isLoading && user && userObj?.onboardingCompleted === false;
+  // Email must be verified before the user can enter the app — covers users
+  // who still hold a session created before verification was enforced.
+  const needsEmailVerification =
+    !isLoading && user && userObj?.emailVerified === false;
+
+  const u = user as
+    | {
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        image?: string;
+        avatarUrl?: string;
+        isAdmin?: boolean;
+      }
+    | null
+    | undefined;
+  const firstName = u?.firstName || "User";
+  const lastName = u?.lastName || "";
+  const displayName = lastName ? `${firstName} ${lastName}` : firstName;
+  const initials = [u?.firstName?.[0], u?.lastName?.[0]]
+    .filter(Boolean)
+    .join("")
+    .toUpperCase()
+    || firstName.charAt(0).toUpperCase();
+  const userAvatar = u?.image || u?.avatarUrl || null;
 
   useEffect(() => {
     if (needsOnboarding) router.replace("/onboarding");
-  }, [needsOnboarding, router]);
+    else if (needsEmailVerification && user) {
+      const email = encodeURIComponent((user as { email?: string }).email || "");
+      router.replace(`/verify-email/pending?email=${email}`);
+    }
+  }, [needsOnboarding, needsEmailVerification, user, router]);
   // The design editor is immersive on mobile: no fixed header, drawer,
   // backdrop, or bottom nav covering it — the canvas fills the screen.
   const isImmersive = pathname === "/design";
@@ -60,7 +90,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   // Account settings is a full-screen page — hide the bottom nav there.
   const isSettings = pathname === "/settings";
 
-  // Fade the top-left logo out on scroll down, back in on scroll up.
+  // Profile page turns the top-left avatar into a back arrow.
+  const isProfile = pathname === "/profile";
+
+  // Admin pages are full-screen — same treatment as settings/profile.
+  const isAdmin = pathname.startsWith("/admin");
+
+  // Feedback page is opened from Settings → Support, so it goes back there too.
+  const isFeedback = pathname === "/feedback";
+
+  // Fade the top-left logo out only after a meaningful scroll down, back in
+  // on scroll up — small scrolls don't hide it.
   const [logoHidden, setLogoHidden] = useState(false);
   const logoLastY = useRef(0);
   const logoTicking = useRef(false);
@@ -73,8 +113,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         logoTicking.current = false;
         const y = window.scrollY;
         const delta = y - logoLastY.current;
-        if (Math.abs(delta) > 4) {
-          setLogoHidden(delta > 0 && y > 80);
+        if (Math.abs(delta) > 48) {
+          setLogoHidden(delta > 0 && y > 200);
         }
         logoLastY.current = y;
       });
@@ -103,8 +143,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     if (!Capacitor.isNativePlatform()) return;
     StatusBar.show().catch(() => {});
     StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
-    StatusBar.setStyle({ style: activeId === "midnight" ? Style.Light : Style.Dark }).catch(() => {});
-  }, [activeId]);
+    StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+  }, []);
 
   // The shell always renders: while the session loads, each page shows its
   // own skeletons instead of a full-screen loading state, so a refresh feels
@@ -118,26 +158,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <div
       className="relative isolate flex min-h-dvh-fallback"
-      style={{
-        ...themeVars,
-        backgroundColor: "#fff",
-        backgroundImage: "radial-gradient(circle at top center, color-mix(in srgb, var(--primary) 50%, transparent), transparent 70%)",
-        backgroundRepeat: "no-repeat",
-        backgroundSize: "cover",
-      }}
+      style={themeVars}
     >
-      {/* Theme-colored wash behind the status bar (edge-to-edge overlay) */}
-      {!isImmersive && (
-        <div
-          aria-hidden
-          className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-24"
-          style={{
-            background:
-              "linear-gradient(to bottom, var(--primary) 0%, color-mix(in srgb, var(--primary) 45%, transparent) 32px, transparent 88px)",
-          }}
-        />
-      )}
-
       <div className={sidebarWrap} inert={!open}>
         <Sidebar onClose={() => setOpen(false)} />
       </div>
@@ -150,19 +172,31 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         aria-hidden
       />
 
-      {/* Logo/back top-left — fixed to the page (stays put while content scrolls).
-          On account settings it becomes a back arrow that returns to the dashboard. */}
+      {/* Avatar/back top-left — fixed to the page (stays put while content scrolls).
+          On account settings and the profile page it becomes a back arrow. */}
       {!isImmersive && showButton && (
         <button
           type="button"
-          onClick={() => (isSettings ? router.push("/dashboard") : window.location.reload())}
-          className={`fixed left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center rounded-xl bg-card/90 shadow-[0_8px_40px_rgba(0,0,0,0.1)] transition-all duration-300 ${isSettings || logoHidden ? "" : "hover:scale-105"} ${logoHidden ? "pointer-events-none -translate-y-2 opacity-0" : "opacity-100"}`}
-          aria-label={isSettings ? "Back to dashboard" : "Refresh page"}
+          onClick={() =>
+            isSettings || isProfile
+              ? router.push("/dashboard")
+              : isAdmin || isFeedback
+                ? router.push("/settings?tab=support")
+                : router.push("/profile")
+          }
+          className={`fixed left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center transition-all duration-300 ${isSettings || isProfile || isAdmin || isFeedback ? "" : "hover:scale-105"} ${logoHidden ? "pointer-events-none -translate-y-2 opacity-0" : "opacity-100"}`}
+          aria-label={
+            isSettings || isProfile || isAdmin || isFeedback ? "Back" : "Open profile"
+          }
         >
-          {isSettings ? (
-            <ArrowLeft className="h-5 w-5" />
+          {isSettings || isProfile || isAdmin || isFeedback ? (
+            <ArrowLeft className="h-6 w-6 text-foreground" />
+          ) : userAvatar ? (
+            <img src={userAvatar} alt={displayName} className="h-11 w-11 rounded-full object-cover ring-2 ring-border/40" />
           ) : (
-            <img src="/images/logo.jpg" alt="Schedly" className="h-9 w-9 rounded-xl object-cover" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary ring-2 ring-border/40">
+              {initials}
+            </div>
           )}
         </button>
       )}
@@ -197,7 +231,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      {!isImmersive && !isSettings && <BottomNav />}
+      {!isImmersive && !isSettings && !isProfile && !isAdmin && !isFeedback && <BottomNav />}
     </div>
   );
 }

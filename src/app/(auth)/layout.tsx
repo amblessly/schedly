@@ -7,13 +7,11 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen">
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-primary via-primary/90 to-primary/70">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.15),transparent_60%)]" />
-        <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/20 to-transparent" />
-        <div className="relative z-10 flex flex-col justify-between p-12 text-primary-foreground">
+    <div className="relative min-h-screen w-full">
+      <div className="relative z-10 flex min-h-screen">
+        <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 text-neutral-900">
           <Link href="/" className="flex items-center gap-3">
-            <img src="/images/logo.jpg" alt="Schedly" className="h-10 w-10 rounded-xl object-cover" />
+            <img src="/images/logo.jpg" alt="" aria-hidden className="h-10 w-10 rounded-xl object-cover" />
             <span className="text-2xl font-bold tracking-tight">Schedly</span>
           </Link>
           <div className="space-y-6">
@@ -24,46 +22,42 @@ export default function AuthLayout({
               <br />
               organized.
             </h1>
-            <p className="max-w-md text-lg text-primary-foreground/80 leading-relaxed">
+            <p className="max-w-md text-lg text-neutral-600 leading-relaxed">
               Snap a photo of your class schedule. Schedly extracts,
               organizes, and reminds you &mdash; so you never miss a class again.
             </p>
             <div className="flex gap-8 pt-2">
               <div className="flex flex-col gap-1">
                 <span className="text-2xl font-bold">10s</span>
-                <span className="text-sm text-primary-foreground/70">Fast extraction</span>
+                <span className="text-sm text-neutral-500">Fast extraction</span>
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-2xl font-bold">24/7</span>
-                <span className="text-sm text-primary-foreground/70">Reminders</span>
+                <span className="text-sm text-neutral-500">Reminders</span>
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-2xl font-bold">100%</span>
-                <span className="text-sm text-primary-foreground/70">Free</span>
+                <span className="text-sm text-neutral-500">Free</span>
               </div>
             </div>
           </div>
-          <p className="text-sm text-primary-foreground/50">
-            &copy; {new Date().getFullYear()} Schedly
+          <p className="text-sm text-neutral-400">
+            &copy; {new Date().getFullYear()}
           </p>
         </div>
-      </div>
-      <div className="flex w-full items-center justify-center bg-transparent p-4 lg:w-1/2 lg:p-8">
-        <div className="w-full max-w-md">
-          <div className="mb-8 flex items-center justify-between lg:hidden">
-            <Link href="/" className="inline-flex items-center gap-2">
-              <img src="/images/logo.jpg" alt="Schedly" className="h-8 w-8 rounded-lg object-cover" />
-              <span className="text-xl font-bold tracking-tight text-foreground">Schedly</span>
-            </Link>
-            <Link
-              href="/"
-              aria-label="Back to Schedly"
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-background text-foreground shadow-sm transition-colors hover:bg-muted active:scale-95"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
+        <div className="flex w-full items-center justify-center bg-transparent p-4 lg:w-1/2 lg:p-8">
+          <div className="w-full max-w-lg">
+            <div className="mb-8 flex lg:hidden">
+              <Link
+                href="/"
+                aria-label="Back to home"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-background text-foreground shadow-sm transition-colors hover:bg-muted active:scale-95"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </div>
+            {children}
           </div>
-          {children}
         </div>
       </div>
     </div>

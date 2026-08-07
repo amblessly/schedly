@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -147,7 +147,13 @@ export function RegisterForm() {
 
   return (
     <Card className="border-border/50 shadow-lg shadow-primary/5 overflow-hidden">
-      <CardHeader className="space-y-1 pb-4">
+      <CardHeader className="space-y-1 pb-4 text-center">
+        <img
+          src="/images/logo.jpg"
+          alt=""
+          aria-hidden
+          className="mx-auto mb-3 h-12 w-12 rounded-xl object-cover shadow-lg shadow-primary/20"
+        />
         <div className="flex items-center justify-between">
           <CardTitle className="text-2xl font-bold tracking-tight">Create an account</CardTitle>
           <span className="text-xs font-medium text-muted-foreground">
@@ -174,19 +180,19 @@ export function RegisterForm() {
         <form onSubmit={handleSubmit} noValidate>
           <div className={`${slideClass} duration-300 ease-out`}>
             {step === 1 && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="firstName" className="text-sm font-medium">First name</Label>
                     <Input
                       id="firstName"
                       type="text"
-                      placeholder="John"
+                      placeholder="Enter first name"
                       value={form.firstName}
                       onChange={(e) => update("firstName", e.target.value)}
                       aria-invalid={!!errors.firstName}
                       autoComplete="given-name"
-                      className="h-11"
+                      className="h-10"
                     />
                     {errors.firstName && <p className="text-xs text-destructive">{errors.firstName}</p>}
                   </div>
@@ -195,30 +201,27 @@ export function RegisterForm() {
                     <Input
                       id="lastName"
                       type="text"
-                      placeholder="Doe"
+                      placeholder="Enter last name"
                       value={form.lastName}
                       onChange={(e) => update("lastName", e.target.value)}
                       aria-invalid={!!errors.lastName}
                       autoComplete="family-name"
-                      className="h-11"
+                      className="h-10"
                     />
                     {errors.lastName && <p className="text-xs text-destructive">{errors.lastName}</p>}
+                  </div>
                 </div>
-                <div className="flex justify-center pt-2">
-                  <TurnstileWidget onToken={setTurnstileToken} />
-                </div>
-              </div>
                 <div className="space-y-2">
                   <Label htmlFor="username" className="text-sm font-medium">Username</Label>
                   <Input
                     id="username"
                     type="text"
-                    placeholder="johndoe"
+                    placeholder="Enter username"
                     value={form.username}
                     onChange={(e) => update("username", e.target.value)}
                     aria-invalid={!!errors.username}
                     autoComplete="username"
-                    className="h-11"
+                    className="h-10"
                   />
                   {errors.username && <p className="text-xs text-destructive">{errors.username}</p>}
                 </div>
@@ -227,20 +230,23 @@ export function RegisterForm() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="you@example.com"
+                    placeholder="Enter email"
                     value={form.email}
                     onChange={(e) => update("email", e.target.value)}
                     aria-invalid={!!errors.email}
                     autoComplete="email"
-                    className="h-11"
+                    className="h-10"
                   />
                   {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+                </div>
+                <div className="flex justify-center">
+                  <TurnstileWidget onToken={setTurnstileToken} />
                 </div>
               </div>
             )}
 
             {step === 2 && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="space-y-2">
                   <Label htmlFor="birthdate" className="text-sm font-medium">Birthdate</Label>
                   <Input
@@ -250,7 +256,7 @@ export function RegisterForm() {
                     onChange={(e) => update("birthdate", e.target.value)}
                     aria-invalid={!!errors.birthdate}
                     max={new Date(new Date().setFullYear(new Date().getFullYear() - 13)).toISOString().split("T")[0]}
-                    className="h-11"
+                    className="h-10"
                   />
                   {errors.birthdate && <p className="text-xs text-destructive">{errors.birthdate}</p>}
                 </div>
@@ -278,18 +284,18 @@ export function RegisterForm() {
             )}
 
             {step === 3 && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="space-y-2">
                   <Label htmlFor="password" className="text-sm font-medium">Password</Label>
                   <Input
                     id="password"
                     type="password"
-                    placeholder="Min 10 chars, upper, lower, number, special"
+                    placeholder="Enter password"
                     value={form.password}
                     onChange={(e) => update("password", e.target.value)}
                     aria-invalid={!!errors.password}
                     autoComplete="new-password"
-                    className="h-11"
+                    className="h-10"
                   />
                   {form.password && (
                     <div className="flex gap-1.5 pt-1">
@@ -316,12 +322,12 @@ export function RegisterForm() {
                   <Input
                     id="confirmPassword"
                     type="password"
-                    placeholder="Repeat your password"
+                    placeholder="Confirm password"
                     value={form.confirmPassword}
                     onChange={(e) => update("confirmPassword", e.target.value)}
                     aria-invalid={!!errors.confirmPassword}
                     autoComplete="new-password"
-                    className="h-11"
+                    className="h-10"
                   />
                   {errors.confirmPassword && (
                     <p className="text-xs text-destructive">{errors.confirmPassword}</p>
@@ -349,13 +355,13 @@ export function RegisterForm() {
             </div>
           )}
 
-          <div className="mt-6 flex gap-3">
+          <div className="mt-5 flex gap-3">
             {step > 1 && (
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 onClick={goPrev}
-                className="h-11 flex-1 font-medium"
+                className="h-10 flex-1 font-medium hover:bg-primary/10 hover:text-primary"
               >
                 Back
               </Button>
@@ -363,15 +369,17 @@ export function RegisterForm() {
             {step < TOTAL_STEPS ? (
               <Button
                 type="button"
+                variant="secondary"
                 onClick={goNext}
-                className="h-11 flex-1 font-medium"
+                className="h-10 flex-1 font-medium hover:bg-primary/10 hover:text-primary"
               >
                 Continue
               </Button>
             ) : (
               <Button
                 type="submit"
-                className="h-11 flex-1 font-medium"
+                variant="secondary"
+                className="h-10 flex-1 font-medium hover:bg-primary/10 hover:text-primary"
                 disabled={loading}
               >
                 {loading ? (
@@ -386,7 +394,7 @@ export function RegisterForm() {
             )}
           </div>
         </form>
-        <div className="mt-6 pt-6 border-t border-border/50 text-center text-sm text-muted-foreground">
+        <div className="mt-4 pt-4 border-t border-border/50 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link href="/login" className="font-medium text-primary hover:text-primary/80 transition-colors">
             Sign in

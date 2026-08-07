@@ -103,7 +103,7 @@ function Mascot({ variant = "wave", size = "lg" }: { variant?: MascotVariant; si
       <div
         className={`flex items-center justify-center overflow-hidden rounded-[32%] bg-neutral-100 ring-1 ring-neutral-200 ${box} ${anim}`}
       >
-        <img src="/images/logo.jpg" alt="Schedly" className="h-full w-full object-cover" />
+        <img src="/images/logo.jpg" alt="" aria-hidden className="h-full w-full object-cover" />
       </div>
     </div>
   );
@@ -279,7 +279,7 @@ function FeaturesScreen({
 function AuthScreen({ active, onBack }: { active: boolean; onBack: () => void }) {
   return (
     <div className="flex w-full shrink-0 flex-col px-8 pb-[clamp(1.5rem,4dvh,2rem)] pt-[clamp(1rem,2dvh,1.5rem)]">
-      <NavRow onBack={onBack} onSkip={() => undefined} />
+      <NavRow onBack={onBack} />
 
       <div className="flex flex-1 flex-col items-center justify-center">
         <ScreenContent active={active} className="mb-[clamp(2.25rem,6dvh,3rem)]">
@@ -312,13 +312,13 @@ function AuthScreen({ active, onBack }: { active: boolean; onBack: () => void })
         <div className="flex flex-col items-center gap-1.5">
           <p className="text-[clamp(0.8125rem,3.9vw,0.875rem)] text-neutral-500">
             Already have an account?{" "}
-            <Link href="/login" className="font-medium text-neutral-950 underline underline-offset-4">
+            <Link href="/login" className="font-medium text-neutral-950">
               Log In
             </Link>
           </p>
           <p className="text-[clamp(0.8125rem,3.9vw,0.875rem)] text-neutral-500">
             New here?{" "}
-            <Link href="/register" className="font-medium text-neutral-950 underline underline-offset-4">
+            <Link href="/register" className="font-medium text-neutral-950">
               Create Account
             </Link>
           </p>

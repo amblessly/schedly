@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { siteConfig } from "@/config/site";
 import { Warmup } from "@/components/warmup";
-import { CopyProtection } from "@/components/copy-protection";
 import { InstallPrompt } from "@/components/install-prompt";
 import { ZoomLock } from "@/components/zoom-lock";
 import { ThemeProvider } from "@/features/theme";
@@ -69,7 +68,7 @@ export const viewport: Viewport = {
   userScalable: false,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fdeef0" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#1a1416" },
   ],
 };
@@ -105,11 +104,22 @@ export default async function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        <Warmup />
-        <CopyProtection />
-        <InstallPrompt />
-        <ZoomLock />
-        <ThemeProvider initialThemeId={initialThemeId}>{children}</ThemeProvider>
+        {/* Soft Morning Mist background — one layer behind the whole site */}
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0"
+          style={{
+            backgroundImage: "var(--app-backdrop)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+          }}
+        />
+        <div className="relative z-10 flex min-h-full flex-1 flex-col">
+          <Warmup />
+          <InstallPrompt />
+          <ZoomLock />
+          <ThemeProvider initialThemeId={initialThemeId}>{children}</ThemeProvider>
+        </div>
       </body>
     </html>
   );

@@ -7,12 +7,11 @@ export type ThemePreset = {
 
 const h = (l: number, c: number, hue: number) => `oklch(${l} ${c} ${hue})`;
 
-// Midnight Mist backdrop — black base with soft indigo haze rising
-// from the bottom edge of the screen.
-const MIST = [
-  "radial-gradient(circle at 50% 100%, rgba(70, 85, 110, 0.5) 0%, transparent 60%)",
-  "radial-gradient(circle at 50% 100%, rgba(99, 102, 241, 0.4) 0%, transparent 70%)",
-  "radial-gradient(circle at 50% 100%, rgba(181, 184, 208, 0.3) 0%, transparent 80%)",
+// Layered texture backdrop — kept neutral so the theme's accent color only
+// shows on interactive elements (buttons, highlights), not the background.
+const TEXTURE_LIGHT = [
+  "radial-gradient(circle at 20% 80%, rgba(0,0,0,0.03) 0%, transparent 50%)",
+  "radial-gradient(circle at 80% 20%, rgba(0,0,0,0.02) 0%, transparent 50%)",
 ].join(", ");
 
 function derive(hue: number): ThemePreset["vars"] {
@@ -49,50 +48,12 @@ function derive(hue: number): ThemePreset["vars"] {
     "--sidebar-primary": h(0.59, 0.22, hue),
     "--sidebar-primary-foreground": h(0.99, 0, 0),
     "--sidebar-ring": h(0.59, 0.22, hue),
-    "--app-bg-image": "none",
+    "--app-bg-image": TEXTURE_LIGHT,
   };
 }
 
 // Dark variant for the Midnight theme — black backdrop, dark indigo
 // surfaces, and brighter accent colors that pop on dark.
-function deriveDark(hue: number): ThemePreset["vars"] {
-  return {
-    "--background": "oklch(0 0 0)",
-    "--foreground": h(0.95, 0.02, hue),
-    "--card": h(0.16, 0.02, hue),
-    "--card-foreground": h(0.95, 0.02, hue),
-    "--popover": h(0.16, 0.02, hue),
-    "--popover-foreground": h(0.95, 0.02, hue),
-    "--primary": h(0.68, 0.20, hue),
-    "--primary-foreground": h(0.99, 0, 0),
-    "--secondary": h(0.22, 0.03, hue),
-    "--secondary-foreground": h(0.90, 0.03, hue),
-    "--accent": h(0.24, 0.04, hue),
-    "--accent-foreground": h(0.92, 0.03, hue),
-    "--muted": h(0.20, 0.02, hue),
-    "--muted-foreground": h(0.68, 0.03, hue),
-    "--destructive": h(0.62, 0.22, 30),
-    "--destructive-foreground": h(0.99, 0, 0),
-    "--border": h(0.30, 0.03, hue),
-    "--input": h(0.30, 0.03, hue),
-    "--ring": h(0.68, 0.20, hue),
-    "--chart-1": h(0.68, 0.20, hue),
-    "--chart-2": h(0.75, 0.18, 340),
-    "--chart-3": h(0.65, 0.20, 300),
-    "--chart-4": h(0.75, 0.14, 195),
-    "--chart-5": h(0.80, 0.14, 80),
-    "--sidebar": h(0.12, 0.02, hue),
-    "--sidebar-foreground": h(0.93, 0.02, hue),
-    "--sidebar-accent": h(0.20, 0.03, hue),
-    "--sidebar-accent-foreground": h(0.93, 0.02, hue),
-    "--sidebar-border": h(0.26, 0.03, hue),
-    "--sidebar-primary": h(0.68, 0.20, hue),
-    "--sidebar-primary-foreground": h(0.99, 0, 0),
-    "--sidebar-ring": h(0.68, 0.20, hue),
-    "--app-bg-image": MIST,
-  };
-}
-
 export const THEME_PRESETS: ThemePreset[] = [
   {
     id: "rose",
@@ -141,12 +102,6 @@ export const THEME_PRESETS: ThemePreset[] = [
     name: "Slate",
     swatch: h(0.50, 0.05, 260),
     vars: derive(260),
-  },
-  {
-    id: "midnight",
-    name: "Midnight",
-    swatch: h(0.16, 0.05, 250),
-    vars: deriveDark(250),
   },
 ];
 

@@ -127,7 +127,7 @@ export default function DashboardPage() {
         return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
       })();
 
-  const firstName = (user as { firstName?: string } | null)?.firstName || "User";
+  const username = (user as { username?: string } | null)?.username || "there";
 
   useEffect(() => {
     retry(() => getUserSchedules(), { delayMs: 2000 })
@@ -135,20 +135,29 @@ export default function DashboardPage() {
       .catch(() => setSchedules([]));
   }, []);
 
-  const allClasses = (schedules ?? []).flatMap((s) => s.classes);
-
   // If the user has several schedules, the big timetable below shows them one
   // at a time via left/right arrows. `idx` is the state, clamped to bounds so
-  // it can never point past the list (e.g. after a schedule is deleted).
-  const [activeIndex, setActiveIndex] = useState(0);
+  // it can never point past the list (e.g. after a schedule is deleted). It's
+  // persisted so the selected schedule survives switching tabs.
+  const [activeIndex, setActiveIndex] = useState(() => {
+    if (typeof window === "undefined") return 0;
+    const raw = window.localStorage.getItem("schedly-active-schedule-idx");
+    const n = raw ? Number.parseInt(raw, 10) : 0;
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  });
   const scheduleCount = schedules?.length ?? 0;
   const idx = Math.min(activeIndex, Math.max(0, scheduleCount - 1));
   const activeSchedule =
     scheduleCount > 0 && schedules ? schedules[idx] ?? null : null;
   const activeClasses = activeSchedule?.classes ?? [];
 
+  useEffect(() => {
+    window.localStorage.setItem("schedly-active-schedule-idx", String(idx));
+  }, [idx]);
+
   // Schedule insights are derived purely from class times (client-side, offline).
-  const insightItems: InsightItem[] = allClasses.map((c) => ({
+  // Only the currently selected schedule feeds the dashboard cards.
+  const insightItems: InsightItem[] = activeClasses.map((c) => ({
     subject: c.shortName?.trim() || c.code?.trim() || c.subject,
     days: c.days,
     startMinutes: toMin(c.startTime),
@@ -158,23 +167,49 @@ export default function DashboardPage() {
   const todayDay = DAY_ORDER[(new Date().getDay() + 6) % 7] ?? "monday";
   const freeToday = getFreeTimeToday(insightItems, todayDay);
 
-  const todaysClasses = allClasses
+  const todaysClasses = activeClasses
     .filter((c) => c.days.includes(todayDay))
     .sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
 
-  // Open the Today's Classes snap-scroll on the NEXT (ongoing or upcoming)
-  // subject so the first thing you see is a class that still matters — not a
-  // finished one. Rescrolls when schedules first load in.
+  // Auto-scroll through Today's Classes — one card every 2 seconds, looping
+  // back to the first card after the last (1 → 2 → 3 → 4 → 1…). Always
+  // advances a single card from the current scroll position so it stays in
+  // sync even after a manual scroll. Pauses while the user hovers/touches the
+  // list so it never fights their hand.
   useEffect(() => {
-    if (schedules === null || todaysClasses.length < 2) return;
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    const nextIdx = todaysClasses.findIndex((c) => nowMin < toMin(c.endTime));
-    if (nextIdx <= 0) return;
+    if (todaysClasses.length < 2) return;
     const list = todayListRef.current;
-    const item = list?.children[nextIdx] as HTMLElement | undefined;
-    if (list && item) list.scrollTop = item.offsetTop;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schedules]);
+    if (!list) return;
+
+    let paused = false;
+
+    const advance = () => {
+      if (paused || list.children.length === 0) return;
+      const cardHeight = list.clientHeight;
+      if (cardHeight <= 0) return;
+      const maxTop = list.scrollHeight - cardHeight;
+      const nextTop = list.scrollTop + cardHeight;
+      if (nextTop >= maxTop) {
+        // Reached the last card — wrap back to the first.
+        list.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        list.scrollTo({ top: nextTop, behavior: "smooth" });
+      }
+    };
+
+    const id = setInterval(advance, 2000);
+    const onEnter = () => (paused = true);
+    const onLeave = () => (paused = false);
+
+    list.addEventListener("pointerenter", onEnter);
+    list.addEventListener("pointerleave", onLeave);
+
+    return () => {
+      clearInterval(id);
+      list.removeEventListener("pointerenter", onEnter);
+      list.removeEventListener("pointerleave", onLeave);
+    };
+  }, [todaysClasses.length]);
 
   // The next class on a day after today (e.g. tomorrow's earliest subject),
   // shown compactly inside the Today's Classes card without expanding it.
@@ -183,7 +218,7 @@ export default function DashboardPage() {
     const startDayIdx = new Date().getDay();
     for (let offset = 1; offset <= 7; offset++) {
       const day = DAY_ORDER[(startDayIdx + 6 + offset) % 7] ?? "monday";
-      const dayClasses = allClasses
+      const dayClasses = activeClasses
         .filter((c) => c.days.includes(day))
         .sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
       if (dayClasses.length > 0) return { day, cls: dayClasses[0]! };
@@ -286,7 +321,7 @@ export default function DashboardPage() {
     <div className="mx-auto max-w-4xl space-y-4 pt-8 md:pt-0">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          {greeting}, {firstName}
+          {greeting}, {username}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground sm:text-base">
           Here&apos;s your day at a glance.
@@ -500,7 +535,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Insights — landscape tile */}
-        {schedules && allClasses.length > 0 && (
+        {activeClasses.length > 0 && (
           <Card className="col-span-2 border-border/50 [--card-spacing:--spacing(3)]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
