@@ -35,24 +35,35 @@ function SocialButton({
   icon,
   label,
   onClick,
+  loading,
   disabled,
+  providerKey,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
+  loading?: boolean;
   disabled?: boolean;
+  providerKey: "google" | "github";
 }) {
   return (
-    <Button
+    <button
       type="button"
-      variant="secondary"
       onClick={onClick}
       disabled={disabled}
-      className="h-10 w-full font-medium hover:bg-primary/10 hover:text-primary"
+      className={`group flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border text-sm font-medium transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
+        providerKey === "google"
+          ? "border-border/60 bg-white hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600"
+          : "border-border/60 bg-white hover:border-neutral-800 hover:bg-neutral-100 hover:text-neutral-900"
+      }`}
     >
-      {icon}
+      {loading ? (
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+      ) : (
+        icon
+      )}
       {label}
-    </Button>
+    </button>
   );
 }
 
@@ -237,12 +248,16 @@ export function LoginForm() {
           <SocialButton
             icon={<GoogleIcon className="h-5 w-5" />}
             label="Google"
+            providerKey="google"
+            loading={socialLoading === "google"}
             onClick={() => handleSocial("google")}
             disabled={!!socialLoading || loading}
           />
           <SocialButton
             icon={<GithubIcon className="h-5 w-5" />}
             label="GitHub"
+            providerKey="github"
+            loading={socialLoading === "github"}
             onClick={() => handleSocial("github")}
             disabled={!!socialLoading || loading}
           />
