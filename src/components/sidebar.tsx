@@ -180,7 +180,6 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         firstName?: string;
         lastName?: string;
         email?: string;
-        username?: string;
         image?: string;
         avatarUrl?: string;
         isAdmin?: boolean;
@@ -212,18 +211,10 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     <aside className="flex h-full w-full flex-col overflow-hidden rounded-3xl bg-sidebar/95 shadow-[0_8px_40px_rgba(0,0,0,0.12)]">
       {/* Brand */}
       <div className="flex h-16 items-center gap-2.5 px-5">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt={displayName} className="h-9 w-9 shrink-0 rounded-full object-cover" />
-        ) : (
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/15 text-sm font-semibold text-sidebar-primary">
-            {initials}
-          </div>
-        )}
-        <div className="flex min-w-0 flex-1 flex-col">
-          <p className="truncate text-sm font-medium text-sidebar-foreground">
-            {hello}, @{u?.username || "student"}
-          </p>
-        </div>
+        <img src="/images/logo.jpg" alt="Schedly" className="h-9 w-9 shrink-0 rounded-xl object-cover" />
+        <span className="text-lg font-bold tracking-tight text-sidebar-foreground">
+          Schedly
+        </span>
         {onClose && (
           <button
             onClick={onClose}
