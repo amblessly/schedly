@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 
 // Locks the page's visual scale to the 90% browser-zoom look, no matter what
@@ -11,9 +12,23 @@ import { Capacitor } from "@capacitor/core";
 // The native Android WebView never reports a zoom change, so it is skipped.
 const TARGET_ZOOM = 0.9;
 
+// The landing/onboarding flow should always render at a natural 100% scale —
+// the small screen already fills the viewport, so the 90% zoom-lock is only
+// for the in-app screens (dashboard, settings, etc.).
+const NO_ZOOM_PATHS = ["/"];
+
 export function ZoomLock() {
+  const pathname = usePathname();
+
   useEffect(() => {
     if (Capacitor.isNativePlatform()) return;
+
+    // Onboarding stays at natural scale: clear any zoom applied on a previous
+    // route and avoid attaching the zoom/scroll handlers.
+    if (NO_ZOOM_PATHS.includes(pathname ?? "")) {
+      document.documentElement.style.zoom = "";
+      return;
+    }
 
     const apply = () => {
       const zoom =
@@ -52,9 +67,11 @@ export function ZoomLock() {
       window.removeEventListener("resize", apply);
       document.removeEventListener("wheel", preventWheelZoom);
       document.removeEventListener("keydown", preventKeyZoom);
-      document.documentElement.style.zoom = "";
+      if (document.documentElement.style.zoom !== "") {
+        document.documentElement.style.zoom = "";
+      }
     };
-  }, []);
+  }, [pathname]);
 
   return null;
 }
