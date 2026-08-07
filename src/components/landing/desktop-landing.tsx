@@ -30,41 +30,46 @@ export function DesktopLanding() {
       <main className="flex-1">
         {/* Hero */}
         <section className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.04] via-transparent to-transparent" />
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 h-[500px] w-[800px] rounded-full bg-primary/[0.06] blur-[120px]" />
+          {/* Decorative background — mirrors the dashboard's radial glow */}
+          <div className="pointer-events-none absolute inset-0" aria-hidden>
+            <div className="absolute left-1/2 top-[-24rem] h-[700px] w-[1100px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,color-mix(in srgb,var(--primary) 24%,transparent),transparent)]" />
+            <div className="animate-blob absolute left-[6%] top-[30%] h-72 w-72 rounded-full bg-primary/[0.07] blur-[80px]" />
+            <div className="animate-blob absolute right-[4%] top-[55%] h-56 w-56 rounded-full bg-primary/[0.06] blur-[70px] [animation-delay:-7s]" />
+            <div className="animate-blob absolute bottom-[6%] left-[36%] h-64 w-64 rounded-full bg-primary/[0.05] blur-[90px] [animation-delay:-11s]" />
+          </div>
           <div className="relative container mx-auto flex flex-col items-center gap-8 px-4 pt-24 pb-20 text-center md:pt-32 md:pb-28">
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary">
+            <div className="animate-fade-up inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75 [animation-iteration-count:3]" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
               </span>
               AI-powered schedule management
             </div>
-            <h1 className="max-w-3xl text-5xl font-bold tracking-tight text-foreground sm:text-6xl md:text-7xl leading-[1.1]">
+            <h1 className="animate-fade-up max-w-3xl text-5xl font-bold tracking-tight text-foreground leading-[1.1] [animation-delay:80ms] sm:text-6xl md:text-7xl">
               Your classes,{" "}
               <span className="bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent">
                 automatically organized
               </span>
             </h1>
-            <p className="max-w-xl text-lg text-muted-foreground leading-relaxed md:text-xl">
+            <p className="animate-fade-up max-w-xl text-lg text-muted-foreground leading-relaxed [animation-delay:160ms] md:text-xl">
               Snap a photo of your class schedule. Schedly extracts, organizes,
               and reminds you &mdash; so you never miss a class again.
             </p>
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="animate-fade-up flex flex-col gap-3 [animation-delay:240ms] sm:flex-row">
               <Link href="/register">
-                <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 shadow-md shadow-primary/20">
+                <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5">
                   Start for free
                 </Button>
               </Link>
               <Link href="/login">
-                <Button size="lg" variant="outline" className="px-8">
+                <Button size="lg" variant="outline" className="px-8 transition-transform hover:-translate-y-0.5">
                   Sign in
                 </Button>
               </Link>
             </div>
 
             {/* Mock timetable preview */}
-            <div className="mt-12 w-full max-w-2xl rounded-xl border border-border/60 bg-card p-6 shadow-2xl shadow-primary/5">
+            <div className="animate-fade-up mt-12 w-full max-w-2xl rounded-2xl border border-border/60 bg-card p-6 shadow-2xl shadow-primary/5 [animation-delay:320ms]">
               <div className="flex items-center gap-2 mb-4">
                 <div className="h-3 w-3 rounded-full bg-destructive/60" />
                 <div className="h-3 w-3 rounded-full bg-yellow-400/60" />
@@ -99,7 +104,7 @@ export function DesktopLanding() {
                 ].map((item, i) => (
                   <div
                     key={i}
-                    className={`rounded-lg p-2 text-center min-h-[48px] flex flex-col items-center justify-center ${item.color || "bg-muted/30"}`}
+                    className={`rounded-lg transition-all duration-200 p-2 text-center min-h-[48px] flex flex-col items-center justify-center hover:-translate-y-0.5 hover:shadow-md ${item.color || "bg-muted/30"}`}
                   >
                     {item.label && <span className="font-medium leading-tight">{item.label}</span>}
                     {item.time && <span className="opacity-70">{item.time}</span>}
@@ -223,6 +228,14 @@ export function DesktopLanding() {
           <div className="flex items-center gap-2">
             <img src="/images/logo.jpg" alt="Schedly" className="h-6 w-6 rounded-md object-cover" />
             <span className="text-sm font-semibold text-foreground">Schedly</span>
+          </div>
+          <div className="flex items-center gap-5 text-sm text-muted-foreground">
+            <Link href="/privacy" className="transition-colors hover:text-foreground">
+              Privacy
+            </Link>
+            <Link href="/terms" className="transition-colors hover:text-foreground">
+              Terms
+            </Link>
           </div>
           <p className="text-sm text-muted-foreground">
             &copy; {new Date().getFullYear()} Schedly. All rights reserved.

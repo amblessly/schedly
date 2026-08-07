@@ -38,7 +38,6 @@ export const navGroups: NavGroup[] = [
     items: [
       { label: "Notes", href: "/notes", icon: "sticky-note" },
       { label: "GPA Calculator", href: "/gpa", icon: "graduation-cap" },
-      { label: "Music", href: "/music", icon: "music" },
     ],
   },
 ];

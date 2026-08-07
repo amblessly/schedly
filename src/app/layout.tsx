@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
+import { siteConfig } from "@/config/site";
 import { Warmup } from "@/components/warmup";
 import { CopyProtection } from "@/components/copy-protection";
 import { InstallPrompt } from "@/components/install-prompt";
+import { ZoomLock } from "@/components/zoom-lock";
 import { ThemeProvider } from "@/features/theme";
 import "./globals.css";
 
@@ -18,9 +20,38 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Schedly",
-  description: "Smart schedule management",
+  metadataBase: new URL(siteConfig.url),
+  title: {
+    default: "Schedly — AI-Powered Student Planner",
+    template: "%s · Schedly",
+  },
+  description: siteConfig.description,
   applicationName: "Schedly",
+  keywords: [
+    "student planner",
+    "class schedule",
+    "timetable",
+    "AI schedule",
+    "college planner",
+    "school app",
+  ],
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: siteConfig.url,
+    siteName: "Schedly",
+    title: "Schedly — AI-Powered Student Planner",
+    description: siteConfig.description,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Schedly — AI-Powered Student Planner",
+    description: siteConfig.description,
+  },
+  icons: {
+    icon: "/images/logo.jpg",
+    apple: "/images/logo.jpg",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -34,7 +65,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 5,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fdeef0" },
@@ -57,6 +89,10 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
+        <meta
+          name="google-site-verification"
+          content="IO2A9lf6gXvDGTZN9Lc6hj6Zk1WIoDqojV9OJgCyjC4"
+        />
         {/* Applies the zoom-lock before first paint, so refreshes don't flash
             the page at the browser's raw zoom level. Same math as ZoomLock —
             on native (Capacitor) the runtime is injected before this script. */}
@@ -70,6 +106,7 @@ export default async function RootLayout({
         <Warmup />
         <CopyProtection />
         <InstallPrompt />
+        <ZoomLock />
         <ThemeProvider initialThemeId={initialThemeId}>{children}</ThemeProvider>
       </body>
     </html>

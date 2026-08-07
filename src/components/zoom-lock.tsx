@@ -29,8 +29,29 @@ export function ZoomLock() {
 
     apply();
     window.addEventListener("resize", apply);
+
+    // Block pinch/multi-touch page zoom on mobile WebViews that ignore the
+    // viewport meta, and ctrl+wheel / ctrl+plus-minus zoom on desktop — the
+    // ZoomLock math already re-corrects visual scale on resize, so user zoom
+    // is disabled entirely.
+    const preventWheelZoom = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) e.preventDefault();
+    };
+    const preventKeyZoom = (e: KeyboardEvent) => {
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === "+" || e.key === "-" || e.key === "=" || e.key === "0")
+      ) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener("wheel", preventWheelZoom, { passive: false });
+    document.addEventListener("keydown", preventKeyZoom);
+
     return () => {
       window.removeEventListener("resize", apply);
+      document.removeEventListener("wheel", preventWheelZoom);
+      document.removeEventListener("keydown", preventKeyZoom);
       document.documentElement.style.zoom = "";
     };
   }, []);
