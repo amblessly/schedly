@@ -167,26 +167,14 @@ export const auth = betterAuth({
           const firstName = nameParts[0] ?? "";
           const lastName = nameParts.slice(1).join(" ") || firstName;
 
-          // username must be unique; derive from email local-part and de-dup
-          // against existing rows so the insert can never fail on a collision.
-          const baseUsername =
-            encodeURIComponent(email.split("@")[0] ?? "user").replace(/[^a-zA-Z0-9_.]/g, "") ||
-            `user${Math.random().toString(36).slice(2, 8)}`;
-          let username = baseUsername;
-          let n = 2;
-          // eslint-disable-next-line no-constant-condition
-          while (true) {
-            const existing = await db.user.findUnique({ where: { username } });
-            if (!existing) break;
-            username = `${baseUsername.slice(0, 24)}${n++}`;
-          }
-
           return {
             data: {
               ...user,
               firstName: firstName || email.split("@")[0] || "User",
               lastName: lastName || "User",
-              username,
+              // username must be unique; derive from email local-part
+              username: encodeURIComponent(email.split("@")[0] ?? "user").replace(/[^a-zA-Z0-9_.]/g, "") ||
+                `user${Math.random().toString(36).slice(2, 8)}`,
             },
           };
         },
