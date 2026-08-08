@@ -326,6 +326,33 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // --- Avatars & weather icons (external images): network-first, cache
+  // fallback so the user's photo and the weather card still render when
+  // offline. Google/GitHub avatar URLs and OpenWeatherMap icons are safe to
+  // cache — they're public, and revalidate in the background when online.
+  const isExternalImage =
+    url.hostname === "lh3.googleusercontent.com" ||
+    url.hostname.endsWith(".googleusercontent.com") ||
+    url.hostname === "avatars.githubusercontent.com" ||
+    url.hostname.endsWith(".githubusercontent.com") ||
+    url.hostname === "openweathermap.org" ||
+    url.hostname.endsWith(".openweathermap.org");
+  if (isExternalImage) {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(CACHE_NAME);
+        try {
+          const res = await fetch(request);
+          if (res.ok) cache.put(request, res.clone());
+          return res;
+        } catch {
+          return (await cache.match(request)) || Response.error();
+        }
+      })()
+    );
+    return;
+  }
+
   // --- Everything else: network only ---------------------------------------
 });
 

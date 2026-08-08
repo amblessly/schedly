@@ -1,10 +1,19 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { retry } from "@/lib/retry";
 import { useMounted } from "@/lib/use-mounted";
+import { cacheRead, cacheWrite, isOffline } from "@/lib/offline-cache";
+
+type CachedUser = Record<string, unknown> & {
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  image?: string;
+};
 
 export function useAuth() {
   const { data: session, isPending, refetch } = authClient.useSession();
@@ -15,7 +24,42 @@ export function useAuth() {
   const mounted = useMounted();
   const router = useRouter();
 
+  // Offline fallback: persist the signed-in user so the greeting, name, and
+  // avatar still show without a connection. The session fetch fails offline,
+  // so server-rendered pages would otherwise fall back to "there" and a
+  // missing photo.
+  const [offlineUser, setOfflineUser] = useState<CachedUser | null>(null);
+  const [offlineSettled, setOfflineSettled] = useState(false);
+
   const resolvedSession = mounted ? session : null;
+  const user = resolvedSession?.user ?? offlineUser;
+
+  useEffect(() => {
+    if (!mounted) return;
+    if (resolvedSession?.user) {
+      const u = resolvedSession.user as CachedUser;
+      cacheWrite("session:user", {
+        username: u.username,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        email: u.email,
+        image: u.image,
+      }).catch(() => {});
+      return;
+    }
+    if (!isPending && isOffline()) {
+      cacheRead<CachedUser>("session:user")
+        .then((cached) => {
+          if (cached) {
+            setOfflineUser(cached);
+            // Reconcile greeting with the possibly-stale cached photo.
+            setOfflineSettled(true);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setOfflineSettled(true));
+    }
+  }, [mounted, resolvedSession, isPending]);
 
   const signUp = useCallback(
     async (data: {
@@ -76,10 +120,13 @@ export function useAuth() {
   }, [router]);
 
   return {
-    user: resolvedSession?.user ?? null,
+    user: user ?? null,
     session: resolvedSession ?? null,
-    isLoading: !mounted || isPending,
-    isAuthenticated: !!resolvedSession,
+    // Offline: the session fetch fails, but we're "settled" once the cache
+    // has been checked — pages then render the cached user instead of
+    // spinning forever.
+    isLoading: !mounted || (isPending && !offlineSettled),
+    isAuthenticated: !!resolvedSession || !!offlineUser,
     refetchSession: refetch,
     signUp,
     signIn,

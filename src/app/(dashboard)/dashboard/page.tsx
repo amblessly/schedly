@@ -140,11 +140,16 @@ export default function DashboardPage() {
   }, []);
 
   // Fetch weather on mount using browser geolocation, falling back to IP-based
-  // detection when permission is denied or unavailable.
+  // detection when permission is denied or unavailable. Results are cached so
+  // the last known weather still shows offline.
   useEffect(() => {
     const fetchByIp = async () => {
       try {
-        const res = await getWeatherByIp();
+        const res = await withOfflineCache(
+          "weather:ip",
+          () => getWeatherByIp(),
+          { ttlMs: 60 * 60 * 1000 }
+        );
         if (res.success) {
           setWeather(res.data);
         } else {
@@ -164,7 +169,11 @@ export default function DashboardPage() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          const res = await getWeatherByCoords(pos.coords.latitude, pos.coords.longitude);
+          const res = await withOfflineCache(
+            `weather:coords:${pos.coords.latitude.toFixed(2)},${pos.coords.longitude.toFixed(2)}`,
+            () => getWeatherByCoords(pos.coords.latitude, pos.coords.longitude),
+            { ttlMs: 60 * 60 * 1000 }
+          );
           if (res.success) {
             setWeather(res.data);
           } else {
@@ -183,7 +192,11 @@ export default function DashboardPage() {
   const refreshWeather = useCallback(() => {
     const fetchByIp = async () => {
       try {
-        const res = await getWeatherByIp();
+        const res = await withOfflineCache(
+          "weather:ip",
+          () => getWeatherByIp(),
+          { ttlMs: 60 * 60 * 1000 }
+        );
         if (res.success) {
           setWeather(res.data);
         } else {
@@ -206,7 +219,11 @@ export default function DashboardPage() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          const res = await getWeatherByCoords(pos.coords.latitude, pos.coords.longitude);
+          const res = await withOfflineCache(
+            `weather:coords:${pos.coords.latitude.toFixed(2)},${pos.coords.longitude.toFixed(2)}`,
+            () => getWeatherByCoords(pos.coords.latitude, pos.coords.longitude),
+            { ttlMs: 60 * 60 * 1000 }
+          );
           if (res.success) {
             setWeather(res.data);
           } else {

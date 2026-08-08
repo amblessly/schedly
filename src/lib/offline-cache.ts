@@ -67,6 +67,20 @@ export function isNetworkError(err: unknown): boolean {
   );
 }
 
+/** Persist any value for later offline use (session user, weather, etc.). */
+export async function cacheWrite(key: string, value: unknown): Promise<void> {
+  await idbPut(key, { value, savedAt: Date.now() });
+}
+
+/** Read a value persisted with `cacheWrite`. Returns null when missing. */
+export async function cacheRead<T>(key: string): Promise<T | null> {
+  const entry = (await idbGet(key).catch(() => null)) as
+    | { value: T; savedAt: number }
+    | null
+    | undefined;
+  return entry?.value ?? null;
+}
+
 /** Run `action`; on network failure serve the last cached value for `key`. */
 export async function withOfflineCache<T>(
   key: string,
