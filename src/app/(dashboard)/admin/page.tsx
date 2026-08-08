@@ -20,6 +20,8 @@ type AdminUser = {
   username: string;
   isAdmin: boolean;
   emailVerified: boolean;
+  clientType: string | null;
+  lastSeenAt: Date | null;
   createdAt: Date;
 };
 
@@ -159,6 +161,7 @@ export default function AdminPage() {
                   <th className="pb-3 pr-4">Name</th>
                   <th className="pb-3 pr-4">Email</th>
                   <th className="pb-3 pr-4">Username</th>
+                  <th className="pb-3 pr-4">Device</th>
                   <th className="pb-3 pr-4">Joined</th>
                   <th className="pb-3 pr-4">Role</th>
                   <th className="pb-3 text-right">Action</th>
@@ -172,6 +175,9 @@ export default function AdminPage() {
                     </td>
                     <td className="py-3 pr-4 text-muted-foreground">{user.email}</td>
                     <td className="py-3 pr-4 text-muted-foreground">@{user.username}</td>
+                    <td className="py-3 pr-4">
+                      <DeviceBadge clientType={user.clientType} lastSeenAt={user.lastSeenAt} />
+                    </td>
                     <td className="py-3 pr-4 text-muted-foreground">
                       {new Date(user.createdAt).toLocaleDateString("en-US", {
                         month: "short",
@@ -204,6 +210,7 @@ export default function AdminPage() {
                 <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                 <p className="text-xs text-muted-foreground">@{user.username}</p>
                 <div className="flex items-center justify-between pt-1">
+                  <DeviceBadge clientType={user.clientType} lastSeenAt={user.lastSeenAt} />
                   <p className="text-xs text-muted-foreground">
                     {new Date(user.createdAt).toLocaleDateString("en-US", {
                       month: "short",
@@ -287,6 +294,49 @@ function RoleBadge({ isAdmin }: { isAdmin: boolean }) {
       }`}
     >
       {isAdmin ? "Admin" : "User"}
+    </span>
+  );
+}
+
+function DeviceBadge({
+  clientType,
+  lastSeenAt,
+}: {
+  clientType: string | null;
+  lastSeenAt: Date | null;
+}) {
+  const config: Record<string, { label: string; cls: string; icon: string }> = {
+    web: { label: "Website", cls: "bg-sky-500/10 text-sky-600 dark:text-sky-400", icon: "🌐" },
+    "pwa-android": { label: "PWA · Android", cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", icon: "🤖" },
+    "pwa-ios": { label: "PWA · iOS", cls: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400", icon: "🍎" },
+    apk: { label: "Android App (APK)", cls: "bg-amber-500/10 text-amber-600 dark:text-amber-400", icon: "📲" },
+  };
+  const c = config[clientType ?? ""];
+
+  return (
+    <span className="inline-flex items-center gap-2">
+      {c ? (
+        <span
+          title={
+            lastSeenAt
+              ? `Last active: ${new Date(lastSeenAt).toLocaleString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}`
+              : "Never reported"
+          }
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${c.cls}`}
+        >
+          <span aria-hidden>{c.icon}</span>
+          {c.label}
+        </span>
+      ) : (
+        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+          Unknown
+        </span>
+      )}
     </span>
   );
 }

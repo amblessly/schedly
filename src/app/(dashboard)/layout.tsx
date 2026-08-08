@@ -10,6 +10,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { OfflineBanner } from "@/components/offline-banner";
 import { useThemeConfig } from "@/features/theme";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { reportClientType, type ClientType } from "./actions";
 
 // The drawer's open state lives in a tiny external store so its initial
 // value can come from matchMedia only AFTER hydration. The server renders
@@ -104,6 +105,45 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       router.replace(`/verify-email/pending?email=${email}`);
     }
   }, [needsOnboarding, needsEmailVerification, user, router]);
+
+  // Record what the user is running on (web, PWA on Android/iOS, or the
+  // Android APK) so the admin dashboard can show each user's device. Runs
+  // once per session per type, so it doesn't spam the database.
+  useEffect(() => {
+    if (!user) return;
+    let type: ClientType = "web";
+    try {
+      if (Capacitor.isNativePlatform()) {
+        type = "apk";
+      } else {
+        const standalone =
+          (window.matchMedia?.("(display-mode: standalone)")?.matches ?? false) ||
+          (navigator as { standalone?: boolean }).standalone === true;
+        if (standalone) {
+          type =
+            /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+              ? "pwa-ios"
+              : "pwa-android";
+        }
+      }
+    } catch {
+      type = "web";
+    }
+    const KEY = `schedly-client-${(user as { id?: string }).id ?? ""}`;
+    const now = Date.now();
+    try {
+      const cached = JSON.parse(sessionStorage.getItem(KEY) ?? "null") as {
+        type: ClientType;
+        at: number;
+      } | null;
+      if (cached?.type === type && now - cached.at < 6 * 60 * 60 * 1000) return;
+      sessionStorage.setItem(KEY, JSON.stringify({ type, at: now }));
+    } catch {
+      // No sessionStorage (rare) — still report.
+    }
+    reportClientType(type).catch(() => {});
+  }, [user]);
   // The design editor is immersive on mobile: no fixed header, drawer,
   // backdrop, or bottom nav covering it — the canvas fills the screen.
   const isImmersive = pathname === "/design";
