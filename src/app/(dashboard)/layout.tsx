@@ -188,7 +188,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       />
 
       {/* Avatar/back top-left — fixed to the page (stays put while content scrolls).
-          On account settings and the profile page it becomes a back arrow. */}
+          On account settings and admin pages it becomes a back arrow. The
+          profile page keeps the avatar (identifying page) and has its own
+          back button inside, so the avatar never "turns into" an arrow. */}
       {!isImmersive && showButton && (
         <button
           type="button"
@@ -199,12 +201,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 ? router.push("/settings?tab=support")
                 : router.push("/profile")
           }
-          className={`fixed left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center transition-all duration-300 ${isSettings || isProfile || isAdmin || isFeedback ? "" : "hover:scale-105"} ${logoHidden ? "pointer-events-none -translate-y-2 opacity-0" : "opacity-100"}`}
+          className={`fixed left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center transition-all duration-300 ${isSettings || isAdmin || isFeedback ? "" : "hover:scale-105"} ${logoHidden ? "pointer-events-none -translate-y-2 opacity-0" : "opacity-100"}`}
           aria-label={
-            isSettings || isProfile || isAdmin || isFeedback ? "Back" : "Open profile"
+            isSettings || isAdmin || isFeedback ? "Back" : "Open profile"
           }
         >
-          {isSettings || isProfile || isAdmin || isFeedback ? (
+          {isSettings || isAdmin || isFeedback ? (
             <ArrowLeft className="h-6 w-6 text-foreground" />
           ) : userAvatar ? (
             <img src={userAvatar} alt={displayName} className="h-11 w-11 rounded-full object-cover ring-2 ring-border/40" />

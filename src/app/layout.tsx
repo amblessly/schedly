@@ -100,7 +100,7 @@ export default async function RootLayout({
             zoom, matching ZoomLock's NO_ZOOM_PATHS. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{if(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())return;if(location.pathname==="/")return;var o=window.outerWidth,i=window.innerWidth;var z=o&&i?o/i:1;var c=0.9/Math.max(0.1,z);c=Math.min(1.5,Math.max(0.5,c));var s=Math.abs(c-1)<0.001?"":c.toFixed(4);var h=document.documentElement;if(h.style.zoom!==s)h.style.zoom=s;}catch(e){}})();`,
+            __html: `(function(){try{if(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())return;if(location.pathname==="/")return;var o=window.outerWidth,i=window.innerWidth;var z=o&&i?o/i:1;var c=0.8/Math.max(0.1,z);c=Math.min(1.5,Math.max(0.5,c));var s=Math.abs(c-1)<0.001?"":c.toFixed(4);var h=document.documentElement;if(h.style.zoom!==s)h.style.zoom=s;}catch(e){}})();`,
           }}
         />
       </head>
