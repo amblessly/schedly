@@ -87,8 +87,23 @@ export async function getWeatherByCoords(
   }
 }
 
-// IP-based fallback — approximate location from the request IP, used when the
-// browser denies geolocation permission.
+// Fallback: if we can't determine the user's location, show Manila (PH) rather
+// than a random server-located country.
+const MANILA_COORDS = { lat: 14.5995, lon: 120.9842 };
+
+function getClientIp(h: Headers): string | null {
+  const fwd = h.get("x-forwarded-for");
+  if (fwd) {
+    const first = fwd.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  const real = h.get("x-real-ip");
+  if (real) return real.trim();
+  return null;
+}
+
+// IP-based fallback — approximate location from the CLIENT's IP (taken from the
+// request headers), used when the browser denies geolocation permission.
 export async function getWeatherByIp(): Promise<WeatherResult> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return { success: false, error: "Unauthorized" };
@@ -108,12 +123,20 @@ export async function getWeatherByIp(): Promise<WeatherResult> {
   }
 
   try {
-    // ip-api.com free tier: 45 requests/min, HTTP only (https restricted on free).
-    const ipRes = await fetch("http://ip-api.com/json/", { next: { revalidate: 3600 } });
+    const h = await headers();
+    const clientIp = getClientIp(h);
+    const ipUrl = clientIp
+      ? `http://ip-api.com/json/${clientIp}?fields=status,lat,lon,country,countryCode,regionName,city`
+      : "http://ip-api.com/json/?fields=status,lat,lon,country,countryCode,regionName,city";
+
+    const ipRes = await fetch(ipUrl, { next: { revalidate: 3600 } });
     if (!ipRes.ok) return { success: false, error: "Could not detect location" };
     const ipData = await ipRes.json();
     if (ipData.status !== "success") {
-      return { success: false, error: "Could not detect location" };
+      // Unknown location — fall back to Manila so we never point abroad.
+      const weather = await fetchWeather(MANILA_COORDS.lat, MANILA_COORDS.lon, apiKey);
+      if (!weather) return { success: false, error: "Failed to fetch weather data" };
+      return { success: true, data: weather };
     }
 
     const weather = await fetchWeather(ipData.lat, ipData.lon, apiKey);
