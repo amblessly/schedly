@@ -166,16 +166,26 @@ export async function subscribeToPush(): Promise<PushResult> {
         reason: "The server isn't configured for push alerts yet.",
       };
     }
+    // Validate VAPID key format (base64url, should decode to 65 bytes for EC P-256)
+    try {
+      const clean = vapidKey.replace(/=+$/, "");
+      if (!/^[A-Za-z0-9_-]+$/.test(clean) || clean.length < 80) {
+        console.warn("[FCM] VAPID key looks malformed:", clean.slice(0, 12) + "...");
+      }
+    } catch (e) {
+      console.warn("[FCM] VAPID key decode failed:", e);
+    }
 
     let token: string;
     try {
       token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: reg });
     } catch (err) {
       const name = (err as { name?: string })?.name;
-      if (name === "InvalidAccessError" || name === "InvalidCharacterError") {
+      const msg = (err as { message?: string })?.message || "";
+      if (name === "InvalidAccessError" || name === "InvalidCharacterError" || (msg.includes("invalid") && msg.includes("key"))) {
         return {
           ok: false,
-          reason: "The server's push key is invalid. Refresh and try again.",
+          reason: "The server's FCM push key is invalid or doesn't match the Firebase project. Check NEXT_PUBLIC_FIREBASE_VAPID_KEY in Vercel env vars.",
         };
       }
       if (
