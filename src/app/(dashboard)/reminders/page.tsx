@@ -8,6 +8,7 @@ import { Bell, BellOff, Clock, CalendarDays, MapPin, Camera, Info } from "lucide
 import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
 import { getUserReminders, updateReminder, type UpdateReminderResult } from "@/app/(dashboard)/reminders/actions";
 import { isPushSupported, subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
+import { programReminderAlarms } from "@/lib/notification-scheduler";
 
 type Day =
   | "monday"
@@ -129,6 +130,12 @@ export default function RemindersPage() {
       active = false;
     };
   }, []);
+
+  // Program local alarms whenever schedules or reminder settings change.
+  useEffect(() => {
+    if (!schedules || reminders.length === 0) return;
+    programReminderAlarms(schedules as never, reminders as never).catch(() => {});
+  }, [schedules, reminders]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60000);

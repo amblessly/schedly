@@ -19,21 +19,32 @@ export async function POST(request: NextRequest) {
 
   const timezone = typeof body.timezone === "string" ? body.timezone.slice(0, 64) : "UTC";
 
-  await db.pushSubscription.upsert({
-    where: { endpoint: body.endpoint },
-    create: {
-      userId: session.user.id,
-      endpoint: body.endpoint,
-      p256dh,
-      auth: authKey,
-      timezone,
-    },
-    update: {
-      userId: session.user.id,
-      p256dh,
-      auth: authKey,
-      timezone,
-    },
+  await db.$transaction(async (tx) => {
+    await tx.pushSubscription.upsert({
+      where: { endpoint: body.endpoint },
+      create: {
+        userId: session.user.id,
+        endpoint: body.endpoint,
+        p256dh,
+        auth: authKey,
+        timezone,
+      },
+      update: {
+        userId: session.user.id,
+        p256dh,
+        auth: authKey,
+        timezone,
+      },
+    });
+
+    // Remember the user's real timezone (the model defaults to UTC, which
+    // would shift every reminder by the DST/UTC offset).
+    if (timezone !== "UTC") {
+      await tx.user.updateMany({
+        where: { id: session.user.id, timezone: "UTC" },
+        data: { timezone },
+      });
+    }
   });
 
   return NextResponse.json({ ok: true });

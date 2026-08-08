@@ -40,29 +40,106 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)));
+      await Promise.all(
+        keys
+          .filter((k) => k !== CACHE_NAME && k !== ALARMS_CACHE)
+          .map((k) => caches.delete(k))
+      );
       await self.clients.claim();
+      // Re-arm persisted reminder alarms (SW restarts, cache updates, etc.).
+      await armAlarms();
     })()
   );
 });
 
 // Auto-download while online: after login the app tells us which pages the
 // user will likely open, and we warm the cache for them in the background.
-self.addEventListener("message", (event) => {
-  if (event.data?.type !== "PRECACHE") return;
-  event.waitUntil(
-    (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      for (const url of event.data.urls || []) {
-        try {
-          const res = await fetch(url);
-          if (res.ok) cache.put(url, res.clone());
-        } catch {
-          // Best-effort; skip pages that fail.
-        }
+// Also receives programmed class-reminder alarms for local notification
+// triggers (fires on time even when Schedly isn't open, no server needed).
+const ALARMS_CACHE = "schedly-alarms";
+
+async function readAlarms() {
+  try {
+    const cache = await caches.open(ALARMS_CACHE);
+    const res = await cache.match("/alarms.json");
+    if (!res) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeAlarms(alarms) {
+  const cache = await caches.open(ALARMS_CACHE);
+  await cache.put("/alarms.json", new Response(JSON.stringify(alarms), { headers: { "Content-Type": "application/json" } }));
+}
+
+/** Re-arm programmed alarms. With Notification Triggers they fire exactly on
+ *  time even when the SW later sleeps; storage survives so we re-arm after
+ *  every activation. */
+async function armAlarms() {
+  const alarms = await readAlarms();
+  const now = Date.now();
+  const remaining = [];
+  for (const alarm of alarms) {
+    if (alarm.fireAt <= now) continue;
+    remaining.push(alarm);
+    try {
+      if (typeof TimestampTrigger !== "undefined") {
+        await self.registration.showNotification(alarm.title, {
+          body: alarm.body || "",
+          icon: "/icons/icon-192.png",
+          badge: "/icons/icon-192.png",
+          data: { url: alarm.url || "/" },
+          tag: `rem-${alarm.id}`,
+          showTrigger: new TimestampTrigger(alarm.fireAt),
+        });
+      } else if (alarm.fireAt - now <= 60 * 1000) {
+        // No Trigger API: best-effort one-shot while the SW is alive.
+        setTimeout(() => self.registration.showNotification(alarm.title, {
+          body: alarm.body || "",
+          icon: "/icons/icon-192.png",
+          badge: "/icons/icon-192.png",
+          data: { url: alarm.url || "/" },
+          tag: `rem-${alarm.id}`,
+        }), alarm.fireAt - now).unref?.();
       }
-    })()
-  );
+    } catch {
+      // A failed trigger must not break other alarms.
+    }
+  }
+  await writeAlarms(remaining);
+}
+
+self.addEventListener("message", (event) => {
+  const data = event.data || {};
+  if (data.type === "PRECACHE") {
+    event.waitUntil(
+      (async () => {
+        const cache = await caches.open(CACHE_NAME);
+        for (const url of data.urls || []) {
+          try {
+            const res = await fetch(url);
+            if (res.ok) cache.put(url, res.clone());
+          } catch {
+            // Best-effort; skip pages that fail.
+          }
+        }
+      })()
+    );
+  } else if (data.type === "PROGRAM_ALARMS") {
+    event.waitUntil(
+      (async () => {
+        const now = Date.now();
+        const alarms = Array.isArray(data.alarms)
+          ? data.alarms.filter((a) => a && typeof a.fireAt === "number" && a.fireAt > now)
+          : [];
+        await writeAlarms(alarms);
+        await armAlarms();
+      })()
+    );
+  }
 });
 
 self.addEventListener("fetch", (event) => {
