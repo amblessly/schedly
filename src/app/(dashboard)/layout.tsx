@@ -78,14 +78,20 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const userAvatar = u?.image || u?.avatarUrl || null;
 
   // Auto-download offline support: once signed in, warm the cache with the
-  // main tab pages so they're instantly available (and work) offline.
+  // main tab pages so they're instantly available (and work) offline. The
+  // avatar is warmed too so the user's photo still renders without internet.
   useEffect(() => {
     if (!user || !("serviceWorker" in navigator)) return;
     navigator.serviceWorker.ready
       .then((reg) => {
+        const avatar = (user as { image?: string; avatarUrl?: string } | null)?.image
+          || (user as { image?: string; avatarUrl?: string } | null)?.avatarUrl;
         reg.active?.postMessage({
           type: "PRECACHE",
-          urls: ["/dashboard", "/schedule", "/notes", "/reminders", "/pomodoro", "/gpa"],
+          urls: [
+            "/dashboard", "/schedule", "/notes", "/reminders", "/pomodoro", "/gpa",
+            ...(avatar ? [avatar] : []),
+          ],
         });
       })
       .catch(() => {});
@@ -248,7 +254,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      {!isImmersive && !isSettings && !isProfile && !isAdmin && !isFeedback && <BottomNav />}
+      {!isImmersive && <BottomNav />}
       {!isImmersive && <OfflineBanner />}
     </div>
   );

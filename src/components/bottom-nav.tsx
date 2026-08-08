@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -34,11 +34,6 @@ export function BottomNav() {
   const router = useRouter();
   const items = primaryNav;
 
-  // Auto-hide on scroll down, reappear on scroll up (mobile only).
-  const [hidden, setHidden] = useState(false);
-  const lastY = useRef(0);
-  const ticking = useRef(false);
-
   // The /schedule page reports which sub-screen it's on ("list", "upload"…)
   // so the Calendar tab only lights up on the actual list, not upload/review.
   const [schedulePhase, setSchedulePhase] = useState<string>("list");
@@ -46,27 +41,6 @@ export function BottomNav() {
     const onPhase = (e: Event) => setSchedulePhase((e as CustomEvent<string>).detail);
     window.addEventListener("schedly:schedule-phase", onPhase);
     return () => window.removeEventListener("schedly:schedule-phase", onPhase);
-  }, []);
-
-  useEffect(() => {
-    if (window.matchMedia("(min-width: 768px)").matches) return;
-
-    const onScroll = () => {
-      if (ticking.current) return;
-      ticking.current = true;
-      requestAnimationFrame(() => {
-        ticking.current = false;
-        const y = window.scrollY;
-        const delta = y - lastY.current;
-        if (Math.abs(delta) > 4) {
-          setHidden(delta > 0 && y > 80);
-        }
-        lastY.current = y;
-      });
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   const handleQuickAdd = () => {
@@ -89,12 +63,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className={cn(
-        "fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 transition-transform duration-300 ease-out md:hidden",
-        hidden
-          ? "pointer-events-none translate-y-[calc(100%+0.5rem)] opacity-0"
-          : "translate-y-0 opacity-100"
-      )}
+      className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 md:hidden"
     >
 <div
         className="bottom-nav flex items-end justify-center gap-2 rounded-[1.75rem] border border-border/60 bg-card/90 px-3 shadow-[0_12px_40px_rgba(0,0,0,0.22)] ring-1 ring-black/[0.03] backdrop-blur-xl"

@@ -13,8 +13,23 @@
  *    or server responses unless the page itself is cached as HTML.
  */
 
-const CACHE_NAME = "schedly-cache-v3";
+const CACHE_NAME = "schedly-cache-v4";
 const RSC_CACHE = `${CACHE_NAME}-rsc`;
+
+// External images (avatars, weather icons) are fetched with no-cors so they
+// CAN be cached — otherwise the browser blocks them and offline avatars fail.
+function isExternalImage(url) {
+  return (
+    url.hostname === "lh3.googleusercontent.com" ||
+    url.hostname.endsWith(".googleusercontent.com") ||
+    url.hostname === "avatars.githubusercontent.com" ||
+    url.hostname.endsWith(".githubusercontent.com") ||
+    url.hostname === "openweathermap.org" ||
+    url.hostname.endsWith(".openweathermap.org") ||
+    url.hostname === "blob.vercel-storage.com" ||
+    url.hostname.endsWith(".blob.vercel-storage.com")
+  );
+}
 
 // When offline, navigation can still land on a URL that was never cached
 // (e.g. "/" redirects for signed-in users). Fall back to the main app pages
@@ -136,19 +151,24 @@ self.addEventListener("message", (event) => {
         const rscCache = await caches.open(RSC_CACHE);
         for (const url of data.urls || []) {
           try {
-            const res = await fetch(url);
-            if (res.ok) {
+            // External images (avatars) need no-cors so they can be cached;
+            // otherwise the browser blocks the request and offline fails.
+            const u = new URL(url, self.location.origin);
+            const res = await fetch(url, isExternalImage(u) ? { mode: "no-cors" } : {});
+            if (res.ok || res.type === "opaque") {
               cache.put(url, res.clone());
               // Warm the JS/CSS chunks referenced by the page so it actually
               // renders offline — the HTML shell alone is not enough.
-              const html = await res.clone().text();
-              const refs = html.match(/\/_next\/static\/[^"']+/g) || [];
-              for (const ref of [...new Set(refs)]) {
-                try {
-                  const asset = await fetch(ref);
-                  if (asset.ok) cache.put(ref, asset.clone());
-                } catch {
-                  // Best-effort.
+              if (res.type !== "opaque") {
+                const html = await res.clone().text();
+                const refs = html.match(/\/_next\/static\/[^"']+/g) || [];
+                for (const ref of [...new Set(refs)]) {
+                  try {
+                    const asset = await fetch(ref);
+                    if (asset.ok) cache.put(ref, asset.clone());
+                  } catch {
+                    // Best-effort.
+                  }
                 }
               }
             }
@@ -307,43 +327,19 @@ self.addEventListener("fetch", (event) => {
   }
 
   // --- Blob-storage images (legacy): network-first, cache fallback ---------
-  if (
-    url.hostname === "blob.vercel-storage.com" ||
-    url.hostname.endsWith(".blob.vercel-storage.com")
-  ) {
-    event.respondWith(
-      (async () => {
-        const cache = await caches.open(CACHE_NAME);
-        try {
-          const res = await fetch(request);
-          if (res.ok) cache.put(request, res.clone());
-          return res;
-        } catch {
-          return (await cache.match(request)) || Response.error();
-        }
-      })()
-    );
-    return;
-  }
-
   // --- Avatars & weather icons (external images): network-first, cache
   // fallback so the user's photo and the weather card still render when
   // offline. Google/GitHub avatar URLs and OpenWeatherMap icons are safe to
   // cache — they're public, and revalidate in the background when online.
-  const isExternalImage =
-    url.hostname === "lh3.googleusercontent.com" ||
-    url.hostname.endsWith(".googleusercontent.com") ||
-    url.hostname === "avatars.githubusercontent.com" ||
-    url.hostname.endsWith(".githubusercontent.com") ||
-    url.hostname === "openweathermap.org" ||
-    url.hostname.endsWith(".openweathermap.org");
-  if (isExternalImage) {
+  if (isExternalImage(url)) {
     event.respondWith(
       (async () => {
         const cache = await caches.open(CACHE_NAME);
         try {
+          // Match the original request mode — images load as no-cors and the
+          // opaque response can still be put() into the cache.
           const res = await fetch(request);
-          if (res.ok) cache.put(request, res.clone());
+          cache.put(request, res.clone()).catch(() => {});
           return res;
         } catch {
           return (await cache.match(request)) || Response.error();
