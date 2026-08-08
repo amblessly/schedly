@@ -10,7 +10,7 @@ import { Capacitor } from "@capacitor/core";
 // innerWidth scales with zoom), so we apply the inverse as the CSS `zoom`
 // property to cancel it out: actual = browserZoom * counter == TARGET_ZOOM.
 // The native Android WebView never reports a zoom change, so it is skipped.
-const TARGET_ZOOM = 0.9;
+const TARGET_ZOOM = 0.8;
 
 // The landing/onboarding flow should always render at a natural 100% scale —
 // the small screen already fills the viewport, so the 90% zoom-lock is only
