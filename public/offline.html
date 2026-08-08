@@ -94,9 +94,55 @@
         moment you&rsquo;re back online.
       </p>
       <div class="actions">
-        <a class="primary" href="/">Try again</a>
-        <a class="ghost" href="/">Back to Schedly</a>
+        <a class="primary" id="retry-link" href="/">Try again</a>
+        <a class="ghost" id="home-link" href="/">Back to Schedly</a>
       </div>
     </div>
+    <script>
+      // Real auto-reload: the moment connectivity returns, jump straight back
+      // into the app instead of waiting for the user to notice.
+      function onBackOnline() {
+        window.location.href = "/";
+      }
+      window.addEventListener("online", onBackOnline);
+      window.addEventListener("appinstalled", onBackOnline);
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "visible" && navigator.onLine) onBackOnline();
+      });
+
+      // Both buttons lead to the best cached app page. While offline the SW
+      // serves whatever is cached; "/" (a redirect for signed-in users) is
+      // usually NOT cached, so point the buttons at a page that is.
+      (function () {
+        if (!("caches" in window)) return;
+        var paths = ["/dashboard", "/schedule", "/login", "/"];
+        caches.keys()
+          .then(function (keys) {
+            var name = keys.find(function (k) {
+              return k.indexOf("schedly-cache-v") === 0 && k.indexOf("-rsc") === -1;
+            });
+            return name ? caches.open(name) : null;
+          })
+          .then(function (cache) {
+            if (!cache) return;
+            var best = "/";
+            var chain = Promise.resolve();
+            paths.forEach(function (p) {
+              chain = chain.then(function () {
+                return cache.match(p).then(function (hit) {
+                  if (hit && best === "/") best = p;
+                });
+              });
+            });
+            chain.then(function () {
+              var retry = document.getElementById("retry-link");
+              var home = document.getElementById("home-link");
+              if (retry) retry.href = best;
+              if (home) home.href = best;
+            });
+          })
+          .catch(function () {});
+      })();
+    </script>
   </body>
 </html>

@@ -13,7 +13,22 @@
  *    or server responses unless the page itself is cached as HTML.
  */
 
-const CACHE_NAME = "schedly-cache-v2";
+const CACHE_NAME = "schedly-cache-v3";
+const RSC_CACHE = `${CACHE_NAME}-rsc`;
+
+// When offline, navigation can still land on a URL that was never cached
+// (e.g. "/" redirects for signed-in users). Fall back to the main app pages
+// in a sensible order instead of giving up with the offline screen.
+const NAV_FALLBACKS = [
+  "/dashboard",
+  "/schedule",
+  "/notes",
+  "/reminders",
+  "/pomodoro",
+  "/gpa",
+  "/login",
+  "/",
+];
 
 const PRECACHE_ASSETS = [
   "/manifest.webmanifest",
@@ -42,7 +57,7 @@ self.addEventListener("activate", (event) => {
       const keys = await caches.keys();
       await Promise.all(
         keys
-          .filter((k) => k !== CACHE_NAME && k !== ALARMS_CACHE)
+          .filter((k) => !k.startsWith(CACHE_NAME) && k !== ALARMS_CACHE)
           .map((k) => caches.delete(k))
       );
       await self.clients.claim();
@@ -118,12 +133,35 @@ self.addEventListener("message", (event) => {
     event.waitUntil(
       (async () => {
         const cache = await caches.open(CACHE_NAME);
+        const rscCache = await caches.open(RSC_CACHE);
         for (const url of data.urls || []) {
           try {
             const res = await fetch(url);
-            if (res.ok) cache.put(url, res.clone());
+            if (res.ok) {
+              cache.put(url, res.clone());
+              // Warm the JS/CSS chunks referenced by the page so it actually
+              // renders offline — the HTML shell alone is not enough.
+              const html = await res.clone().text();
+              const refs = html.match(/\/_next\/static\/[^"']+/g) || [];
+              for (const ref of [...new Set(refs)]) {
+                try {
+                  const asset = await fetch(ref);
+                  if (asset.ok) cache.put(ref, asset.clone());
+                } catch {
+                  // Best-effort.
+                }
+              }
+            }
           } catch {
             // Best-effort; skip pages that fail.
+          }
+          try {
+            // Warm the RSC payload too, keyed by plain path, so the page
+            // still navigates client-side when offline.
+            const rsc = await fetch(url, { headers: { RSC: "1" } });
+            if (rsc.ok) rscCache.put(new URL(url, self.location.origin).pathname, rsc.clone());
+          } catch {
+            // Best-effort.
           }
         }
       })()
@@ -164,7 +202,15 @@ self.addEventListener("fetch", (event) => {
         } catch {
           const cache = await caches.open(CACHE_NAME);
           const cached = await cache.match(request);
-          return cached || (await cache.match("/offline.html"));
+          if (cached) return cached;
+          // The requested URL may not be cached directly (e.g. "/" was a
+          // redirect while signed in) — serve the best known app page so the
+          // user lands on Schedly, not on the offline card.
+          for (const route of NAV_FALLBACKS) {
+            const fallback = await cache.match(route);
+            if (fallback) return fallback;
+          }
+          return (await cache.match("/offline.html")) || Response.error();
         }
       })()
     );
@@ -178,10 +224,15 @@ self.addEventListener("fetch", (event) => {
   if (isSameOrigin && isRsc) {
     event.respondWith(
       (async () => {
-        const cache = await caches.open(CACHE_NAME);
-        const cached = await cache.match(request);
+        const cache = await caches.open(RSC_CACHE);
+        const pathKey = url.origin + url.pathname;
+        const cached =
+          (await cache.match(request)) || (await cache.match(pathKey));
         const fetched = fetch(request).then((res) => {
-          if (res.ok) cache.put(request, res.clone());
+          if (res.ok) {
+            cache.put(request, res.clone());
+            cache.put(pathKey, res.clone());
+          }
           return res;
         });
         if (cached) {
