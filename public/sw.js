@@ -13,6 +13,54 @@
  *    or server responses unless the page itself is cached as HTML.
  */
 
+// --- Firebase Cloud Messaging (background push) --------------------------
+// The web app posts its config (type: FIREBASE_CONFIG) after registration so
+// the keys stay in server env vars, never in this file.
+let firebaseConfig = null;
+
+self.addEventListener("message", (event) => {
+  const data = event.data || {};
+  if (data.type === "FIREBASE_CONFIG") {
+    firebaseConfig = data.config;
+    initFcm();
+  }
+});
+
+function initFcm() {
+  // Wait until the client posts the config — importing the SDK loads ~200KB
+  // from gstatic, so it isn't worth doing for a config-less SW.
+  if (!firebaseConfig || !firebaseConfig.apiKey) return;
+  try {
+    importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js");
+    importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js");
+  } catch {
+    return;
+  }
+  if (!self.firebase || !self.firebase.messaging) return;
+  if (self.firebase.apps && self.firebase.apps.length === 0) {
+    try {
+      self.firebase.initializeApp(firebaseConfig);
+    } catch {
+      return;
+    }
+  }
+  const messaging = self.firebase.messaging();
+  messaging.onBackgroundMessage((payload) => {
+    const notification = payload.notification || {};
+    const data = payload.data || {};
+    const title = notification.title || data.title || "Schedly";
+    const options = {
+      body: notification.body || data.body || "",
+      icon: "/icons/icon-512.png",
+      badge: "/icons/icon-192.png",
+      vibrate: [200, 100, 200],
+      tag: data.tag || `schedly-${Date.now()}`,
+      data: data || {},
+    };
+    self.registration.showNotification(title, options);
+  });
+}
+
 const CACHE_NAME = "schedly-cache-v4";
 const RSC_CACHE = `${CACHE_NAME}-rsc`;
 
@@ -38,7 +86,7 @@ const NAV_FALLBACKS = [
   "/dashboard",
   "/schedule",
   "/notes",
-  "/reminders",
+  "/notifications",
   "/pomodoro",
   "/gpa",
   "/login",
@@ -115,6 +163,9 @@ async function armAlarms() {
   for (const alarm of alarms) {
     if (alarm.fireAt <= now) continue;
     remaining.push(alarm);
+    // Unique tag per (id, fireAt): the "upcoming" and "starting now" alarms
+    // for the same class must not replace each other in the notification bar.
+    const tag = `rem-${alarm.id}-${alarm.fireAt}`;
     try {
       if (typeof TimestampTrigger !== "undefined") {
         await self.registration.showNotification(alarm.title, {
@@ -122,7 +173,7 @@ async function armAlarms() {
           icon: "/icons/icon-192.png",
           badge: "/icons/icon-192.png",
           data: { url: alarm.url || "/" },
-          tag: `rem-${alarm.id}`,
+          tag,
           showTrigger: new TimestampTrigger(alarm.fireAt),
         });
       } else if (alarm.fireAt - now <= 60 * 1000) {
@@ -132,7 +183,7 @@ async function armAlarms() {
           icon: "/icons/icon-192.png",
           badge: "/icons/icon-192.png",
           data: { url: alarm.url || "/" },
-          tag: `rem-${alarm.id}`,
+          tag,
         }), alarm.fireAt - now).unref?.();
       }
     } catch {
@@ -356,14 +407,22 @@ self.addEventListener("fetch", (event) => {
 // The server (Vercel Cron → /api/cron/reminders) computes exact class times
 // from the timetable and pushes payloads here, so reminders arrive even when
 // Schedly isn't open.
+//
+// Pushes sent through FCM (the default since the FCM migration) are handled
+// by initFcm()'s onBackgroundMessage — skip them here to avoid a duplicate
+// notification. Legacy web-push payloads ({title,body,url} on the top level)
+// are the only ones this listener renders.
 self.addEventListener("push", (event) => {
   let data = { title: "Schedly", body: "", url: "/" };
+  let isFcm = false;
   try {
     const parsed = event.data ? JSON.parse(event.data.text()) : {};
     data = { ...data, ...parsed };
+    isFcm = Boolean(parsed.data || parsed.notification);
   } catch {
     // Fall back to defaults if the payload isn't valid JSON.
   }
+  if (isFcm) return;
 
   event.waitUntil(
     self.registration.showNotification(data.title || "Schedly", {

@@ -1,5 +1,6 @@
 import { db } from "@/server/db/client";
 import { sendPush, isVapidConfigured } from "@/server/lib/web-push";
+import { sendFCMPush, isFcmConfigured } from "@/server/lib/firebase-admin";
 import type { DayOfWeek } from "@/generated/prisma/client";
 
 const DAYS_OF_WEEK: DayOfWeek[] = [
@@ -84,7 +85,7 @@ export function nextOccurrence(
 }
 
 export async function dispatchDueReminders(now: Date = new Date()) {
-  if (!isVapidConfigured()) return { sent: 0, checked: 0 };
+  if (!isVapidConfigured() && !isFcmConfigured()) return { sent: 0, checked: 0 };
 
   const reminders = await db.reminder.findMany({
     where: { isActive: true },
@@ -102,6 +103,12 @@ export async function dispatchDueReminders(now: Date = new Date()) {
     subsByUser.set(sub.userId, list);
   }
 
+  const fcmTokensByUser = new Map<string, number>();
+  const fcmRows = await db.fCMToken.findMany({ select: { userId: true } });
+  for (const row of fcmRows) {
+    fcmTokensByUser.set(row.userId, (fcmTokensByUser.get(row.userId) ?? 0) + 1);
+  }
+
   let sent = 0;
   const staleEndpoints: string[] = [];
 
@@ -113,53 +120,120 @@ export async function dispatchDueReminders(now: Date = new Date()) {
     const occ = nextOccurrence(cls.startTime, cls.days as DayOfWeek[], tz, now);
     if (occ === null) continue;
 
-    // Due when now falls inside [occurrence - minutesBefore, occurrence - 30s].
-    // The 30s slack prevents double-delivery when two crons run back-to-back.
-    const dueFrom = occ - reminder.minutesBefore * 60 * 1000;
-    const dueTo = occ - 30 * 1000;
-    if (now.getTime() < dueFrom || now.getTime() > dueTo) continue;
-
-    // Dedupe: never fire twice for the same occurrence.
-    if (reminder.lastSentAt && reminder.lastSentAt.getTime() >= dueFrom) continue;
-
-    const subs = subsByUser.get(reminder.userId) ?? [];
-    if (subs.length === 0) continue;
-
     const label = cls.shortName?.trim() || cls.code?.trim() || cls.subject;
     const startLabelTxt = startLabel(cls.startTime);
     const minutes = reminder.minutesBefore;
 
-    await Promise.all(
-      subs.map(async (sub) => {
-        const result = await sendPush(sub, {
+    // 1) "Upcoming" push: now falls inside [occurrence - minutesBefore, occurrence - 30s].
+    //    The 30s slack prevents double-delivery when two crons run back-to-back.
+    const dueFrom = occ - minutes * 60 * 1000;
+    const dueTo = occ - 30 * 1000;
+    const inBeforeWindow = now.getTime() >= dueFrom && now.getTime() <= dueTo;
+    // Dedupe: never fire twice for the same occurrence.
+    const beforeFired = reminder.lastSentAt && reminder.lastSentAt.getTime() >= dueFrom;
+
+    if (inBeforeWindow && !beforeFired) {
+      // FCM is the primary channel; legacy web-push subs are the fallback
+      // for devices that subscribed before the FCM migration.
+      if ((fcmTokensByUser.get(reminder.userId) ?? 0) === 0) {
+        const subs = subsByUser.get(reminder.userId) ?? [];
+        if (subs.length > 0) {
+          await Promise.all(
+            subs.map(async (sub) => {
+              const result = await sendPush(sub, {
+                title: "Upcoming class",
+                body:
+                  minutes > 0
+                    ? `${label} starts in ${minutes} min (${startLabelTxt})`
+                    : `${label} starts now (${startLabelTxt})`,
+                url: "/schedule",
+              });
+if (result.stale) staleEndpoints.push(sub.endpoint);
+            })
+          );
+        }
+      } else {
+        await sendFCMPush({
+          userId: reminder.userId,
           title: "Upcoming class",
           body:
             minutes > 0
-              ? `${label} starts in ${minutes} min (${startLabelTxt})${cls.room ? ` — ${cls.room}` : ""}`
-              : `${label} starts now (${startLabelTxt})${cls.room ? ` — ${cls.room}` : ""}`,
+              ? `${label} starts in ${minutes} min (${startLabelTxt})`
+              : `${label} starts now (${startLabelTxt})`,
           url: "/schedule",
         });
-        if (result.stale) staleEndpoints.push(sub.endpoint);
-      })
-    );
+      }
 
-    await db.reminder.update({
-      where: { id: reminder.id },
-      data: { lastSentAt: new Date(dueFrom) },
-    });
+      await db.reminder.update({
+        where: { id: reminder.id },
+        data: { lastSentAt: new Date(dueFrom) },
+      });
 
-    // Also record in the in-app notification list.
-    await db.notification.create({
-      data: {
-        userId: reminder.userId,
-        type: "class_reminder",
-        title: "Upcoming class",
-        body: `Reminder: ${label} starts in ${minutes} min.`,
-        scheduledAt: new Date(occ),
-      },
-    });
+      // Also record in the in-app notification list.
+      await db.notification.create({
+        data: {
+          userId: reminder.userId,
+          type: "class_reminder",
+          title: "Upcoming class",
+          body: `Reminder: ${label} starts in ${minutes} min.`,
+          scheduledAt: new Date(occ),
+        },
+      });
 
-    sent++;
+      sent++;
+      continue;
+    }
+
+    // 2) "Starting now" window: exactly at the class time (cron fires on the
+    //    top of the minute, so allow up to 60s of delay). Fires a second
+    //    notification so the user knows the class has begun.
+    const inStartWindow = now.getTime() >= occ && now.getTime() <= occ + 60 * 1000;
+    // Dedupe against the before-window marker (dueFrom < occ, so an upcoming
+    // push never blocks the "starting now" one).
+    if (inStartWindow && !(reminder.lastSentAt && reminder.lastSentAt.getTime() >= occ)) {
+      // FCM is the primary channel; legacy web-push subs are the fallback.
+      if ((fcmTokensByUser.get(reminder.userId) ?? 0) === 0) {
+        const subs = subsByUser.get(reminder.userId) ?? [];
+        if (subs.length > 0) {
+          await Promise.all(
+            subs.map(async (sub) => {
+              const result = await sendPush(sub, {
+                title: "Class starting now",
+                body: `You have class today — ${label} at ${startLabelTxt}`,
+                url: "/schedule",
+              });
+              if (result.stale) staleEndpoints.push(sub.endpoint);
+            })
+          );
+        }
+      } else {
+        await sendFCMPush({
+          userId: reminder.userId,
+          title: "Class starting now",
+          body: `You have class today — ${label} at ${startLabelTxt}`,
+          url: "/schedule",
+        });
+      }
+
+      await db.reminder.update({
+        where: { id: reminder.id },
+        data: { lastSentAt: new Date(occ) },
+      });
+
+      // Also record in the in-app notification list.
+      await db.notification.create({
+        data: {
+          userId: reminder.userId,
+          type: "class_reminder",
+          title: "Class starting now",
+          body: `${label} starts now (${startLabelTxt})`,
+          scheduledAt: new Date(occ),
+        },
+      });
+
+      sent++;
+      continue;
+    }
   }
 
   if (staleEndpoints.length > 0) {

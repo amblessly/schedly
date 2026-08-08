@@ -37,6 +37,10 @@ interface AlarmClass {
   id: string;
   days: DayKey[];
   startTime: Date | string;
+  shortName?: string | null;
+  code?: string | null;
+  subject?: string | null;
+  room?: string | null;
 }
 interface AlarmSchedule {
   classes: AlarmClass[];
@@ -70,6 +74,15 @@ function nextOccurrenceMs(
   return null;
 }
 
+function clockLabel(h: number, m: number): string {
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
+}
+
+function classLabel(cls: AlarmClass): string {
+  return cls.shortName?.trim() || cls.code?.trim() || cls.subject?.trim() || "Class";
+}
+
 export function computeAlarms(
   schedules: AlarmSchedule[],
   reminders: AlarmReminder[],
@@ -81,18 +94,31 @@ export function computeAlarms(
   for (const schedule of schedules) {
     for (const cls of schedule.classes ?? []) {
       const rem = byClass.get(cls.id);
+      if (rem && !rem.isActive) continue;
       const minutes = rem?.minutesBefore ?? 15;
       const occ = nextOccurrenceMs(cls.startTime, cls.days, now);
       if (occ === null) continue;
       const fireAt = occ - minutes * 60 * 1000;
-      if (fireAt <= now.getTime()) continue;
-      alarms.push({
-        id: cls.id,
-        fireAt,
-        title: "Upcoming class",
-        body: `Reminder: ${minutes} min before your class.`,
-        url: "/schedule",
-      });
+      const label = classLabel(cls);
+      const time = clockLabel(new Date(cls.startTime).getUTCHours(), new Date(cls.startTime).getUTCMinutes());
+      if (fireAt > now.getTime()) {
+        alarms.push({
+          id: `${cls.id}:upcoming`,
+          fireAt,
+          title: "Upcoming class",
+          body: `You have an upcoming class today — ${label} at ${time}.`,
+          url: "/schedule",
+        });
+      }
+      if (occ > now.getTime()) {
+        alarms.push({
+          id: `${cls.id}:start`,
+          fireAt: occ,
+          title: "Class starting now",
+          body: `You have class today — ${label} at ${time}.`,
+          url: "/schedule",
+        });
+      }
     }
   }
   return alarms;

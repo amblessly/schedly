@@ -35,7 +35,6 @@ export const navGroups: NavGroup[] = [
   {
     title: "Tools",
     items: [
-      { label: "Reminders", href: "/reminders", icon: "bell-ring" },
       { label: "Notes", href: "/notes", icon: "sticky-note" },
       { label: "GPA Calculator", href: "/gpa", icon: "graduation-cap" },
     ],

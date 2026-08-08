@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, ArrowLeft } from "lucide-react";
+import { Menu, ArrowLeft, Bell } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { Sidebar } from "@/components/sidebar";
@@ -90,7 +90,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         reg.active?.postMessage({
           type: "PRECACHE",
           urls: [
-            "/dashboard", "/schedule", "/notes", "/reminders", "/pomodoro", "/gpa",
+            "/dashboard", "/schedule", "/notes", "/notifications", "/pomodoro", "/gpa",
             ...(avatar ? [avatar] : []),
           ],
         });
@@ -159,6 +159,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   // Feedback page is opened from Settings → Support, so it goes back there too.
   const isFeedback = pathname === "/feedback";
+
+  // Notifications page is opened from the bell icon — the avatar becomes a
+  // back arrow that exits back to the dashboard.
+  const isNotifications = pathname === "/notifications";
 
   // Fade the top-left logo out only after a meaningful scroll down, back in
   // on scroll up — small scrolls don't hide it.
@@ -243,16 +247,18 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           onClick={() =>
             isSettings || isProfile
               ? router.push("/dashboard")
-              : isAdmin || isFeedback
-                ? router.push("/settings?tab=support")
+              : isAdmin || isFeedback || isNotifications
+                ? isNotifications
+                  ? router.push("/dashboard")
+                  : router.push("/settings?tab=support")
                 : router.push("/profile")
           }
-          className={`fixed left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center transition-all duration-300 ${isSettings || isAdmin || isFeedback ? "" : "hover:scale-105"} ${logoHidden ? "pointer-events-none -translate-y-2 opacity-0" : "opacity-100"}`}
+          className={`fixed left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center transition-all duration-300 ${isSettings || isAdmin || isFeedback || isNotifications ? "" : "hover:scale-105"} ${logoHidden ? "pointer-events-none -translate-y-2 opacity-0" : "opacity-100"}`}
           aria-label={
-            isSettings || isAdmin || isFeedback ? "Back" : "Open profile"
+            isSettings || isAdmin || isFeedback || isNotifications ? "Back" : "Open profile"
           }
         >
-          {isSettings || isAdmin || isFeedback ? (
+          {isSettings || isAdmin || isFeedback || isNotifications ? (
             <ArrowLeft className="h-6 w-6 text-foreground" />
           ) : userAvatar ? (
             <img src={userAvatar} alt={displayName} className="h-11 w-11 rounded-full object-cover ring-2 ring-border/40" />
@@ -261,6 +267,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               {initials}
             </div>
           )}
+        </button>
+      )}
+
+      {/* Notification button — sits to the left of the sidebar menu button */}
+      {!isImmersive && showButton && !isNotifications && (
+        <button
+          onClick={() => router.push("/notifications")}
+          className="fixed right-[4.75rem] top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center rounded-xl bg-sidebar/90 text-sidebar-foreground shadow-[0_8px_40px_rgba(0,0,0,0.12)] transition-colors hover:bg-sidebar"
+          aria-label="Notifications"
+        >
+          <Bell className="h-5 w-5" />
         </button>
       )}
 
