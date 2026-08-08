@@ -79,6 +79,7 @@ export default function RemindersPage() {
   const [now, setNow] = useState(() => new Date());
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushUpdating, setPushUpdating] = useState(false);
+  const [pushMessage, setPushMessage] = useState<{ kind: "error"; text: string } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -178,16 +179,19 @@ export default function RemindersPage() {
   const togglePush = async () => {
     if (pushUpdating) return;
     setPushUpdating(true);
+    setPushMessage(null);
     try {
       if (pushEnabled) {
-        const ok = await unsubscribeFromPush();
-        if (ok) setPushEnabled(false);
+        const result = await unsubscribeFromPush();
+        if (result.ok) setPushEnabled(false);
+        else setPushMessage({ kind: "error", text: result.reason });
       } else {
-        const ok = await subscribeToPush();
-        if (ok) setPushEnabled(true);
+        const result = await subscribeToPush();
+        if (result.ok) setPushEnabled(true);
+        else setPushMessage({ kind: "error", text: result.reason });
       }
     } catch {
-      // Leave state unchanged on failure.
+      setPushMessage({ kind: "error", text: "Something went wrong. Try again." });
     }
     setPushUpdating(false);
   };
@@ -248,6 +252,13 @@ export default function RemindersPage() {
           {pushEnabled ? "Turn off" : "Turn on"}
         </Button>
       </div>
+
+      {pushMessage && (
+        <p className="flex items-start gap-1.5 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          {pushMessage.text}
+        </p>
+      )}
 
       {pushEnabled && (
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">

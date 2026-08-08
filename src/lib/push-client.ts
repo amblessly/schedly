@@ -3,6 +3,10 @@
 /* Client-side web push helpers: subscribe the user's device to Schedly's
  * push service and persist the subscription server-side. */
 
+export type PushResult =
+  | { ok: true }
+  | { ok: false; reason: string };
+
 export function isPushSupported(): boolean {
   return (
     typeof window !== "undefined" &&
@@ -28,47 +32,111 @@ async function getVapidPublicKey(): Promise<string> {
   return body.publicKey;
 }
 
-export async function subscribeToPush(): Promise<boolean> {
-  if (!isPushSupported()) return false;
-  if (Notification.permission !== "granted") {
-    const result = await Notification.requestPermission();
-    if (result !== "granted") return false;
-  }
-
-  let reg: ServiceWorkerRegistration;
+/** Ensure the service worker is registered before relying on `ready`. */
+async function ensureActiveRegistration(): Promise<ServiceWorkerRegistration | null> {
   try {
-    reg = await navigator.serviceWorker.ready;
+    const existing = await navigator.serviceWorker.getRegistration("/");
+    if (existing?.active) return existing;
   } catch {
-    return false;
+    // Fall through to register().
   }
-
-  const existing = await reg.pushManager.getSubscription();
-  if (existing) {
-    // Already subscribed — make sure the server knows about it.
-    await persistSubscription(existing);
-    return true;
+  try {
+    await navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" });
+  } catch {
+    // Registration may still be pending; `ready` below handles it.
   }
-
-  const publicKey = await getVapidPublicKey();
-  const sub = await reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(publicKey) as unknown as BufferSource,
-  });
-  await persistSubscription(sub);
-  return true;
+  try {
+    return await navigator.serviceWorker.ready;
+  } catch {
+    return null;
+  }
 }
 
-export async function unsubscribeFromPush(): Promise<boolean> {
-  if (!isPushSupported()) return false;
+export async function subscribeToPush(): Promise<PushResult> {
+  if (!isPushSupported()) {
+    return { ok: false, reason: "Push isn't supported on this browser." };
+  }
+  if (Notification.permission === "denied") {
+    return {
+      ok: false,
+      reason:
+        "Notifications are blocked on this device. Enable them in your browser or phone settings, then try again.",
+    };
+  }
+
+  if (Notification.permission !== "granted") {
+    const result = await Notification.requestPermission();
+    if (result === "denied") {
+      return {
+        ok: false,
+        reason:
+          "Notifications are blocked on this device. Enable them in your browser or phone settings, then try again.",
+      };
+    }
+    if (result !== "granted") {
+      return { ok: false, reason: "Notification permission wasn't granted." };
+    }
+  }
+
+  const reg = await ensureActiveRegistration();
+  if (!reg) {
+    return {
+      ok: false,
+      reason: "The app's background service is still starting up. Refresh, then try again.",
+    };
+  }
+
+  try {
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      const publicKey = await getVapidPublicKey();
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey) as unknown as BufferSource,
+      });
+    }
+    // Already subscribed — make sure the server knows about it.
+    await persistSubscription(sub);
+    return { ok: true };
+  } catch (err) {
+    const name = (err as { name?: string })?.name;
+    if (
+      name === "NotAllowedError" ||
+      name === "PermissionDeniedError" ||
+      (err as { message?: string })?.message?.includes("permission")
+    ) {
+      return {
+        ok: false,
+        reason:
+          "Notifications are blocked on this device. Enable them in your browser or phone settings, then try again.",
+      };
+    }
+    if (name === "NotSupportedError" || name === "AbortError") {
+      return {
+        ok: false,
+        reason:
+          "Push alerts aren't supported on this browser's settings. Open Schedly in Chrome/Edge on Android, or install the app from the Home Screen on iPhone (iOS 16.4+).",
+      };
+    }
+    return {
+      ok: false,
+      reason: "Couldn't subscribe this device. Check your connection and try again.",
+    };
+  }
+}
+
+export async function unsubscribeFromPush(): Promise<PushResult> {
+  if (!isPushSupported()) return { ok: false, reason: "Unsupported on this browser." };
   try {
     const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription();
-    if (!sub) return true;
-    await persistRemoval(sub);
-    await sub.unsubscribe();
-    return true;
+    if (sub) {
+      await persistRemoval(sub);
+      await sub.unsubscribe();
+    }
+    return { ok: true };
   } catch {
-    return false;
+    return { ok: false, reason: "Couldn't unsubscribe this device." };
   }
 }
 
