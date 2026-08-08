@@ -178,7 +178,7 @@ export const auth = betterAuth({
         name: process.env.NODE_ENV === "production" ? "__Host-schedly-session" : "schedly-session",
         attributes: {
           httpOnly: true,
-          secure: true,
+          secure: process.env.NODE_ENV === "production",
           sameSite: "lax",
           path: "/",
         },
