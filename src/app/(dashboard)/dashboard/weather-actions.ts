@@ -86,3 +86,44 @@ export async function getWeatherByCoords(
     return { success: false, error: "Could not fetch weather. Please try again." };
   }
 }
+
+// IP-based fallback — approximate location from the request IP, used when the
+// browser denies geolocation permission.
+export async function getWeatherByIp(): Promise<WeatherResult> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return { success: false, error: "Unauthorized" };
+
+  const rate = await checkRateLimitDb(
+    `weather:${session.user.id}`,
+    WEATHER_MAX,
+    WEATHER_WINDOW_MS,
+  );
+  if (!rate.allowed) {
+    return { success: false, error: "Too many weather requests. Try again later." };
+  }
+
+  const apiKey = process.env.OPENWEATHER_API_KEY;
+  if (!apiKey) {
+    return { success: false, error: "Weather service not configured" };
+  }
+
+  try {
+    // ip-api.com free tier: 45 requests/min, HTTP only (https restricted on free).
+    const ipRes = await fetch("http://ip-api.com/json/", { next: { revalidate: 3600 } });
+    if (!ipRes.ok) return { success: false, error: "Could not detect location" };
+    const ipData = await ipRes.json();
+    if (ipData.status !== "success") {
+      return { success: false, error: "Could not detect location" };
+    }
+
+    const weather = await fetchWeather(ipData.lat, ipData.lon, apiKey);
+    if (!weather) {
+      return { success: false, error: "Failed to fetch weather data" };
+    }
+
+    return { success: true, data: weather };
+  } catch (err) {
+    console.error("[WEATHER_IP]", err);
+    return { success: false, error: "Could not fetch weather. Please try again." };
+  }
+}

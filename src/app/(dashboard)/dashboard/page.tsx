@@ -6,7 +6,7 @@ import html2canvas from "html2canvas-pro";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
 import { getAiInsights } from "@/app/(dashboard)/dashboard/actions";
-import { getWeatherByCoords, type WeatherData } from "@/app/(dashboard)/dashboard/weather-actions";
+import { getWeatherByCoords, getWeatherByIp, type WeatherData } from "@/app/(dashboard)/dashboard/weather-actions";
 import { retry } from "@/lib/retry";
 import { SchedulePreview } from "@/features/schedule/components/schedule-preview";
 import {
@@ -138,11 +138,25 @@ export default function DashboardPage() {
       .catch(() => setSchedules([]));
   }, []);
 
-  // Fetch weather on mount using browser geolocation
+  // Fetch weather on mount using browser geolocation, falling back to IP-based
+  // detection when permission is denied or unavailable.
   useEffect(() => {
-    if (!navigator.geolocation) {
-      setWeatherError("Geolocation not supported");
+    const fetchByIp = async () => {
+      try {
+        const res = await getWeatherByIp();
+        if (res.success) {
+          setWeather(res.data);
+        } else {
+          setWeatherError(res.error);
+        }
+      } catch {
+        setWeatherError("Failed to fetch weather");
+      }
       setWeatherLoading(false);
+    };
+
+    if (!navigator.geolocation) {
+      fetchByIp();
       return;
     }
 
@@ -160,17 +174,30 @@ export default function DashboardPage() {
         }
         setWeatherLoading(false);
       },
-      () => {
-        setWeatherError("Location access denied");
-        setWeatherLoading(false);
-      },
+      fetchByIp,
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
     );
   }, []);
 
   const refreshWeather = useCallback(() => {
+    const fetchByIp = async () => {
+      try {
+        const res = await getWeatherByIp();
+        if (res.success) {
+          setWeather(res.data);
+        } else {
+          setWeatherError(res.error);
+        }
+      } catch {
+        setWeatherError("Failed to fetch weather");
+      }
+      setWeatherLoading(false);
+    };
+
     if (!navigator.geolocation) {
-      setWeatherError("Geolocation not supported");
+      setWeatherLoading(true);
+      setWeatherError(null);
+      fetchByIp();
       return;
     }
     setWeatherLoading(true);
@@ -189,10 +216,7 @@ export default function DashboardPage() {
         }
         setWeatherLoading(false);
       },
-      () => {
-        setWeatherError("Location access denied");
-        setWeatherLoading(false);
-      },
+      fetchByIp,
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }
     );
   }, []);
