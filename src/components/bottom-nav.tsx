@@ -97,8 +97,8 @@ export function BottomNav() {
       )}
     >
 <div
-        className="bottom-nav flex items-end justify-center gap-1 rounded-full border border-border/60 bg-card/90 px-2 shadow-[0_12px_40px_rgba(0,0,0,0.22)] ring-1 ring-black/[0.03] backdrop-blur-xl"
-        style={{ paddingBottom: "calc(0.5rem + var(--sab))", marginBottom: "calc(0.75rem + var(--sab))" }}
+        className="bottom-nav flex items-end justify-center gap-2.5 rounded-full border border-border/60 bg-card/90 px-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.22)] ring-1 ring-black/[0.03] backdrop-blur-xl"
+        style={{ paddingBottom: "calc(0.75rem + var(--sab))", marginBottom: "calc(0.75rem + var(--sab))" }}
       >
         {items.slice(0, 2).map((item) => {
           const Icon = iconMap[item.icon] || Calendar;
@@ -116,13 +116,13 @@ export function BottomNav() {
               aria-label={item.label}
               title={item.label}
               className={cn(
-                "relative flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+                "relative flex h-12 w-12 items-center justify-center rounded-full transition-colors",
                 active
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Icon className="h-6 w-6" strokeWidth={active ? 2 : 1.75} />
+              <Icon className="h-8 w-8" strokeWidth={active ? 2 : 1.75} />
             </Link>
           );
         })}
@@ -132,9 +132,9 @@ export function BottomNav() {
           onClick={handleQuickAdd}
           aria-label="Quick add"
           title="Quick add"
-          className="relative -mt-6 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-4 border-card bg-primary text-primary-foreground shadow-[0_6px_20px_rgba(0,0,0,0.28)] transition-transform active:scale-95"
+          className="relative -mt-6 flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-4 border-card bg-primary text-primary-foreground shadow-[0_6px_20px_rgba(0,0,0,0.28)] transition-transform active:scale-95"
         >
-          <Camera className="h-5 w-5" strokeWidth={2.5} />
+          <Camera className="h-7 w-7" strokeWidth={2.5} />
         </button>
 
         {items.slice(2).map((item) => {
@@ -153,13 +153,13 @@ export function BottomNav() {
               aria-label={item.label}
               title={item.label}
               className={cn(
-                "relative flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+                "relative flex h-12 w-12 items-center justify-center rounded-full transition-colors",
                 active
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Icon className="h-6 w-6" strokeWidth={active ? 2 : 1.75} />
+              <Icon className="h-8 w-8" strokeWidth={active ? 2 : 1.75} />
             </Link>
           );
         })}
