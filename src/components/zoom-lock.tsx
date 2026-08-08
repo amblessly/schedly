@@ -10,12 +10,9 @@ import { Capacitor } from "@capacitor/core";
 // innerWidth scales with zoom), so we apply the inverse as the CSS `zoom`
 // property to cancel it out: actual = browserZoom * counter == TARGET_ZOOM.
 // The native Android WebView never reports a zoom change, so it is skipped.
+// Applied on every route so the scale stays consistent app-wide — landing,
+// login, and in-app screens all share the same locked look with no visual jump.
 const TARGET_ZOOM = 0.8;
-
-// The landing/onboarding flow should always render at a natural 100% scale —
-// the small screen already fills the viewport, so the 90% zoom-lock is only
-// for the in-app screens (dashboard, settings, etc.).
-const NO_ZOOM_PATHS = ["/"];
 
 export function ZoomLock() {
   const pathname = usePathname();
@@ -23,12 +20,9 @@ export function ZoomLock() {
   useEffect(() => {
     if (Capacitor.isNativePlatform()) return;
 
-    // Onboarding stays at natural scale: clear any zoom applied on a previous
-    // route and avoid attaching the zoom/scroll handlers.
-    if (NO_ZOOM_PATHS.includes(pathname ?? "")) {
-      document.documentElement.style.zoom = "";
-      return;
-    }
+    // Onboarding used to stay at natural scale; now every route shares the
+    // same locked zoom so the screen size never changes between pages.
+    if (pathname == null) return;
 
     const apply = () => {
       const zoom =

@@ -2,13 +2,15 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, ArrowLeft } from "lucide-react";
+import { Menu, ArrowLeft, Bell } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { Sidebar } from "@/components/sidebar";
 import { BottomNav } from "@/components/bottom-nav";
+import { OfflineBanner } from "@/components/offline-banner";
 import { useThemeConfig } from "@/features/theme";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { reportClientType, type ClientType } from "./actions";
 
 // The drawer's open state lives in a tiny external store so its initial
 // value can come from matchMedia only AFTER hydration. The server renders
@@ -76,6 +78,26 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     || firstName.charAt(0).toUpperCase();
   const userAvatar = u?.image || u?.avatarUrl || null;
 
+  // Auto-download offline support: once signed in, warm the cache with the
+  // main tab pages so they're instantly available (and work) offline. The
+  // avatar is warmed too so the user's photo still renders without internet.
+  useEffect(() => {
+    if (!user || !("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.ready
+      .then((reg) => {
+        const avatar = (user as { image?: string; avatarUrl?: string } | null)?.image
+          || (user as { image?: string; avatarUrl?: string } | null)?.avatarUrl;
+        reg.active?.postMessage({
+          type: "PRECACHE",
+          urls: [
+            "/dashboard", "/schedule", "/notes", "/notifications", "/pomodoro", "/gpa",
+            ...(avatar ? [avatar] : []),
+          ],
+        });
+      })
+      .catch(() => {});
+  }, [user]);
+
   useEffect(() => {
     if (needsOnboarding) router.replace("/onboarding");
     else if (needsEmailVerification && user) {
@@ -83,6 +105,45 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       router.replace(`/verify-email/pending?email=${email}`);
     }
   }, [needsOnboarding, needsEmailVerification, user, router]);
+
+  // Record what the user is running on (web, PWA on Android/iOS, or the
+  // Android APK) so the admin dashboard can show each user's device. Runs
+  // once per session per type, so it doesn't spam the database.
+  useEffect(() => {
+    if (!user) return;
+    let type: ClientType = "web";
+    try {
+      if (Capacitor.isNativePlatform()) {
+        type = "apk";
+      } else {
+        const standalone =
+          (window.matchMedia?.("(display-mode: standalone)")?.matches ?? false) ||
+          (navigator as { standalone?: boolean }).standalone === true;
+        if (standalone) {
+          type =
+            /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+              ? "pwa-ios"
+              : "pwa-android";
+        }
+      }
+    } catch {
+      type = "web";
+    }
+    const KEY = `schedly-client-${(user as { id?: string }).id ?? ""}`;
+    const now = Date.now();
+    try {
+      const cached = JSON.parse(sessionStorage.getItem(KEY) ?? "null") as {
+        type: ClientType;
+        at: number;
+      } | null;
+      if (cached?.type === type && now - cached.at < 6 * 60 * 60 * 1000) return;
+      sessionStorage.setItem(KEY, JSON.stringify({ type, at: now }));
+    } catch {
+      // No sessionStorage (rare) — still report.
+    }
+    reportClientType(type).catch(() => {});
+  }, [user]);
   // The design editor is immersive on mobile: no fixed header, drawer,
   // backdrop, or bottom nav covering it — the canvas fills the screen.
   const isImmersive = pathname === "/design";
@@ -98,6 +159,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   // Feedback page is opened from Settings → Support, so it goes back there too.
   const isFeedback = pathname === "/feedback";
+
+  // Notifications page is opened from the bell icon — the avatar becomes a
+  // back arrow that exits back to the dashboard.
+  const isNotifications = pathname === "/notifications";
 
   // Fade the top-left logo out only after a meaningful scroll down, back in
   // on scroll up — small scrolls don't hide it.
@@ -173,23 +238,27 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       />
 
       {/* Avatar/back top-left — fixed to the page (stays put while content scrolls).
-          On account settings and the profile page it becomes a back arrow. */}
+          On account settings and admin pages it becomes a back arrow. The
+          profile page keeps the avatar (identifying page) and has its own
+          back button inside, so the avatar never "turns into" an arrow. */}
       {!isImmersive && showButton && (
         <button
           type="button"
           onClick={() =>
             isSettings || isProfile
               ? router.push("/dashboard")
-              : isAdmin || isFeedback
-                ? router.push("/settings?tab=support")
+              : isAdmin || isFeedback || isNotifications
+                ? isNotifications
+                  ? router.push("/dashboard")
+                  : router.push("/settings?tab=support")
                 : router.push("/profile")
           }
-          className={`fixed left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center transition-all duration-300 ${isSettings || isProfile || isAdmin || isFeedback ? "" : "hover:scale-105"} ${logoHidden ? "pointer-events-none -translate-y-2 opacity-0" : "opacity-100"}`}
+          className={`fixed left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center transition-all duration-300 ${isSettings || isAdmin || isFeedback || isNotifications ? "" : "hover:scale-105"} ${logoHidden ? "pointer-events-none -translate-y-2 opacity-0" : "opacity-100"}`}
           aria-label={
-            isSettings || isProfile || isAdmin || isFeedback ? "Back" : "Open profile"
+            isSettings || isAdmin || isFeedback || isNotifications ? "Back" : "Open profile"
           }
         >
-          {isSettings || isProfile || isAdmin || isFeedback ? (
+          {isSettings || isAdmin || isFeedback || isNotifications ? (
             <ArrowLeft className="h-6 w-6 text-foreground" />
           ) : userAvatar ? (
             <img src={userAvatar} alt={displayName} className="h-11 w-11 rounded-full object-cover ring-2 ring-border/40" />
@@ -198,6 +267,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               {initials}
             </div>
           )}
+        </button>
+      )}
+
+      {/* Notification button — sits to the left of the sidebar menu button */}
+      {!isImmersive && showButton && !isNotifications && (
+        <button
+          onClick={() => router.push("/notifications")}
+          className="fixed right-[4.75rem] top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center rounded-xl bg-sidebar/90 text-sidebar-foreground shadow-[0_8px_40px_rgba(0,0,0,0.12)] transition-colors hover:bg-sidebar"
+          aria-label="Notifications"
+        >
+          <Bell className="h-5 w-5" />
         </button>
       )}
 
@@ -222,16 +302,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           ].join(" ")}
         >
           {isImmersive ? (
-            <div className="animate-fade-up h-dvh-fallback overflow-y-auto p-0 md:p-6 md:pt-20">
+            <div key={pathname} className="animate-fade-up h-dvh-fallback overflow-y-auto p-0 md:p-6 md:pt-20">
               {children}
             </div>
           ) : (
-            <div className="animate-fade-up mx-auto w-full max-w-3xl md:w-full">{children}</div>
+            <div key={pathname} className="animate-fade-up mx-auto w-full max-w-3xl md:w-full">{children}</div>
           )}
         </main>
       </div>
 
-      {!isImmersive && !isSettings && !isProfile && !isAdmin && !isFeedback && <BottomNav />}
+      {!isImmersive && <BottomNav />}
+      {!isImmersive && <OfflineBanner />}
     </div>
   );
 }

@@ -1,17 +1,26 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
+import { getUserReminders, updateReminder, type UpdateReminderResult } from "@/app/(dashboard)/reminders/actions";
+import { isPushSupported, hasFcmSubscription, pushUnsupportedReasons, subscribeToPush, unsubscribeFromFcm } from "@/lib/firebase";
+import { programReminderAlarms } from "@/lib/notification-scheduler";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Bell,
+  BellOff,
+  BellRing,
   Check,
   CheckCheck,
   Trash2,
   Calendar,
   Info,
   Clock,
+  CalendarDays,
+  MapPin,
+  Camera,
 } from "lucide-react";
 
 type Notification = {
@@ -23,6 +32,54 @@ type Notification = {
   createdAt: string;
 };
 
+type Day =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday";
+
+const DAY_SHORT: Record<Day, string> = {
+  monday: "Mon",
+  tuesday: "Tue",
+  wednesday: "Wed",
+  thursday: "Thu",
+  friday: "Fri",
+  saturday: "Sat",
+  sunday: "Sun",
+};
+
+const DAY_FULL: Record<Day, string> = {
+  monday: "Monday",
+  tuesday: "Tuesday",
+  wednesday: "Wednesday",
+  thursday: "Thursday",
+  friday: "Friday",
+  saturday: "Saturday",
+  sunday: "Sunday",
+};
+
+const DAY_KEYS: Day[] = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+];
+
+const MINUTE_OPTIONS = [5, 10, 15, 30, 60];
+
+type ReminderUi = {
+  id: string;
+  classId: string;
+  minutesBefore: number;
+  isActive: boolean;
+};
+
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -32,6 +89,20 @@ function timeAgo(dateStr: string): string {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
+}
+
+function fmtTime(value: string | Date): string {
+  const d = new Date(value);
+  const h = d.getUTCHours();
+  const m = d.getUTCMinutes();
+  const period = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+function startMinutes(value: string | Date): number {
+  const d = new Date(value);
+  return d.getUTCHours() * 60 + d.getUTCMinutes();
 }
 
 const typeIcons = {
@@ -46,10 +117,53 @@ const typeColors = {
   system: "bg-muted text-muted-foreground",
 };
 
-export default function NotificationsPage() {
+/** Small pill switch — the app doesn't have a Switch component. */
+function Toggle({
+  checked,
+  onChange,
+  disabled,
+  label,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  disabled?: boolean;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={onChange}
+      disabled={disabled}
+      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ${
+        checked ? "bg-primary" : "bg-muted"
+      } disabled:cursor-not-allowed disabled:opacity-40`}
+    >
+      <span className="absolute left-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-white text-primary shadow-sm transition-transform duration-200">
+        {checked ? <Check className="h-3 w-3" /> : null}
+      </span>
+    </button>
+  );
+}
+
+export function NotificationsPage() {
+  const router = useRouter();
+  const [tab, setTab] = useState<"notifications" | "reminders">("notifications");
+
+  // Notifications state
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread">("all");
+
+  // Reminders state
+  const [schedules, setSchedules] = useState<null | Awaited<ReturnType<typeof getUserSchedules>>>(null);
+  const [reminders, setReminders] = useState<ReminderUi[]>([]);
+  const [now, setNow] = useState(() => new Date());
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushUpdating, setPushUpdating] = useState(false);
+  const [pushMessage, setPushMessage] = useState<{ kind: "error"; text: string } | null>(null);
 
   useEffect(() => {
     getUserSchedules()
@@ -68,6 +182,147 @@ export default function NotificationsPage() {
       .catch(() => {})
       .finally(() => setLoaded(true));
   }, []);
+
+  // Reminders data
+  useEffect(() => {
+    let active = true;
+    getUserSchedules()
+      .then((s) => {
+        if (active) setSchedules(s);
+      })
+      .catch(() => {
+        if (active) setSchedules([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    getUserReminders()
+      .then((r) => {
+        if (active)
+          setReminders(
+            (r as unknown as ReminderUi[]).map((x) => ({
+              ...x,
+            }))
+          );
+      })
+      .catch(() => {
+        if (active) setReminders([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Restore push subscription state — defaults to OFF unless this device is
+  // actually subscribed through the current FCM project's VAPID key.
+  useEffect(() => {
+    if (!isPushSupported()) return;
+    let active = true;
+    hasFcmSubscription()
+      .then((has) => {
+        if (active) setPushEnabled(has);
+      })
+      .catch(() => {
+        if (active) setPushEnabled(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Program local alarms whenever schedules or reminder settings change.
+  useEffect(() => {
+    if (!schedules || reminders.length === 0) return;
+    programReminderAlarms(schedules as never, reminders as never).catch(() => {});
+  }, [schedules, reminders]);
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(t);
+  }, []);
+
+  const reminderByClass = new Map(reminders.map((r) => [r.classId, r]));
+  const allClasses = (schedules ?? []).flatMap((s) =>
+    s.classes.map((c) => ({ ...c, days: c.days as Day[] }))
+  );
+
+  const todayKey = DAY_KEYS[now.getDay()]!;
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+
+  const todays = allClasses
+    .filter((c) => c.days.includes(todayKey) && startMinutes(c.startTime) > nowMin)
+    .sort((a, b) => startMinutes(a.startTime) - startMinutes(b.startTime));
+
+  let visible = todays;
+  let contextLabel = "Today";
+  let contextSub =
+    visible.length > 0
+      ? `${visible.length} upcoming class${visible.length !== 1 ? "es" : ""}`
+      : "";
+
+  if (todays.length === 0) {
+    let nextIdx = -1;
+    for (let offset = 1; offset <= 7; offset++) {
+      const idx = (now.getDay() + offset) % 7;
+      if (allClasses.some((c) => c.days.includes(DAY_KEYS[idx]!))) {
+        nextIdx = idx;
+        break;
+      }
+    }
+    const nextKey = nextIdx >= 0 ? DAY_KEYS[nextIdx]! : null;
+    visible = nextKey
+      ? allClasses
+          .filter((c) => c.days.includes(nextKey))
+          .sort((a, b) => startMinutes(a.startTime) - startMinutes(b.startTime))
+      : [];
+    contextLabel = nextKey ? DAY_FULL[nextKey] : "Upcoming";
+    contextSub =
+      visible.length > 0
+        ? `${visible.length} upcoming class${visible.length !== 1 ? "es" : ""}`
+        : "No classes found";
+  }
+
+  const togglePush = async () => {
+    if (pushUpdating) return;
+    setPushUpdating(true);
+    setPushMessage(null);
+    try {
+      if (pushEnabled) {
+        const result = await unsubscribeFromFcm();
+        if (result.ok) setPushEnabled(false);
+        else setPushMessage({ kind: "error", text: result.reason });
+      } else {
+        const result = await subscribeToPush();
+        if (result.ok) setPushEnabled(true);
+        else setPushMessage({ kind: "error", text: result.reason });
+      }
+    } catch {
+      setPushMessage({ kind: "error", text: "Something went wrong. Try again." });
+    }
+    setPushUpdating(false);
+  };
+
+  const toggleReminder = async (classId: string) => {
+    const r = reminderByClass.get(classId);
+    if (!r) return;
+    const res = (await updateReminder(r.id, { isActive: !r.isActive })) as UpdateReminderResult;
+    if (res.success) {
+      setReminders((prev) =>
+        prev.map((x) => (x.id === r.id ? { ...x, isActive: !x.isActive } : x))
+      );
+    }
+  };
+
+  const changeMinutes = async (reminderId: string, minutes: number) => {
+    const res = (await updateReminder(reminderId, { minutesBefore: minutes })) as UpdateReminderResult;
+    if (res.success) {
+      setReminders((prev) => prev.map((x) => (x.id === reminderId ? { ...x, minutesBefore: minutes } : x)));
+    }
+  };
 
   function markAsRead(id: string) {
     setNotifications((prev) =>
@@ -89,145 +344,368 @@ export default function NotificationsPage() {
       ? notifications.filter((n) => !n.read)
       : notifications;
 
-  if (!loaded) {
-    return (
-      <div className="mx-auto max-w-3xl space-y-6 pt-8 md:pt-0">
-        <div>
-          <Skeleton className="h-8 w-40" />
-          <Skeleton className="h-4 w-48 mt-2" />
-        </div>
-        <Skeleton className="h-8 w-28 rounded-lg" />
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-start gap-4 rounded-xl bg-card/30 px-4 py-3.5 border border-border/30">
-              <Skeleton className="h-9 w-9 shrink-0 rounded-lg" />
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center justify-between">
-                  <Skeleton className="h-4 w-36" />
-                  <Skeleton className="h-2 w-2 rounded-full" />
-                </div>
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-16" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="mx-auto max-w-3xl space-y-6 pt-8 md:pt-0">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Notifications
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {unreadCount > 0 ? `You have ${unreadCount} unread notification${unreadCount > 1 ? "s" : ""}` : "You're all caught up!"}
-          </p>
+    <div className="mx-auto max-w-3xl space-y-5 pt-8 md:pt-0">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <BellRing className="h-5 w-5" />
+          </span>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              Notifications
+            </h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {unreadCount > 0
+                ? `${unreadCount} unread — stay on top of your schedule.`
+                : "You're all caught up."}
+            </p>
+          </div>
         </div>
-        {unreadCount > 0 && (
-          <Button variant="outline" size="sm" onClick={markAllRead}>
+        {tab === "notifications" && unreadCount > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={markAllRead}
+            className="shrink-0"
+          >
             <CheckCheck className="mr-1.5 h-3.5 w-3.5" />
             Mark all read
           </Button>
         )}
       </div>
 
-      {/* Filter */}
-      <div className="flex gap-1 rounded-lg bg-card/30 p-1 w-fit backdrop-blur-sm">
-        {(["all", "unread"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
-              filter === f
-                 ? "bg-card/30 text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {f}
-            {f === "unread" && unreadCount > 0 && (
-              <span className="ml-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground">
-                {unreadCount}
-              </span>
-            )}
-          </button>
-        ))}
+      {/* Segmented tabs */}
+      <div className="grid grid-cols-2 gap-1 rounded-2xl border border-border/30 bg-card/30 p-1 backdrop-blur-sm">
+        {(
+          [
+            { key: "notifications", label: "Notifications", icon: Bell },
+            { key: "reminders", label: "Class Reminders", icon: Clock },
+          ] as const
+        ).map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                active
+                  ? "bg-card text-foreground shadow-sm ring-1 ring-border/40"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Icon className={`h-4 w-4 ${active ? "text-primary" : ""}`} />
+              {t.label}
+              {t.key === "notifications" && unreadCount > 0 && (
+                <span className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold leading-none text-destructive-foreground">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Notifications */}
-      {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 py-16">
-          <Bell className="mb-3 h-10 w-10 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground">
-            {filter === "unread"
-              ? "No unread notifications."
-              : "No notifications yet — upload a schedule to see updates here."}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map((notification) => {
-            const Icon = typeIcons[notification.type];
-            return (
-              <div
-                key={notification.id}
-                className={`group flex items-start gap-4 rounded-xl bg-card/30 px-4 py-3.5 transition-[background-color,box-shadow] hover:shadow-sm border border-border/30 ${
-                  !notification.read ? "border-l-2 border-l-primary" : ""
+      {/* ---------- Notifications tab ---------- */}
+      {tab === "notifications" && (
+        <>
+          {loaded && notifications.length > 0 && (
+            <div className="flex items-center justify-between">
+              <div className="flex gap-1 rounded-xl bg-card/30 p-1 backdrop-blur-sm">
+                {(["all", "unread"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setFilter(f)}
+                    className={`relative rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                      filter === f
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {f}
+                    {f === "unread" && unreadCount > 0 && (
+                      <span className="absolute -right-1.5 -top-1.5 flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-semibold leading-none text-primary-foreground shadow-sm">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">{filtered.length} shown</p>
+            </div>
+          )}
+
+          {!loaded ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-start gap-4 rounded-2xl border border-border/30 bg-card/30 px-4 py-4">
+                  <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-4 w-36" />
+                      <Skeleton className="h-3 w-12" />
+                    </div>
+                    <Skeleton className="h-3 w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-16 text-center">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                <Bell className="h-7 w-7 text-primary/60" />
+              </div>
+              <p className="text-sm font-medium text-foreground">
+                {filter === "unread" ? "No unread notifications" : "No notifications yet"}
+              </p>
+              <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                {filter === "unread"
+                  ? "Nice — you've read everything."
+                  : "Upload a schedule photo and you'll see its updates here."}
+              </p>
+              {filter !== "unread" && (
+                <Button className="mt-5" onClick={() => router.push("/schedule")}>
+                  <Camera className="mr-1.5 h-4 w-4" />
+                  Upload Schedule
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filtered.map((notification) => {
+                const Icon = typeIcons[notification.type];
+                const unread = !notification.read;
+                return (
+                  <div
+                    key={notification.id}
+                    className={`group flex items-start gap-3 rounded-2xl border px-4 py-4 transition-[background-color,box-shadow] hover:shadow-sm sm:gap-4 ${
+                      unread
+                        ? "border-primary/25 bg-primary/[0.04]"
+                        : "border-border/30 bg-card/30"
+                    }`}
+                  >
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${typeColors[notification.type]}`}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p
+                          className={`text-sm font-semibold ${
+                            unread ? "text-foreground" : "text-muted-foreground"
+                          }`}
+                        >
+                          {notification.title}
+                        </p>
+                        <span className="shrink-0 text-[11px] text-muted-foreground/60">
+                          {timeAgo(notification.createdAt)}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {notification.body}
+                      </p>
+                    </div>
+                    {/* Actions — visible on touch, hover-revealed on desktop */}
+                    <div className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+                      {unread ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-primary"
+                          onClick={() => markAsRead(notification.id)}
+                          aria-label="Mark as read"
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <span className="hidden h-8 w-8" aria-hidden />
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => deleteNotification(notification.id)}
+                        aria-label="Delete notification"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ---------- Class Reminders tab ---------- */}
+      {tab === "reminders" && (
+        <>
+          {/* Push subscription control */}
+          <div
+            className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-4 transition-colors ${
+              pushEnabled
+                ? "border-green-500/30 bg-green-500/[0.06]"
+                : "border-border/30 bg-card/30"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                  pushEnabled
+                    ? "bg-green-500/15 text-green-600"
+                    : "bg-primary/10 text-primary"
                 }`}
               >
-                <div
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${typeColors[notification.type]}`}
-                >
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <p
-                      className={`text-sm font-medium ${
-                        notification.read ? "text-muted-foreground" : "text-foreground"
-                      }`}
-                    >
-                      {notification.title}
-                    </p>
-                    {!notification.read && (
-                      <div className="h-2 w-2 shrink-0 rounded-full bg-primary mt-1.5" />
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {notification.body}
+                {pushEnabled ? <BellRing className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Class reminders</p>
+                <p className="text-xs text-muted-foreground">
+                  {pushEnabled
+                    ? "You'll get a push alert before every class."
+                    : isPushSupported()
+                      ? "Get a push alert before every class."
+                      : "Push isn't supported on this browser."}
+                </p>
+                {!pushEnabled && !isPushSupported() && (
+                  <p className="mt-1 text-[11px] text-destructive">
+                    {pushUnsupportedReasons().join(" · ")}
                   </p>
-                  <p className="text-[11px] text-muted-foreground/60 mt-1">
-                    {timeAgo(notification.createdAt)}
-                  </p>
-                </div>
-                <div className="flex shrink-0 gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {!notification.read && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => markAsRead(notification.id)}
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                    onClick={() => deleteNotification(notification.id)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
+                )}
               </div>
-            );
-          })}
-        </div>
+            </div>
+            <Toggle
+              checked={pushEnabled}
+              onChange={togglePush}
+              disabled={pushUpdating || !isPushSupported()}
+              label="Toggle class reminders"
+            />
+          </div>
+
+          {pushMessage && (
+            <p className="flex items-start gap-1.5 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              {pushMessage.text}
+            </p>
+          )}
+
+          {schedules === null ? (
+            <div className="space-y-3">
+              <Skeleton className="h-3 w-16" />
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-4 rounded-2xl border border-border/30 bg-card/30 px-4 py-4">
+                  <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-3 w-40" />
+                  </div>
+                  <Skeleton className="h-6 w-11 shrink-0 rounded-full" />
+                </div>
+              ))}
+            </div>
+          ) : schedules.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-16 text-center">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                <Camera className="h-7 w-7 text-primary/60" />
+              </div>
+              <p className="text-sm font-medium text-foreground">No classes yet</p>
+              <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                Upload a photo of your class schedule and we&rsquo;ll automatically
+                create a reminder for each class.
+              </p>
+              <Button className="mt-5" onClick={() => router.push("/schedule")}>
+                <Camera className="mr-1.5 h-4 w-4" />
+                Upload Schedule
+              </Button>
+            </div>
+          ) : (
+            <>
+              {/* Context header: Today / next class day */}
+              <div>
+                <p className="text-sm font-semibold text-foreground">{contextLabel}</p>
+                <p className="text-xs text-muted-foreground">{contextSub}</p>
+              </div>
+
+              <div className="space-y-2">
+                {visible.map((c, i) => {
+                  const reminder = reminderByClass.get(c.id);
+                  const active = reminder?.isActive ?? false;
+                  return (
+                    <div
+                      key={c.id ?? i}
+                      className="flex items-center gap-3 rounded-2xl border border-border/30 bg-card/30 px-4 py-4 transition-[background-color,box-shadow] hover:shadow-sm sm:gap-4"
+                    >
+                      <div
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                        style={{ backgroundColor: c.color + "1f", color: c.color }}
+                      >
+                        <Bell className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-foreground">
+                          {c.shortName?.trim() || c.code?.trim() || c.subject}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {fmtTime(c.startTime)} &ndash; {fmtTime(c.endTime)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <CalendarDays className="h-3 w-3" />
+                            {c.days.map((d) => DAY_SHORT[d]).join(", ")}
+                          </span>
+                          {c.room && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              {c.room}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {reminder && (
+                        <div className="flex shrink-0 flex-col items-end gap-1.5">
+                          <Toggle
+                            checked={active}
+                            onChange={() => toggleReminder(reminder.classId)}
+                            label={`Toggle reminder for ${c.subject}`}
+                          />
+                          <select
+                            aria-label="Remind minutes before"
+                            value={reminder.minutesBefore}
+                            onChange={(e) => changeMinutes(reminder.id, Number(e.target.value))}
+                            disabled={!active}
+                            className="h-7 w-[4.5rem] rounded-md border border-border/60 bg-card px-1.5 text-[11px] font-medium text-foreground outline-none disabled:opacity-40"
+                          >
+                            {MINUTE_OPTIONS.map((m) => (
+                              <option key={m} value={m}>
+                                {m} min
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {pushEnabled && (
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Info className="h-3.5 w-3.5 shrink-0" />
+                  Reminders fire exactly on your class times — even when the app
+                  is closed.
+                </p>
+              )}
+            </>
+          )}
+        </>
       )}
     </div>
   );
 }
+
+export default NotificationsPage;

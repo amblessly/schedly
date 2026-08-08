@@ -1,10 +1,10 @@
 "use server";
 
-import { put } from "@vercel/blob";
 import { auth } from "@/server/lib/auth";
 import { db } from "@/server/db/client";
 import { headers } from "next/headers";
 import { detectImageMime } from "@/server/lib/security";
+import { storeImage, deleteStoredFileByUrl } from "@/server/services/file-store.service";
 
 export async function uploadAvatar(formData: FormData): Promise<{ url: string } | { error: string }> {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -17,8 +17,8 @@ export async function uploadAvatar(formData: FormData): Promise<{ url: string } 
     return { error: "No file provided" };
   }
 
-  if (file.size > 10 * 1024 * 1024) {
-    return { error: "File must be under 10MB" };
+  if (file.size > 20 * 1024 * 1024) {
+    return { error: "File must be under 20MB" };
   }
 
   const buffer = new Uint8Array(await file.arrayBuffer());
@@ -38,14 +38,10 @@ export async function uploadAvatar(formData: FormData): Promise<{ url: string } 
 
   let blobUrl: string;
   try {
-    const blob = await put(filename, new Blob([Buffer.from(buffer)], { type: detectedMime }), {
-      access: "public",
-      addRandomSuffix: false,
-      token: process.env.BLOB_READ_WRITE_TOKEN,
-    });
-    blobUrl = blob.url;
+    const stored = await storeImage(session.user.id, buffer, detectedMime, filename);
+    blobUrl = stored.url;
   } catch (err) {
-    console.error("[uploadAvatar] Blob upload failed:", err);
+    console.error("[uploadAvatar] File store failed:", err);
     return { error: "Upload failed. Please try again." };
   }
 
@@ -71,6 +67,8 @@ export async function removeAvatar(): Promise<{ ok: true } | { error: string }> 
   }
 
   const h = await headers();
+  const current = (session.user as { avatarUrl?: string | null }).avatarUrl;
+  if (current) await deleteStoredFileByUrl(current);
 
   try {
     await auth.api.updateUser({

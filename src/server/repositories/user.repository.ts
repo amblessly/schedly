@@ -33,6 +33,8 @@ export const userRepository = {
         username: true,
         isAdmin: true,
         emailVerified: true,
+        clientType: true,
+        lastSeenAt: true,
         createdAt: true,
       },
       orderBy: { createdAt: "desc" },

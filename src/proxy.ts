@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/server/lib/security";
 
 const publicRoutes = ["/login", "/register", "/"];
-const publicApiRoutes = ["/api/auth", "/api/version", "/api/admin/apk", "/api/admin/apk-download"];
+const publicApiRoutes = ["/api/auth", "/api/version", "/api/push", "/api/cron", "/api/admin/apk", "/api/admin/apk-download"];
 const verificationRoutes = ["/verify-email"];
 
 export async function proxy(request: NextRequest) {
@@ -42,6 +42,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|images|uploads|sw.js|manifest.webmanifest|.*\\.(?:jpg|jpeg|png|gif|svg|webp|ico)).*)",
+    "/((?!_next/static|_next/image|favicon.ico|images|uploads|offline.html|sw.js|manifest.webmanifest|.*\\.(?:jpg|jpeg|png|gif|svg|webp|ico)).*)",
   ],
 };

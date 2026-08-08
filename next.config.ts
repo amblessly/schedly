@@ -10,18 +10,18 @@ const isDev = process.env.NODE_ENV === "development";
 const csp = [
   "default-src 'self'",
   isDev
-    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com"
-    : "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://www.gstatic.com"
+    : "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://www.gstatic.com",
   "style-src 'self' 'unsafe-inline'",
   `img-src 'self' data: blob: ${appUrl} https://*.vercel.app https://*.blob.vercel-storage.com https://blob.vercel-storage.com https://openweathermap.org https://*.openweathermap.org`,
   `media-src 'self' data: blob: ${appUrl} https://*.vercel.app https://*.blob.vercel-storage.com https://blob.vercel-storage.com`,
   "font-src 'self'",
-  `connect-src 'self' ${appUrl} https://*.vercel.app https://*.blob.vercel-storage.com https://blob.vercel-storage.com https://challenges.cloudflare.com`,
+  `connect-src 'self' ${appUrl} https://*.vercel.app https://*.blob.vercel-storage.com https://blob.vercel-storage.com https://challenges.cloudflare.com https://*.googleapis.com https://*.gstatic.com https://fcm.googleapis.com`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
   "frame-src https://challenges.cloudflare.com",
-  "worker-src 'self'",
+  "worker-src 'self' https://www.gstatic.com",
   "manifest-src 'self'",
   ...(isDev ? [] : ["report-uri /api/csp-report"]),
 ].join("; ");

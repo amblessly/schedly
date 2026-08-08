@@ -11,6 +11,10 @@ export const reminderService = {
     return reminderRepository.findByUser(userId);
   },
 
+  async getById(id: string) {
+    return reminderRepository.findById(id);
+  },
+
   async getByClass(classId: string) {
     return reminderRepository.findByClass(classId);
   },

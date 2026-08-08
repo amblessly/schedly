@@ -10,7 +10,11 @@ type AuditAction =
   | "feedback.submit"
   | "widget.token_create"
   | "widget.token_regenerate"
-  | "admin.action";
+  | "admin.action"
+  | "reminders.update"
+  | "reminders.cron"
+  | "push.subscribe"
+  | "push.unsubscribe";
 
 export function auditLog(action: AuditAction, metadata?: Record<string, unknown>) {
   console.log(

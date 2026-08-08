@@ -8,14 +8,32 @@ import { ok, fail, type Result } from "@/server/lib/errors";
 import { PipelineLogger } from "@/server/lib/structured-logger";
 import { extractionCache, computeImageHash } from "@/server/lib/image-cache";
 import { preprocessImage } from "@/server/lib/image-processing";
+import { db } from "@/server/db/client";
 import {
   buildResult,
   finalizeValidated,
   type ExtractionResult,
 } from "@/server/lib/extraction-deterministic";
 
-/** Fetch raw image bytes (needed for hashing/caching). */
+/**
+ * Fetch raw image bytes (needed for hashing/caching).
+ *
+ * DB-backed files (/api/upload/:id/file, used when Vercel Blob is
+ * unavailable/suspended) are read straight from Postgres to avoid an extra
+ * HTTP round-trip — the bytes are guaranteed identical and immune to
+ * middleware/proxy redirects returning HTML instead of the image.
+ */
 async function fetchImageBytes(imageUrl: string): Promise<Buffer> {
+  const match = imageUrl.match(/\/api\/upload\/([^/]+)\/file/);
+  if (match) {
+    const upload = await db.upload.findUnique({
+      where: { id: match[1]! },
+      select: { fileData: true },
+    });
+    if (upload?.fileData) {
+      return Buffer.from(upload.fileData, "base64");
+    }
+  }
   const response = await fetch(imageUrl);
   if (!response.ok) throw new Error(`Failed to fetch image: ${response.status}`);
   return Buffer.from(await response.arrayBuffer());

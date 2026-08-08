@@ -3,15 +3,95 @@
  * Strategy:
  *  - Navigation (HTML shell): network-first, falls back to the last good
  *    cached page, then to /offline.html when completely offline.
+ *  - RSC payloads (client-side tab switching): stale-while-revalidate — the
+ *    page the user already visited renders instantly offline.
  *  - Static build assets (_next/static, icons, images): cache-first. Hashed
  *    filenames are immutable, so cached copies never go stale.
- *  - Schedule images on Vercel Blob: network-first with cache fallback so
- *    previously loaded schedule photos still render offline.
- *  - Everything else (API, RSC payloads, non-GET): network only — we never
- *    cache user data or server responses.
+ *  - Schedule images (DB-backed /api/upload ID file endpoint): network-first with
+ *    cache fallback so previously loaded schedule photos still render offline.
+ *  - Everything else (API, non-GET): network only — we never cache user data
+ *    or server responses unless the page itself is cached as HTML.
  */
 
-const CACHE_NAME = "schedly-cache-v1";
+// --- Firebase Cloud Messaging (background push) --------------------------
+// The web app posts its config (type: FIREBASE_CONFIG) after registration so
+// the keys stay in server env vars, never in this file.
+let firebaseConfig = null;
+
+self.addEventListener("message", (event) => {
+  const data = event.data || {};
+  if (data.type === "FIREBASE_CONFIG") {
+    firebaseConfig = data.config;
+    initFcm();
+  }
+});
+
+function initFcm() {
+  // Wait until the client posts the config — importing the SDK loads ~200KB
+  // from gstatic, so it isn't worth doing for a config-less SW.
+  if (!firebaseConfig || !firebaseConfig.apiKey) return;
+  try {
+    importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js");
+    importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js");
+  } catch {
+    return;
+  }
+  if (!self.firebase || !self.firebase.messaging) return;
+  if (self.firebase.apps && self.firebase.apps.length === 0) {
+    try {
+      self.firebase.initializeApp(firebaseConfig);
+    } catch {
+      return;
+    }
+  }
+  const messaging = self.firebase.messaging();
+  messaging.onBackgroundMessage((payload) => {
+    const notification = payload.notification || {};
+    const data = payload.data || {};
+    const title = notification.title || data.title || "Schedly";
+    const options = {
+      body: notification.body || data.body || "",
+      icon: "/icons/icon-512.png",
+      badge: "/icons/icon-192.png",
+      vibrate: [200, 100, 200],
+      tag: data.tag || `schedly-${Date.now()}`,
+      data: data || {},
+    };
+    self.registration.showNotification(title, options);
+  });
+}
+
+const CACHE_NAME = "schedly-cache-v4";
+const RSC_CACHE = `${CACHE_NAME}-rsc`;
+
+// External images (avatars, weather icons) are fetched with no-cors so they
+// CAN be cached — otherwise the browser blocks them and offline avatars fail.
+function isExternalImage(url) {
+  return (
+    url.hostname === "lh3.googleusercontent.com" ||
+    url.hostname.endsWith(".googleusercontent.com") ||
+    url.hostname === "avatars.githubusercontent.com" ||
+    url.hostname.endsWith(".githubusercontent.com") ||
+    url.hostname === "openweathermap.org" ||
+    url.hostname.endsWith(".openweathermap.org") ||
+    url.hostname === "blob.vercel-storage.com" ||
+    url.hostname.endsWith(".blob.vercel-storage.com")
+  );
+}
+
+// When offline, navigation can still land on a URL that was never cached
+// (e.g. "/" redirects for signed-in users). Fall back to the main app pages
+// in a sensible order instead of giving up with the offline screen.
+const NAV_FALLBACKS = [
+  "/dashboard",
+  "/schedule",
+  "/notes",
+  "/notifications",
+  "/pomodoro",
+  "/gpa",
+  "/login",
+  "/",
+];
 
 const PRECACHE_ASSETS = [
   "/manifest.webmanifest",
@@ -38,10 +118,137 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)));
+      await Promise.all(
+        keys
+          .filter((k) => !k.startsWith(CACHE_NAME) && k !== ALARMS_CACHE)
+          .map((k) => caches.delete(k))
+      );
       await self.clients.claim();
+      // Re-arm persisted reminder alarms (SW restarts, cache updates, etc.).
+      await armAlarms();
     })()
   );
+});
+
+// Auto-download while online: after login the app tells us which pages the
+// user will likely open, and we warm the cache for them in the background.
+// Also receives programmed class-reminder alarms for local notification
+// triggers (fires on time even when Schedly isn't open, no server needed).
+const ALARMS_CACHE = "schedly-alarms";
+
+async function readAlarms() {
+  try {
+    const cache = await caches.open(ALARMS_CACHE);
+    const res = await cache.match("/alarms.json");
+    if (!res) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeAlarms(alarms) {
+  const cache = await caches.open(ALARMS_CACHE);
+  await cache.put("/alarms.json", new Response(JSON.stringify(alarms), { headers: { "Content-Type": "application/json" } }));
+}
+
+/** Re-arm programmed alarms. With Notification Triggers they fire exactly on
+ *  time even when the SW later sleeps; storage survives so we re-arm after
+ *  every activation. */
+async function armAlarms() {
+  const alarms = await readAlarms();
+  const now = Date.now();
+  const remaining = [];
+  for (const alarm of alarms) {
+    if (alarm.fireAt <= now) continue;
+    remaining.push(alarm);
+    // Unique tag per (id, fireAt): the "upcoming" and "starting now" alarms
+    // for the same class must not replace each other in the notification bar.
+    const tag = `rem-${alarm.id}-${alarm.fireAt}`;
+    try {
+      if (typeof TimestampTrigger !== "undefined") {
+        await self.registration.showNotification(alarm.title, {
+          body: alarm.body || "",
+          icon: "/icons/icon-192.png",
+          badge: "/icons/icon-192.png",
+          data: { url: alarm.url || "/" },
+          tag,
+          showTrigger: new TimestampTrigger(alarm.fireAt),
+        });
+      } else if (alarm.fireAt - now <= 60 * 1000) {
+        // No Trigger API: best-effort one-shot while the SW is alive.
+        setTimeout(() => self.registration.showNotification(alarm.title, {
+          body: alarm.body || "",
+          icon: "/icons/icon-192.png",
+          badge: "/icons/icon-192.png",
+          data: { url: alarm.url || "/" },
+          tag,
+        }), alarm.fireAt - now).unref?.();
+      }
+    } catch {
+      // A failed trigger must not break other alarms.
+    }
+  }
+  await writeAlarms(remaining);
+}
+
+self.addEventListener("message", (event) => {
+  const data = event.data || {};
+  if (data.type === "PRECACHE") {
+    event.waitUntil(
+      (async () => {
+        const cache = await caches.open(CACHE_NAME);
+        const rscCache = await caches.open(RSC_CACHE);
+        for (const url of data.urls || []) {
+          try {
+            // External images (avatars) need no-cors so they can be cached;
+            // otherwise the browser blocks the request and offline fails.
+            const u = new URL(url, self.location.origin);
+            const res = await fetch(url, isExternalImage(u) ? { mode: "no-cors" } : {});
+            if (res.ok || res.type === "opaque") {
+              cache.put(url, res.clone());
+              // Warm the JS/CSS chunks referenced by the page so it actually
+              // renders offline — the HTML shell alone is not enough.
+              if (res.type !== "opaque") {
+                const html = await res.clone().text();
+                const refs = html.match(/\/_next\/static\/[^"']+/g) || [];
+                for (const ref of [...new Set(refs)]) {
+                  try {
+                    const asset = await fetch(ref);
+                    if (asset.ok) cache.put(ref, asset.clone());
+                  } catch {
+                    // Best-effort.
+                  }
+                }
+              }
+            }
+          } catch {
+            // Best-effort; skip pages that fail.
+          }
+          try {
+            // Warm the RSC payload too, keyed by plain path, so the page
+            // still navigates client-side when offline.
+            const rsc = await fetch(url, { headers: { RSC: "1" } });
+            if (rsc.ok) rscCache.put(new URL(url, self.location.origin).pathname, rsc.clone());
+          } catch {
+            // Best-effort.
+          }
+        }
+      })()
+    );
+  } else if (data.type === "PROGRAM_ALARMS") {
+    event.waitUntil(
+      (async () => {
+        const now = Date.now();
+        const alarms = Array.isArray(data.alarms)
+          ? data.alarms.filter((a) => a && typeof a.fireAt === "number" && a.fireAt > now)
+          : [];
+        await writeAlarms(alarms);
+        await armAlarms();
+      })()
+    );
+  }
 });
 
 self.addEventListener("fetch", (event) => {
@@ -66,8 +273,45 @@ self.addEventListener("fetch", (event) => {
         } catch {
           const cache = await caches.open(CACHE_NAME);
           const cached = await cache.match(request);
-          return cached || (await cache.match("/offline.html"));
+          if (cached) return cached;
+          // The requested URL may not be cached directly (e.g. "/" was a
+          // redirect while signed in) — serve the best known app page so the
+          // user lands on Schedly, not on the offline card.
+          for (const route of NAV_FALLBACKS) {
+            const fallback = await cache.match(route);
+            if (fallback) return fallback;
+          }
+          return (await cache.match("/offline.html")) || Response.error();
         }
+      })()
+    );
+    return;
+  }
+
+  // --- RSC payloads (soft navigation): stale-while-revalidate --------------
+  // Next.js fetches these when switching tabs client-side. Caching them lets
+  // previously visited tabs load instantly and work offline.
+  const isRsc = request.headers.get("RSC") === "1" || url.searchParams.has("__rsc");
+  if (isSameOrigin && isRsc) {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(RSC_CACHE);
+        const pathKey = url.origin + url.pathname;
+        const cached =
+          (await cache.match(request)) || (await cache.match(pathKey));
+        const fetched = fetch(request).then((res) => {
+          if (res.ok) {
+            cache.put(request, res.clone());
+            cache.put(pathKey, res.clone());
+          }
+          return res;
+        });
+        if (cached) {
+          // Background refresh keeps it fresh without waiting on the network.
+          fetched.catch(() => {});
+          return cached;
+        }
+        return fetched;
       })()
     );
     return;
@@ -116,11 +360,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // --- Schedule images (Vercel Blob): network-first, cache fallback ---------
-  if (
-    url.hostname === "blob.vercel-storage.com" ||
-    url.hostname.endsWith(".blob.vercel-storage.com")
-  ) {
+  // --- Schedule images (DB-backed): network-first, cache fallback ----------
+  if (isSameOrigin && url.pathname.startsWith("/api/upload/") && url.pathname.endsWith("/file")) {
     event.respondWith(
       (async () => {
         const cache = await caches.open(CACHE_NAME);
@@ -136,5 +377,81 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // --- Blob-storage images (legacy): network-first, cache fallback ---------
+  // --- Avatars & weather icons (external images): network-first, cache
+  // fallback so the user's photo and the weather card still render when
+  // offline. Google/GitHub avatar URLs and OpenWeatherMap icons are safe to
+  // cache — they're public, and revalidate in the background when online.
+  if (isExternalImage(url)) {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(CACHE_NAME);
+        try {
+          // Match the original request mode — images load as no-cors and the
+          // opaque response can still be put() into the cache.
+          const res = await fetch(request);
+          cache.put(request, res.clone()).catch(() => {});
+          return res;
+        } catch {
+          return (await cache.match(request)) || Response.error();
+        }
+      })()
+    );
+    return;
+  }
+
   // --- Everything else: network only ---------------------------------------
+});
+
+// --- Push notifications ----------------------------------------------------
+// The server (Vercel Cron → /api/cron/reminders) computes exact class times
+// from the timetable and pushes payloads here, so reminders arrive even when
+// Schedly isn't open.
+//
+// Pushes sent through FCM (the default since the FCM migration) are handled
+// by initFcm()'s onBackgroundMessage — skip them here to avoid a duplicate
+// notification. Legacy web-push payloads ({title,body,url} on the top level)
+// are the only ones this listener renders.
+self.addEventListener("push", (event) => {
+  let data = { title: "Schedly", body: "", url: "/" };
+  let isFcm = false;
+  try {
+    const parsed = event.data ? JSON.parse(event.data.text()) : {};
+    data = { ...data, ...parsed };
+    isFcm = Boolean(parsed.data || parsed.notification);
+  } catch {
+    // Fall back to defaults if the payload isn't valid JSON.
+  }
+  if (isFcm) return;
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Schedly", {
+      body: data.body || "",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { url: data.url || "/" },
+      tag: `schedly-${Date.now()}`,
+      vibrate: [100, 50, 100],
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/";
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of all) {
+        if ("focus" in client) {
+          await client.focus();
+          if ("navigate" in client) client.navigate(url);
+          return;
+        }
+      }
+      if (self.clients.openWindow) {
+        await self.clients.openWindow(url);
+      }
+    })()
+  );
 });

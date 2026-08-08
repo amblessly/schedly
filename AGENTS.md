@@ -103,5 +103,5 @@ Used by the existing in-app update system. Automatically updated by the release 
 ## Upload Security
 - Magic byte detection (`src/server/lib/security.ts`) validates actual file content, not just MIME type
 - Allowed formats: JPEG, PNG, GIF, WebP, BMP
-- Max file size: 10MB
+- Max file size: 20MB
 <!-- END:security -->

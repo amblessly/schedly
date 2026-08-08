@@ -1,38 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
 import { auth } from "@/server/lib/auth";
 import { db } from "@/server/db/client";
 import { uploadService } from "@/server/services/upload.service";
 import { detectImageMime, checkRateLimitDb, validateCsrf } from "@/server/lib/security";
 import { auditLog } from "@/server/lib/audit";
-import fs from "fs/promises";
-import path from "path";
-
-const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
+import { storeImage } from "@/server/services/file-store.service";
 
 export const maxDuration = 300;
-
-type StoredFile = { url: string; key: string };
-
-async function storeFile(buffer: Uint8Array, mime: string, key: string): Promise<StoredFile> {
-  const blob = new Blob([Buffer.from(buffer)], { type: mime });
-
-  if (BLOB_TOKEN) {
-    const result = await put(key, blob, {
-      access: "public",
-      addRandomSuffix: false,
-      token: BLOB_TOKEN,
-    });
-    return { url: result.url, key };
-  }
-
-  const target = path.join(UPLOAD_DIR, key);
-  await fs.mkdir(path.dirname(target), { recursive: true });
-  await fs.writeFile(target, Buffer.from(buffer));
-  return { url: `/uploads/${key}`, key };
-}
 
 export async function POST(request: NextRequest) {
   const session = await auth.api.getSession({ headers: request.headers });
@@ -78,9 +53,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    const maxSize = 10 * 1024 * 1024;
+    const maxSize = 20 * 1024 * 1024;
     if (file.size > maxSize) {
-      return NextResponse.json({ error: "File too large (max 10MB)" }, { status: 400 });
+      return NextResponse.json({ error: "File too large (max 20MB)" }, { status: 400 });
     }
 
     if (file.size === 0) {
@@ -94,33 +69,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File must be an image (JPEG, PNG, GIF, WebP, or BMP)" }, { status: 400 });
     }
 
-    // Extension comes from the detected MIME (magic bytes), never from the
-    // user-controlled filename — the raw name could contain path separators
-    // and escape the per-user uploads directory.
-    const EXT_BY_MIME: Record<string, string> = {
-      "image/jpeg": "jpg",
-      "image/png": "png",
-      "image/gif": "gif",
-      "image/webp": "webp",
-      "image/bmp": "bmp",
-    };
-    const ext = EXT_BY_MIME[detectedMime] ?? "jpg";
-    const key = `schedules/${session.user.id}/${crypto.randomUUID()}.${ext}`;
+    // Stored via Vercel Blob when available, otherwise persisted in Postgres
+    // (uploads.file_data) and served from /api/upload/:id/file. The row is
+    // created here in both cases, so polling status works identically.
+    const stored = await storeImage(
+      session.user.id,
+      buffer,
+      detectedMime,
+      file.name,
+      { folder: "schedules", status: "processing" }
+    );
 
-    const stored = await storeFile(buffer, detectedMime, key);
-
-    const upload = await db.upload.create({
-      data: {
-        userId: session.user.id,
-        fileUrl: stored.url,
-        fileName: file.name,
-        fileSize: file.size,
-        mimeType: detectedMime,
-        status: "processing",
-      },
-    });
-
-    auditLog("upload.create", { userId: session.user.id, uploadId: upload.id, fileName: file.name });
+    auditLog("upload.create", { userId: session.user.id, uploadId: stored.uploadId, fileName: file.name });
 
     // Kick off AI extraction in the background so this request returns fast.
     // The client polls GET /api/upload/[id] until the status flips to
@@ -133,17 +93,17 @@ export async function POST(request: NextRequest) {
       : `${origin}${stored.url}`;
 
     if (process.env.OPENROUTER_API_KEY) {
-      const task = uploadService.processWithAi(upload.id, absoluteUrl);
+      const task = uploadService.processWithAi(stored.uploadId, absoluteUrl);
       void waitUntil(task);
       void task.catch((err) => {
         console.error("[UPLOAD_API] Background AI extraction failed:", err);
       });
     } else {
-      await uploadService.updateStatus(upload.id, "completed");
+      await uploadService.updateStatus(stored.uploadId, "completed");
     }
 
     return NextResponse.json({
-      uploadId: upload.id,
+      uploadId: stored.uploadId,
       fileUrl: stored.url,
       status: "processing",
     });

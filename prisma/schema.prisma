@@ -53,6 +53,8 @@ model User {
   theme     String   @default("system")
   widgetToken String? @unique @map("widget_token")
   onboardingCompleted Boolean @default(false) @map("onboarding_completed")
+  clientType String? @map("client_type")
+  lastSeenAt DateTime? @map("last_seen_at")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -63,6 +65,8 @@ model User {
   uploads       Upload[]
   notifications Notification[]
   feedbacks     Feedback[]
+  pushSubscriptions PushSubscription[]
+  fcmTokens        FCMToken[]
 
   @@map("users")
 }
@@ -158,6 +162,7 @@ model Reminder {
   userId        String   @map("user_id")
   minutesBefore Int      @default(15) @map("minutes_before")
   isActive      Boolean  @default(true) @map("is_active")
+  lastSentAt    DateTime? @map("last_sent_at")
   createdAt     DateTime @default(now()) @map("created_at")
 
   class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
@@ -166,6 +171,35 @@ model Reminder {
   @@index([classId])
   @@index([userId])
   @@map("reminders")
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  endpoint  String   @unique
+  p256dh    String   @map("p256dh")
+  auth      String
+  timezone  String   @default("UTC")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+model FCMToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("fcm_tokens")
 }
 
 model Upload {

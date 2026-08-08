@@ -59,6 +59,7 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
+  manifest: "/manifest.webmanifest",
 };
 
 export const viewport: Viewport = {
@@ -95,11 +96,10 @@ export default async function RootLayout({
         {/* Applies the zoom-lock before first paint, so refreshes don't flash
             the page at the browser's raw zoom level. Same math as ZoomLock —
             on native (Capacitor) the runtime is injected before this script.
-            The landing/onboarding flow (the "/" path) is kept at natural 100%
-            zoom, matching ZoomLock's NO_ZOOM_PATHS. */}
+            Applied on every route so the scale is consistent app-wide. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{if(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())return;if(location.pathname==="/")return;var o=window.outerWidth,i=window.innerWidth;var z=o&&i?o/i:1;var c=0.9/Math.max(0.1,z);c=Math.min(1.5,Math.max(0.5,c));var s=Math.abs(c-1)<0.001?"":c.toFixed(4);var h=document.documentElement;if(h.style.zoom!==s)h.style.zoom=s;}catch(e){}})();`,
+            __html: `(function(){try{if(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())return;var o=window.outerWidth,i=window.innerWidth;var z=o&&i?o/i:1;var c=0.8/Math.max(0.1,z);c=Math.min(1.5,Math.max(0.5,c));var s=Math.abs(c-1)<0.001?"":c.toFixed(4);var h=document.documentElement;if(h.style.zoom!==s)h.style.zoom=s;}catch(e){}})();`,
           }}
         />
       </head>
@@ -114,7 +114,7 @@ export default async function RootLayout({
             backgroundSize: "cover",
           }}
         />
-        <div className="relative z-10 flex min-h-full flex-1 flex-col">
+        <div className="relative z-10 flex min-h-full flex-1 flex-col safe-area-content">
           <Warmup />
           <InstallPrompt />
           <ZoomLock />

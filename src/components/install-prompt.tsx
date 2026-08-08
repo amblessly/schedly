@@ -20,14 +20,6 @@ function isIOS(): boolean {
   );
 }
 
-function isStandalone(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    (navigator as Navigator & { standalone?: boolean }).standalone === true
-  );
-}
-
 export function InstallPrompt() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
@@ -42,10 +34,11 @@ export function InstallPrompt() {
     // global install sheet should not compete with it.
     if (pathname?.startsWith("/onboarding")) return;
 
-    if (Capacitor.isNativePlatform() || isStandalone()) return;
+    if (Capacitor.isNativePlatform()) return;
 
     // Register the service worker so the PWA is installable (Chrome/Edge)
-    // and the app shell is cached for offline use.
+    // and the app shell is cached for offline use. Registered on every mount
+    // so already-installed PWAs also pick up SW updates (cache v2).
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
         .register("/sw.js", { updateViaCache: "none" })

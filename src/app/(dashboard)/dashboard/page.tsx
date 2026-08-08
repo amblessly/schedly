@@ -8,6 +8,7 @@ import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
 import { getAiInsights } from "@/app/(dashboard)/dashboard/actions";
 import { getWeatherByCoords, getWeatherByIp, type WeatherData } from "@/app/(dashboard)/dashboard/weather-actions";
 import { retry } from "@/lib/retry";
+import { withOfflineCache } from "@/lib/offline-cache";
 import { SchedulePreview } from "@/features/schedule/components/schedule-preview";
 import {
   getFreeTimeToday,
@@ -133,17 +134,22 @@ export default function DashboardPage() {
   const username = (user as { username?: string } | null)?.username || "there";
 
   useEffect(() => {
-    retry(() => getUserSchedules(), { delayMs: 2000 })
+    retry(() => withOfflineCache("schedule:list", () => getUserSchedules()), { delayMs: 2000 })
       .then((data) => setSchedules(data as ScheduleData[]))
       .catch(() => setSchedules([]));
   }, []);
 
   // Fetch weather on mount using browser geolocation, falling back to IP-based
-  // detection when permission is denied or unavailable.
+  // detection when permission is denied or unavailable. Results are cached so
+  // the last known weather still shows offline.
   useEffect(() => {
     const fetchByIp = async () => {
       try {
-        const res = await getWeatherByIp();
+        const res = await withOfflineCache(
+          "weather:ip",
+          () => getWeatherByIp(),
+          { ttlMs: 60 * 60 * 1000 }
+        );
         if (res.success) {
           setWeather(res.data);
         } else {
@@ -163,7 +169,11 @@ export default function DashboardPage() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          const res = await getWeatherByCoords(pos.coords.latitude, pos.coords.longitude);
+          const res = await withOfflineCache(
+            `weather:coords:${pos.coords.latitude.toFixed(2)},${pos.coords.longitude.toFixed(2)}`,
+            () => getWeatherByCoords(pos.coords.latitude, pos.coords.longitude),
+            { ttlMs: 60 * 60 * 1000 }
+          );
           if (res.success) {
             setWeather(res.data);
           } else {
@@ -182,7 +192,11 @@ export default function DashboardPage() {
   const refreshWeather = useCallback(() => {
     const fetchByIp = async () => {
       try {
-        const res = await getWeatherByIp();
+        const res = await withOfflineCache(
+          "weather:ip",
+          () => getWeatherByIp(),
+          { ttlMs: 60 * 60 * 1000 }
+        );
         if (res.success) {
           setWeather(res.data);
         } else {
@@ -205,7 +219,11 @@ export default function DashboardPage() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          const res = await getWeatherByCoords(pos.coords.latitude, pos.coords.longitude);
+          const res = await withOfflineCache(
+            `weather:coords:${pos.coords.latitude.toFixed(2)},${pos.coords.longitude.toFixed(2)}`,
+            () => getWeatherByCoords(pos.coords.latitude, pos.coords.longitude),
+            { ttlMs: 60 * 60 * 1000 }
+          );
           if (res.success) {
             setWeather(res.data);
           } else {
@@ -440,9 +458,22 @@ export default function DashboardPage() {
                 No classes today — time to relax or catch up on tasks.
               </p>
             ) : (
-              // One compact subject visible at a time — snap-scroll through the rest.
+              // Ongoing first, upcoming next, finished pushed to the bottom —
+              // one compact subject visible at a time, snap-scroll through the rest.
               <div ref={todayListRef} className="my-auto h-[6.5rem] snap-y snap-mandatory overflow-y-auto pr-1">
-                {todaysClasses.map((c) => {
+                {[...todaysClasses]
+                  .sort((a, b) => {
+                    const nowMin = now.getHours() * 60 + now.getMinutes();
+                    const rank = (c: typeof todaysClasses[number]) => {
+                      const startMin = toMin(c.startTime);
+                      const endMin = toMin(c.endTime);
+                      if (nowMin >= startMin && nowMin < endMin) return 0;
+                      if (nowMin < startMin) return 1;
+                      return 2;
+                    };
+                    return rank(a) - rank(b) || toMin(a.startTime) - toMin(b.startTime);
+                  })
+                  .map((c) => {
                   const name = c.shortName?.trim() || c.code?.trim() || c.subject;
                   const nowMin = now.getHours() * 60 + now.getMinutes();
                   const startMin = toMin(c.startTime);
@@ -531,7 +562,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Weather — square tile */}
+{/* Weather — square tile */}
         <Card className="border-border/50 [--card-spacing:--spacing(5)]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -638,67 +669,7 @@ export default function DashboardPage() {
               </div>
             )}
           </CardContent>
-        </Card>
-
-        {/* Insights — landscape tile */}
-        {activeClasses.length > 0 && (
-          <Card className="col-span-2 border-border/50 [--card-spacing:--spacing(3)]">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Insights
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                {aiVisible && aiSuggestions && aiSuggestions.length > 0 ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 shrink-0 text-muted-foreground hover:text-foreground"
-                    onClick={() => setAiVisible(false)}
-                  >
-                    Hide
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 shrink-0"
-                    onClick={handleGenerateInsights}
-                    disabled={aiLoading}
-                  >
-                    {aiLoading ? (
-                      <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Working…</>
-                    ) : (
-                      <><Sparkles className="mr-2 h-3.5 w-3.5 text-primary" /> Tips</>
-                    )}
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm font-semibold text-foreground">{weeklyInsightText}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{weeklyInsightSub}</p>
-
-              {aiError && (
-                <p className="mt-2 text-xs text-destructive">{aiError}</p>
-              )}
-
-              {aiVisible && aiSuggestions && aiSuggestions.length > 0 && (
-                <ul className="mt-2 grid max-h-36 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-2">
-                  {aiSuggestions.map((s, i) => (
-                    <li
-                      key={i}
-                      className="flex items-start gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2"
-                    >
-                      <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                      <span className="text-xs leading-snug text-foreground">{s}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-        )}
+                        </Card>
       </div>
 
       {/* Generated Schedule Table */}

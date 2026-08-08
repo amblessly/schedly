@@ -94,9 +94,71 @@
         moment you&rsquo;re back online.
       </p>
       <div class="actions">
-        <a class="primary" href="/">Try again</a>
-        <a class="ghost" href="/">Back to Schedly</a>
+        <a class="primary" id="retry-link" href="/">Try again</a>
+        <a class="ghost" id="home-link" href="/">Back to Schedly</a>
       </div>
     </div>
+    <script>
+      // Match the app's zoom-lock (80% visual scale) so landing on this page
+      // while offline doesn't flash a bigger screen than the rest of the app.
+      (function () {
+        try {
+          if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) return;
+          var o = window.outerWidth,
+            i = window.innerWidth;
+          var z = o && i ? o / i : 1;
+          var c = 0.8 / Math.max(0.1, z);
+          c = Math.min(1.5, Math.max(0.5, c));
+          var s = Math.abs(c - 1) < 0.001 ? "" : c.toFixed(4);
+          var h = document.documentElement;
+          if (h.style.zoom !== s) h.style.zoom = s;
+        } catch (e) {}
+      })();
+
+      // Real auto-reload: the moment connectivity returns, jump straight back
+      // into the app instead of waiting for the user to notice.
+      function onBackOnline() {
+        window.location.href = "/";
+      }
+      window.addEventListener("online", onBackOnline);
+      window.addEventListener("appinstalled", onBackOnline);
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "visible" && navigator.onLine) onBackOnline();
+      });
+
+      // Both buttons lead to the best cached app page. While offline the SW
+      // serves whatever is cached; "/" (a redirect for signed-in users) is
+      // usually NOT cached, so point the buttons at a page that is.
+      (function () {
+        if (!("caches" in window)) return;
+        var paths = ["/dashboard", "/schedule", "/login", "/"];
+        caches.keys()
+          .then(function (keys) {
+            var name = keys.find(function (k) {
+              return k.indexOf("schedly-cache-v") === 0 && k.indexOf("-rsc") === -1;
+            });
+            return name ? caches.open(name) : null;
+          })
+          .then(function (cache) {
+            if (!cache) return;
+            var best = "/";
+            var chain = Promise.resolve();
+            paths.forEach(function (p) {
+              chain = chain.then(function () {
+                return cache.match(p).then(function (hit) {
+                  if (hit && best === "/") best = p;
+                });
+              });
+            });
+            chain.then(function () {
+              var retry = document.getElementById("retry-link");
+              var home = document.getElementById("home-link");
+              if (retry) retry.href = best;
+              if (home) home.href = best;
+            });
+          })
+          .catch(function () {});
+      })();
+    </script>
   </body>
 </html>
