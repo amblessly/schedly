@@ -1,28 +1,63 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, ListTodo, Clock, Calendar } from "lucide-react";
+import { Plus, Trash2, ListTodo, CircleDot, CalendarDays, CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useTodos } from "@/features/todo/use-todos";
 
 type FilterType = "all" | "active" | "completed";
+type Priority = "low" | "medium" | "high";
 
-const PRIORITY_DOTS: Record<"low" | "medium" | "high", string> = {
+const PRIORITY_DOTS: Record<Priority, string> = {
   low: "bg-green-400",
   medium: "bg-yellow-400",
   high: "bg-red-400",
 };
 
+function dueDateAsLocal(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
+}
+
+function dueDateLabel(dateStr: string): string {
+  return dueDateAsLocal(dateStr).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function isOverdue(dateStr: string): boolean {
+  const end = dueDateAsLocal(dateStr);
+  end.setHours(23, 59, 59);
+  return end.getTime() < Date.now();
+}
+
 export default function TodoPage() {
   const { todos, addTodo, toggleTodo, deleteTodo, clearCompleted } = useTodos();
   const [filter, setFilter] = useState<FilterType>("all");
   const [newText, setNewText] = useState("");
-  const [newPriority, setNewPriority] = useState<"low" | "medium" | "high">("medium");
+  const [newPriority, setNewPriority] = useState<Priority>("medium");
   const [newDueDate, setNewDueDate] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Center "+" button in the bottom nav: focus the add-task input (also on
+  // arrival via /todo?focus=1).
+  useEffect(() => {
+    const onQuickAdd = () => {
+      inputRef.current?.focus();
+    };
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("focus") === "1") onQuickAdd();
+    }
+    window.addEventListener("schedly:quickadd", onQuickAdd);
+    return () => window.removeEventListener("schedly:quickadd", onQuickAdd);
+  }, []);
 
   function handleAdd() {
     if (!newText.trim()) return;
@@ -39,60 +74,89 @@ export default function TodoPage() {
 
   const activeCount = todos.filter((t) => !t.completed).length;
   const completedCount = todos.filter((t) => t.completed).length;
+  const todoCount = todos.length;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 pt-8 md:pt-0">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          To-Do List
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Keep track of your assignments and tasks.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            To-Do List
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Keep track of your assignments and tasks.
+          </p>
+        </div>
+        {todoCount > 0 && (
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+              <CircleDot className="h-3 w-3" />
+              {activeCount} active
+            </span>
+            <span className="flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+              <CheckCircle2 className="h-3 w-3" />
+              {completedCount} done
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Add Task */}
       <Card className="border-border/50">
-        <CardContent className="pt-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold text-foreground">
+            Add a task
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-1">
           <div className="flex gap-2">
             <Input
+              ref={inputRef}
               placeholder="What do you need to do?"
               value={newText}
               onChange={(e) => setNewText(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-              className="h-10 flex-1"
+              className="h-11 flex-1"
             />
-            <Button onClick={handleAdd} disabled={!newText.trim()} className="h-10 px-4">
-              <Plus className="h-4 w-4" />
+            <Button
+              onClick={handleAdd}
+              disabled={!newText.trim()}
+              className="h-11 px-4 text-sm font-semibold"
+            >
+              <Plus className="h-4 w-4" /> Add
             </Button>
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
             <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground">Priority:</Label>
-              <div className="flex gap-1">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Priority
+              </Label>
+              <div className="flex gap-1.5">
                 {(["low", "medium", "high"] as const).map((p) => (
                   <button
                     key={p}
                     onClick={() => setNewPriority(p)}
-                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors ${
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition-colors",
                       newPriority === p
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
-                    }`}
+                        ? "border-primary/40 bg-primary/10 text-foreground"
+                        : "border-border/50 bg-card text-muted-foreground hover:text-foreground"
+                    )}
                   >
-                    <span className={`h-1.5 w-1.5 rounded-full ${PRIORITY_DOTS[p]}`} />
+                    <span className={cn("h-1.5 w-1.5 rounded-full", PRIORITY_DOTS[p])} />
                     {p}
                   </button>
                 ))}
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+              <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 type="date"
                 value={newDueDate}
                 onChange={(e) => setNewDueDate(e.target.value)}
                 className="h-8 w-36 text-xs"
+                aria-label="Due date"
               />
             </div>
           </div>
@@ -106,86 +170,112 @@ export default function TodoPage() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+              className={cn(
+                "rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors",
                 filter === f
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
-              }`}
+              )}
             >
               {f}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span>{activeCount} active</span>
-          <span>{completedCount} done</span>
-          {completedCount > 0 && (
-            <button onClick={clearCompleted} className="text-destructive hover:underline">
-              Clear done
-            </button>
-          )}
-        </div>
+        {completedCount > 0 && (
+          <button
+            onClick={clearCompleted}
+            className="flex items-center gap-1 text-xs font-medium text-destructive transition-colors hover:underline"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Clear done
+          </button>
+        )}
       </div>
 
       {/* Todo List */}
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 py-16">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-16 text-center">
           <ListTodo className="mb-3 h-10 w-10 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm font-medium text-foreground">
             {filter === "all"
-              ? "No tasks yet. Add one above!"
+              ? "No tasks yet"
               : filter === "active"
-              ? "All done! No active tasks."
-              : "No completed tasks yet."}
+                ? "Nothing to do right now"
+                : "No completed tasks yet"}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {filter === "all"
+              ? "Add your first task above to get started."
+              : filter === "active"
+                ? "All tasks are done — take a break!"
+                : "Tasks will show up here once you check them off."}
           </p>
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map((todo) => (
-            <div
-              key={todo.id}
-              className={`group flex items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 transition-opacity ${
-                todo.completed ? "opacity-60" : ""
-              }`}
-            >
-              <Checkbox
-                checked={todo.completed}
-                onCheckedChange={() => toggleTodo(todo.id)}
-              />
-              <div className="flex-1 min-w-0">
-                <p
-                  className={`text-sm font-medium ${
-                    todo.completed ? "line-through text-muted-foreground" : "text-foreground"
-                  }`}
-                >
-                  {todo.text}
-                </p>
-                <div className="mt-0.5 flex items-center gap-2">
-                  <span className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                    <span className={`h-1.5 w-1.5 rounded-full ${PRIORITY_DOTS[todo.priority]}`} />
-                    {todo.priority}
-                  </span>
-                  {todo.dueDate && (
-                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      {new Date(todo.dueDate).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0 text-muted-foreground/50 opacity-0 group-hover:opacity-100 hover:text-destructive"
-                onClick={() => deleteTodo(todo.id)}
+          {filtered.map((todo) => {
+            const overdue = todo.dueDate ? isOverdue(todo.dueDate) : false;
+            const due = todo.dueDate ? dueDateLabel(todo.dueDate) : null;
+            return (
+              <div
+                key={todo.id}
+                className={cn(
+                  "group flex items-center gap-3 rounded-xl border bg-card px-4 py-3 transition-colors",
+                  todo.completed
+                    ? "border-border/40 opacity-60"
+                    : overdue
+                      ? "border-destructive/30"
+                      : "border-border/60"
+                )}
               >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
+                <Checkbox
+                  checked={todo.completed}
+                  onCheckedChange={() => toggleTodo(todo.id)}
+                  aria-label={`Mark ${todo.text} as ${todo.completed ? "active" : "completed"}`}
+                />
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={cn(
+                      "text-sm font-medium",
+                      todo.completed
+                        ? "text-muted-foreground line-through"
+                        : "text-foreground"
+                    )}
+                  >
+                    {todo.text}
+                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <span className="flex items-center gap-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                      <span className={cn("h-1.5 w-1.5 rounded-full", PRIORITY_DOTS[todo.priority])} />
+                      {todo.priority}
+                    </span>
+                    {due && (
+                      <span
+                        className={cn(
+                          "flex items-center gap-1 text-[11px] font-medium",
+                          overdue && !todo.completed
+                            ? "text-destructive"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarDays className="h-3 w-3" />
+                        {overdue && !todo.completed ? "Overdue · " : ""}
+                        {due}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 text-muted-foreground/50 md:opacity-0 md:group-hover:opacity-100 hover:text-destructive"
+                  onClick={() => deleteTodo(todo.id)}
+                  aria-label={`Delete ${todo.text}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

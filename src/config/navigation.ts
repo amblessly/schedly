@@ -16,9 +16,8 @@ export interface NavGroup {
 /** Primary destinations — shown in the Bottom Navigation (mobile). */
 export const primaryNav: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: "layout-dashboard", primary: true },
-  { label: "Schedule", href: "/schedule", icon: "calendar", primary: true },
-  { label: "To-Do", href: "/todo", icon: "check-square", primary: true },
-  { label: "Reminders", href: "/reminders", icon: "bell-ring", primary: true },
+  { label: "Calendar", href: "/schedule", icon: "calendar", primary: true },
+  { label: "To-Do List", href: "/todo", icon: "check-square", primary: true },
   { label: "Pomodoro", href: "/pomodoro", icon: "timer", primary: true },
 ];
 
@@ -36,6 +35,7 @@ export const navGroups: NavGroup[] = [
   {
     title: "Tools",
     items: [
+      { label: "Reminders", href: "/reminders", icon: "bell-ring" },
       { label: "Notes", href: "/notes", icon: "sticky-note" },
       { label: "GPA Calculator", href: "/gpa", icon: "graduation-cap" },
     ],

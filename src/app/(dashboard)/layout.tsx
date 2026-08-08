@@ -222,11 +222,11 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           ].join(" ")}
         >
           {isImmersive ? (
-            <div className="animate-fade-up h-dvh-fallback overflow-y-auto p-0 md:p-6 md:pt-20">
+            <div key={pathname} className="animate-fade-up h-dvh-fallback overflow-y-auto p-0 md:p-6 md:pt-20">
               {children}
             </div>
           ) : (
-            <div className="animate-fade-up mx-auto w-full max-w-3xl md:w-full">{children}</div>
+            <div key={pathname} className="animate-fade-up mx-auto w-full max-w-3xl md:w-full">{children}</div>
           )}
         </main>
       </div>

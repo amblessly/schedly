@@ -1,20 +1,18 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useUpload } from "@/features/upload";
 import { ScheduleReview } from "@/features/upload";
 import { SchedulePreview } from "@/features/schedule/components/schedule-preview";
+import { ScheduleCalendar } from "@/features/schedule/components/schedule-calendar";
 import { getUserSchedules, getSchedule, deleteSchedule } from "./actions";
 import { retry } from "@/lib/retry";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Camera, Image, AlertCircle, CheckCircle, ArrowLeft,
-  Plus, Calendar, Trash2, Upload, Loader2, X,
+  Calendar, Trash2, Upload, Loader2, X,
 } from "lucide-react";
 import { validateExtractedClasses, type ValidationIssue } from "@/server/services/validation.service";
 import {
@@ -70,10 +68,14 @@ export default function SchedulePage() {
   const { user, isLoading: authLoading } = useAuth();
   const u = user as UserWithExtras | null;
 
+  // Phase is resolved after mount (effects below) so the server-rendered
+  // HTML always matches the client's first render.
   const [phase, setPhase] = useState<Phase>("list");
+
   const [schedules, setSchedules] = useState<ScheduleData[]>([]);
   const [loadingSchedules, setLoadingSchedules] = useState(true);
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleData | null>(null);
+  const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -87,13 +89,52 @@ export default function SchedulePage() {
 
   const userId = (u as { id?: string } | null)?.id || "anon";
 
-  // The FAB must not live inside the dashboard's animated content wrapper:
-  // its fill-mode leaves a transform behind, which turns the wrapper into a
-  // containing block for fixed descendants, so `bottom-0` would anchor to the
-  // wrapper instead of the viewport. Rendering it via a portal to <body>
-  // keeps it glued to the actual bottom-right corner of the screen.
-  const [fabMounted, setFabMounted] = useState(false);
-  useEffect(() => setFabMounted(true), []);
+  // Gate the schedules count on mount: it's only known after the client-side
+  // fetch, so rendering it during SSR causes a hydration mismatch.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Fallback for soft navigations that reuse this page: the lazy initializer
+  // above may miss the `?add=1` query, so re-check it after auth resolves and
+  // jump straight to the upload screen.
+  useEffect(() => {
+    if (!authLoading && new URLSearchParams(window.location.search).get("add") === "1") {
+      const saved = getReviewState(userId);
+      if (saved && saved.classes.length > 0) {
+        setPhase("review");
+      } else {
+        setPhase("upload-select");
+      }
+    }
+  }, [authLoading, userId]);
+
+  // Tell the bottom nav which sub-screen we're on so the Calendar tab only
+  // lights up on the list, not on upload/review.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("schedly:schedule-phase", { detail: phase }));
+  }, [phase]);
+
+  // Center "+" button in the bottom nav: when already on this page it fires a
+  // `schedly:quickadd` event to open the upload flow directly.
+  useEffect(() => {
+    const onQuickAdd = () => {
+      const saved = getReviewState(userId);
+      if (saved && saved.classes.length > 0) {
+        clearUploadState(userId);
+        restoreExtractedClasses(saved.classes);
+        setMetadata(saved.confidence != null ? { confidence: saved.confidence } : null);
+        setValidationIssues(saved.validationIssues);
+        setPreviewUrl(getReviewImage(userId));
+        setPhase("review");
+        return;
+      }
+      setPhase("upload-select");
+    };
+    window.addEventListener("schedly:quickadd", onQuickAdd);
+    return () => window.removeEventListener("schedly:quickadd", onQuickAdd);
+  }, [userId, restoreExtractedClasses, setMetadata]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -194,6 +235,9 @@ export default function SchedulePage() {
     const result = await deleteSchedule(scheduleId);
     if (result.success) {
       setSchedules((prev) => prev.filter((s) => s.id !== scheduleId));
+      if (activeScheduleId === scheduleId) {
+        setActiveScheduleId(null);
+      }
       if (selectedSchedule?.id === scheduleId) {
         setSelectedSchedule(null);
         setPhase("list");
@@ -307,17 +351,19 @@ export default function SchedulePage() {
 
   return (
     <div className="mx-auto max-w-4xl pt-8 md:pt-0">
+          {phase === "list" && (
           <div className="mb-6 sm:mb-8">
             <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Schedule
+              Calendar
             </h1>
             <p className="mt-1 text-sm text-muted-foreground sm:text-base">
-              {phase === "list"
+              {phase === "list" && mounted
                 ? `${schedules.length} schedule${schedules.length !== 1 ? "s" : ""} saved`
                 : "Your class schedule"
               }
-            </p>
+</p>
           </div>
+          )}
 
           {/* === REVIEW === */}
           {phase === "review" && (
@@ -492,33 +538,20 @@ export default function SchedulePage() {
             </div>
           )}
 
-          {/* === SCHEDULE LIST === */}
+          {/* === CALENDAR === */}
           {phase === "list" && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Your Schedules</h2>
-              </div>
-
               {loadingSchedules ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {[1, 2].map((i) => (
-                    <Card key={i} className="border-border/50">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between">
-                          <Skeleton className="h-5 w-32" />
-                          <Skeleton className="h-4 w-4 rounded" />
-                        </div>
-                        <Skeleton className="mt-1 h-3 w-24" />
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center gap-2">
-                          <Skeleton className="h-5 w-16 rounded-full" />
-                          <Skeleton className="h-5 w-12 rounded-full" />
-                          <Skeleton className="h-5 w-10 rounded-full" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                <div className="rounded-2xl border border-border/50 bg-card p-3 sm:p-4">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-8 w-16 rounded-full" />
+                  </div>
+                  <div className="mt-3 grid grid-cols-7 gap-1">
+                    {Array.from({ length: 35 }).map((_, i) => (
+                      <Skeleton key={i} className="h-10 w-full rounded-lg" />
+                    ))}
+                  </div>
                 </div>
               ) : schedules.length === 0 ? (
                 <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-16 text-center">
@@ -532,68 +565,15 @@ export default function SchedulePage() {
                   </Button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {schedules.map((schedule) => (
-                    <Card
-                      key={schedule.id}
-                      size="sm"
-                      className="active:scale-touch cursor-pointer transition-colors hover:border-primary/50"
-                      onClick={() => handleViewSchedule(schedule.id)}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <CardTitle className="truncate text-base">{schedule.title}</CardTitle>
-                            {(schedule.semester || schedule.academicYear) && (
-                              <p className="mt-0.5 text-xs text-muted-foreground">
-                                {[schedule.semester, schedule.academicYear].filter(Boolean).join(" · ")}
-                              </p>
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); handleDeleteSchedule(schedule.id); }}
-                            className="shrink-0 rounded-md p-1 text-muted-foreground/60 transition-colors hover:text-destructive"
-                            aria-label={`Delete ${schedule.title}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="secondary" className="text-xs">
-                            {schedule.classes.length} class{schedule.classes.length !== 1 ? "es" : ""}
-                          </Badge>
-                          {schedule.classes.slice(0, 3).map((cls) => (
-                            <Badge key={cls.id} variant="outline" className="text-[10px]" style={{ borderColor: cls.color + "60", color: cls.color }}>
-                              {cls.shortName?.trim() || cls.code?.trim() || cls.subject}
-                            </Badge>
-                          ))}
-                          {schedule.classes.length > 3 && (
-                            <Badge variant="outline" className="text-[10px]">+{schedule.classes.length - 3}</Badge>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                <ScheduleCalendar
+                  schedules={schedules}
+                  activeScheduleId={activeScheduleId}
+                  onActiveChange={setActiveScheduleId}
+                  onDeleteSchedule={handleDeleteSchedule}
+                  onViewSchedule={handleViewSchedule}
+                />
               )}
             </div>
-          )}
-
-          {/* FAB for New Schedule (list phase only) */}
-          {phase === "list" && fabMounted && createPortal(
-            <button
-              type="button"
-              onClick={() => setPhase("upload-select")}
-              className="fixed bottom-4 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition-transform active:scale-95"
-              aria-label="New schedule"
-              style={{ marginBottom: "var(--sab)" }}
-            >
-              <Plus className="h-5 w-5" />
-            </button>,
-            document.body
           )}
     </div>
   );

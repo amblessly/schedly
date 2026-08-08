@@ -440,9 +440,22 @@ export default function DashboardPage() {
                 No classes today — time to relax or catch up on tasks.
               </p>
             ) : (
-              // One compact subject visible at a time — snap-scroll through the rest.
+              // Ongoing first, upcoming next, finished pushed to the bottom —
+              // one compact subject visible at a time, snap-scroll through the rest.
               <div ref={todayListRef} className="my-auto h-[6.5rem] snap-y snap-mandatory overflow-y-auto pr-1">
-                {todaysClasses.map((c) => {
+                {[...todaysClasses]
+                  .sort((a, b) => {
+                    const nowMin = now.getHours() * 60 + now.getMinutes();
+                    const rank = (c: typeof todaysClasses[number]) => {
+                      const startMin = toMin(c.startTime);
+                      const endMin = toMin(c.endTime);
+                      if (nowMin >= startMin && nowMin < endMin) return 0;
+                      if (nowMin < startMin) return 1;
+                      return 2;
+                    };
+                    return rank(a) - rank(b) || toMin(a.startTime) - toMin(b.startTime);
+                  })
+                  .map((c) => {
                   const name = c.shortName?.trim() || c.code?.trim() || c.subject;
                   const nowMin = now.getHours() * 60 + now.getMinutes();
                   const startMin = toMin(c.startTime);
@@ -531,7 +544,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Weather — square tile */}
+{/* Weather — square tile */}
         <Card className="border-border/50 [--card-spacing:--spacing(5)]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -638,67 +651,7 @@ export default function DashboardPage() {
               </div>
             )}
           </CardContent>
-        </Card>
-
-        {/* Insights — landscape tile */}
-        {activeClasses.length > 0 && (
-          <Card className="col-span-2 border-border/50 [--card-spacing:--spacing(3)]">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Insights
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                {aiVisible && aiSuggestions && aiSuggestions.length > 0 ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 shrink-0 text-muted-foreground hover:text-foreground"
-                    onClick={() => setAiVisible(false)}
-                  >
-                    Hide
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 shrink-0"
-                    onClick={handleGenerateInsights}
-                    disabled={aiLoading}
-                  >
-                    {aiLoading ? (
-                      <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Working…</>
-                    ) : (
-                      <><Sparkles className="mr-2 h-3.5 w-3.5 text-primary" /> Tips</>
-                    )}
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm font-semibold text-foreground">{weeklyInsightText}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{weeklyInsightSub}</p>
-
-              {aiError && (
-                <p className="mt-2 text-xs text-destructive">{aiError}</p>
-              )}
-
-              {aiVisible && aiSuggestions && aiSuggestions.length > 0 && (
-                <ul className="mt-2 grid max-h-36 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-2">
-                  {aiSuggestions.map((s, i) => (
-                    <li
-                      key={i}
-                      className="flex items-start gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2"
-                    >
-                      <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                      <span className="text-xs leading-snug text-foreground">{s}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-        )}
+                        </Card>
       </div>
 
       {/* Generated Schedule Table */}

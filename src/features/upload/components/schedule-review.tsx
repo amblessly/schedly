@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 import type { ExtractedClass } from "@/features/upload/hooks/use-upload";
 import type { ValidationIssue } from "@/server/services/validation.service";
 import { saveSchedule, type SaveScheduleResult } from "@/app/(dashboard)/schedule/actions";
@@ -38,6 +39,8 @@ export function ScheduleReview({
   classes, uploadId, designImageUrl, confidence, validationIssues = [], onUpdate, onRemove, onAdd, onSaved, onCancel,
 }: Props) {
   const router = useRouter();
+  const { user: authUser } = useAuth();
+  const isAdmin = Boolean((authUser as { isAdmin?: boolean } | null)?.isAdmin);
   const [title, setTitle] = useState("");
   const [semester, setSemester] = useState("");
   const [academicYear, setAcademicYear] = useState("");
@@ -178,7 +181,7 @@ export function ScheduleReview({
             Classes ({validCount}/{classes.length} valid)
           </h3>
           <div className="flex items-center gap-2">
-            {designImageUrl && (
+            {isAdmin && designImageUrl && (
               <Button variant="outline" size="sm" onClick={handleEditDesign}>
                 <Paintbrush className="mr-1 h-3 w-3" /> Edit Design
               </Button>

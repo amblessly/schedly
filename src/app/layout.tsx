@@ -59,6 +59,10 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
+  manifest: "/manifest.webmanifest",
+  other: {
+    "theme-color": "#ffffff",
+  },
 };
 
 export const viewport: Viewport = {
@@ -114,7 +118,7 @@ export default async function RootLayout({
             backgroundSize: "cover",
           }}
         />
-        <div className="relative z-10 flex min-h-full flex-1 flex-col">
+        <div className="relative z-10 flex min-h-full flex-1 flex-col safe-area-content">
           <Warmup />
           <InstallPrompt />
           <ZoomLock />

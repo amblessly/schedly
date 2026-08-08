@@ -17,8 +17,8 @@ export async function uploadAvatar(formData: FormData): Promise<{ url: string } 
     return { error: "No file provided" };
   }
 
-  if (file.size > 10 * 1024 * 1024) {
-    return { error: "File must be under 10MB" };
+  if (file.size > 20 * 1024 * 1024) {
+    return { error: "File must be under 20MB" };
   }
 
   const buffer = new Uint8Array(await file.arrayBuffer());
