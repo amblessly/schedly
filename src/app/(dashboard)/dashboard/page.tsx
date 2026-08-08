@@ -561,24 +561,37 @@ export default function DashboardPage() {
             ) : weatherError ? (
               <p className="text-sm text-destructive">{weatherError}</p>
             ) : weather ? (
-              <div className="space-y-2">
-                <div className="flex items-baseline gap-2">
-                  <img src={weather.icon} alt={weather.description} className="h-16 w-16" />
-                  <div>
-                    <p className="text-3xl font-bold text-foreground">{weather.temperature}°C</p>
-                    <p className="text-xs text-muted-foreground capitalize">{weather.description}</p>
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-baseline gap-1">
+                    <span className="text-3xl font-bold tracking-tight text-foreground">
+                      {weather.temperature}°
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground capitalize">
+                      {weather.description}
+                    </span>
                   </div>
+                  <img
+                    src={weather.icon}
+                    alt={weather.description}
+                    className="h-10 w-10 shrink-0"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                    }}
+                  />
                 </div>
-                <p className="text-sm font-medium text-foreground">{weather.city}, {weather.country}</p>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Droplets className="h-3.5 w-3.5 shrink-0" />
-                    <span>{weather.humidity}% humidity</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Wind className="h-3.5 w-3.5 shrink-0" />
-                    <span>{weather.windSpeed} km/h wind</span>
-                  </div>
+                <p className="mt-1 text-xs font-medium text-foreground">
+                  {weather.city}, {weather.country}
+                </p>
+                <div className="mt-2 flex items-center gap-3 border-t border-border/60 pt-2 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Droplets className="h-3 w-3 shrink-0" />
+                    {weather.humidity}%
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Wind className="h-3 w-3 shrink-0" />
+                    {weather.windSpeed} km/h
+                  </span>
                 </div>
               </div>
             ) : (

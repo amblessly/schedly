@@ -13,7 +13,7 @@ const csp = [
     ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com"
     : "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
   "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: ${appUrl} https://*.vercel.app https://*.blob.vercel-storage.com https://blob.vercel-storage.com`,
+  `img-src 'self' data: blob: ${appUrl} https://*.vercel.app https://*.blob.vercel-storage.com https://blob.vercel-storage.com https://openweathermap.org https://*.openweathermap.org`,
   `media-src 'self' data: blob: ${appUrl} https://*.vercel.app https://*.blob.vercel-storage.com https://blob.vercel-storage.com`,
   "font-src 'self'",
   `connect-src 'self' ${appUrl} https://*.vercel.app https://*.blob.vercel-storage.com https://blob.vercel-storage.com https://challenges.cloudflare.com`,
@@ -32,7 +32,7 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=(), usb=(), serial=(), bluetooth=(), midi=(), sync-xhr=(), magnetometer=(), gyroscope=(), accelerometer=(), interest-cohort=()",
+    value: "camera=(), microphone=(), usb=(), serial=(), bluetooth=(), midi=(), sync-xhr=(), magnetometer=(), gyroscope=(), accelerometer=(), interest-cohort=()",
   },
   {
     key: "Strict-Transport-Security",
