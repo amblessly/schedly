@@ -12,6 +12,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { authFetch } from "@/lib/auth-fetch";
 
 type VersionInfo = {
   versionCode?: number;
@@ -87,7 +88,7 @@ export default function AdminApkPage() {
     startTransition(() => {
       pushLog("info", "Fetching current live version...");
     });
-    fetch("/api/admin/apk")
+    authFetch("/api/admin/apk")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         const cur = d?.current ?? null;
@@ -131,7 +132,7 @@ export default function AdminApkPage() {
     pushLog("info", `Source: release/Schedly-${clean}-release.apk (from repo)`);
     try {
       pushLog("info", "Server fetching APK and uploading to Blob...");
-      const res = await fetch("/api/admin/apk-upload", {
+      const res = await authFetch("/api/admin/apk-upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ versionName: clean, updateMessage }),

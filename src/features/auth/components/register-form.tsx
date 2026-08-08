@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import {
   registerStep1Schema,
   registerStep2Schema,
@@ -110,6 +111,7 @@ export function RegisterForm() {
       const captchaResult = await verifyCaptcha(turnstileToken);
       if (!captchaResult.success) {
         setServerError("Bot verification failed. Please try again.");
+        toast.error("Bot verification failed. Please try again.");
         setLoading(false);
         return;
       }
@@ -118,6 +120,7 @@ export function RegisterForm() {
 
       if (signUpResult.error) {
         setServerError(signUpResult.error.message || "Registration failed. Please try again.");
+        toast.error("Registration failed. Please try again.");
         setLoading(false);
         return;
       }

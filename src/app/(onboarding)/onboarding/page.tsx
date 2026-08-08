@@ -9,6 +9,7 @@ import { uploadAvatar, removeAvatar } from "@/app/(dashboard)/settings/actions";
 import { NotificationsCard } from "./notifications-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { authFetch } from "@/lib/auth-fetch";
 import {
   Dialog,
   DialogContent,
@@ -60,7 +61,7 @@ export default function OnboardingPage() {
       // the updated value from the DB, not the stale cached session.
       await refetchSession({ query: { disableCookieCache: true } });
       try {
-        const res = await fetch("/api/auth/get-session?disableCookieCache=true");
+        const res = await authFetch("/api/auth/get-session?disableCookieCache=true");
         const data = await res.json();
         const updated = data?.user as
           | { onboardingCompleted?: boolean }

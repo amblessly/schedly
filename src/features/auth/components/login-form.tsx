@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { loginSchema, type LoginInput } from "@/lib/validations";
 import { TurnstileWidget } from "@/components/turnstile";
 import { verifyCaptcha } from "@/app/actions";
+import { toast } from "sonner";
 import Link from "next/link";
 
 export function LoginForm() {
@@ -50,6 +51,7 @@ export function LoginForm() {
       const captchaResult = await verifyCaptcha(turnstileToken);
       if (!captchaResult.success) {
         setServerError("Bot verification failed. Please try again.");
+        toast.error("Bot verification failed. Please try again.");
         setLoading(false);
         return;
       }
@@ -73,6 +75,7 @@ export function LoginForm() {
         } else {
           setServerError(msg || "Sign in failed. Please try again.");
         }
+        toast.error("Login failed. Please check your credentials and try again.");
         setLoading(false);
         return;
       }

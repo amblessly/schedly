@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { authFetch } from "@/lib/auth-fetch";
 
 interface EmailProvider {
   app?: string;
@@ -62,7 +63,7 @@ function PendingContent() {
   useEffect(() => {
     pollRef.current = setInterval(async () => {
       try {
-        const res = await fetch("/api/auth/get-session");
+        const res = await authFetch("/api/auth/get-session");
         const data = await res.json();
         if (data?.user?.emailVerified) {
           clearInterval(pollRef.current);
@@ -81,7 +82,7 @@ function PendingContent() {
 
   const checkNow = async () => {
     try {
-      const res = await fetch("/api/auth/get-session");
+      const res = await authFetch("/api/auth/get-session");
       const data = await res.json();
       if (data?.user?.emailVerified) {
         router.push("/dashboard");

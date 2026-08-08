@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LifeBuoy, Send, CheckCircle, Loader2, AlertCircle } from "lucide-react";
+import { authFetch } from "@/lib/auth-fetch";
 
 const TYPE_OPTIONS = [
   { value: "bug", label: "Report an issue" },
@@ -42,7 +43,7 @@ export default function FeedbackPage() {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/feedback", {
+      const res = await authFetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-csrf-protection": "1" },
         body: JSON.stringify({

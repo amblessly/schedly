@@ -6,6 +6,7 @@ import { Warmup } from "@/components/warmup";
 import { InstallPrompt } from "@/components/install-prompt";
 import { ZoomLock } from "@/components/zoom-lock";
 import { ThemeProvider } from "@/features/theme";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -119,6 +120,7 @@ export default async function RootLayout({
           <InstallPrompt />
           <ZoomLock />
           <ThemeProvider initialThemeId={initialThemeId}>{children}</ThemeProvider>
+          <Toaster position="top-right" richColors />
         </div>
       </body>
     </html>

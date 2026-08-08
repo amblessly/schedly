@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { retry } from "@/lib/retry";
 import { generateShortName } from "@/lib/abbreviations";
+import { authFetch } from "@/lib/auth-fetch";
+import { toast } from "sonner";
 
 export type ExtractedClass = {
   subject: string;
@@ -80,7 +82,7 @@ export function useUpload() {
       const MAX_TRANSIENT = 5;
       const interval = setInterval(async () => {
         try {
-          const res = await fetch(`/api/upload/${uploadId}`, {
+          const res = await authFetch(`/api/upload/${uploadId}`, {
             headers: { "x-csrf-protection": "1" },
           });
           if (res.status === 401 || res.status === 403 || res.status === 404) {
@@ -156,6 +158,21 @@ export function useUpload() {
 
       xhr.addEventListener("load", () => {
         setProgress(100);
+
+        if (xhr.status === 401) {
+          toast.error("Session expired. Please log in again.", {
+            action: {
+              label: "Log in",
+              onClick: () => { window.location.href = "/login"; },
+            },
+            duration: Infinity,
+          });
+          setUpload((prev) => prev ? { ...prev, status: "failed", error: "Session expired. Please sign in again." } : null);
+          setIsUploading(false);
+          setIsProcessing(false);
+          reject(new Error("Session expired. Please sign in again."));
+          return;
+        }
 
         if (xhr.status >= 200 && xhr.status < 300) {
           let data: Record<string, unknown>;
