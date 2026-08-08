@@ -2,13 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, GraduationCap, Sparkles } from "lucide-react";
+import { AtSign, Camera, GraduationCap, Loader2, Sparkles } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { authClient } from "@/lib/auth-client";
 import { uploadAvatar, removeAvatar } from "@/app/(dashboard)/settings/actions";
+import { checkUsername } from "./actions";
 import { NotificationsCard } from "./notifications-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +27,7 @@ type UserWithExtras = {
   lastName?: string;
   image?: string;
   avatarUrl?: string;
+  email?: string;
 } & Record<string, unknown>;
 
 export default function OnboardingPage() {
@@ -32,7 +36,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [avatarUrl, setAvatarUrl] = useState<string | null>((u?.image as string) || (u?.avatarUrl as string) || null);
   const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -43,6 +47,70 @@ export default function OnboardingPage() {
   const lastName = u?.lastName || "";
   const initials = [firstName[0], lastName[0]].filter(Boolean).join("").toUpperCase();
 
+  // Username — pre-filled with the one derived from the social/email signup,
+  // editable so the user can pick a handle they like.
+  const [username, setUsername] = useState(() =>
+    ((u?.username as string) || "").toLowerCase().replace(/[^a-z0-9_.]/g, "")
+  );
+  const [usernameStatus, setUsernameStatus] = useState<
+    "idle" | "checking" | "available" | "taken" | "invalid"
+  >("idle");
+  const [usernameError, setUsernameError] = useState("");
+
+  const handleContinueToUsername = () => {
+    setStep(2);
+  };
+
+  const handleUsernameChange = (value: string) => {
+    const cleaned = value.toLowerCase().replace(/[^a-z0-9_.]/g, "");
+    setUsername(cleaned);
+    if (cleaned.length < 3) {
+      setUsernameStatus("invalid");
+      setUsernameError("Username must be at least 3 characters.");
+      return;
+    }
+    if (cleaned.length > 30) {
+      setUsernameStatus("invalid");
+      setUsernameError("Username must be 30 characters or fewer.");
+      return;
+    }
+    setUsernameStatus("checking");
+    setUsernameError("");
+    checkUsername(cleaned)
+      .then((res) => {
+        if ("available" in res) {
+          setUsernameStatus(res.available ? "available" : "taken");
+          if (!res.available) setUsernameError("That username is already taken.");
+        } else if ("error" in res) {
+          setUsernameStatus("idle");
+          setUsernameError(res.error);
+        }
+      })
+      .catch(() => {
+        setUsernameStatus("idle");
+        setUsernameError("Could not check username. Try again.");
+      });
+  };
+
+  const handleContinueToNotifications = async () => {
+    if (usernameStatus === "checking" || usernameStatus === "invalid") return;
+    if (usernameStatus === "taken") return;
+    setUsernameError("");
+    if (username.length < 3 || username.length > 30) {
+      setUsernameStatus("invalid");
+      setUsernameError("Username must be 3–30 characters.");
+      return;
+    }
+    // Persist the chosen handle before moving on.
+    try {
+      await authClient.updateUser({ username } as Parameters<typeof authClient.updateUser>[0]);
+      refetchSession();
+    } catch {
+      setUsernameError("Could not save your username. Try again.");
+      return;
+    }
+    setStep(3);
+  };
   const markComplete = async () => {
     if (finishing) return;
     setFinishing(true);
@@ -75,10 +143,6 @@ export default function OnboardingPage() {
       }
     }
     setFinishing(false);
-  };
-
-  const handleContinue = () => {
-    setStep(2);
   };
 
   async function handleAvatarSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -159,10 +223,10 @@ export default function OnboardingPage() {
 
         {/* Progress */}
         <div className="mb-6 flex items-center gap-2">
-          {[1, 2].map((s) => (
+          {[1, 2, 3].map((s) => (
             <span
               key={s}
-              className={`h-1.5 flex-1 rounded-full transition-colors ${s === step ? "bg-primary" : "bg-border"}`}
+              className={`h-1.5 flex-1 rounded-full transition-colors ${s <= step ? "bg-primary" : "bg-border"}`}
             />
           ))}
         </div>
@@ -221,7 +285,71 @@ export default function OnboardingPage() {
 
               <Button
                 className="mt-6 h-12 w-full font-semibold"
-                onClick={handleContinue}
+                onClick={handleContinueToUsername}
+              >
+                Continue
+              </Button>
+            </CardContent>
+          </Card>
+        ) : step === 2 ? (
+          <Card className="border-border/50 shadow-sm">
+            <CardContent className="pt-8">
+              <div className="mb-7 flex flex-col items-center text-center">
+                <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10">
+                  <AtSign className="h-5 w-5 text-primary" />
+                </span>
+                <h1 className="text-xl font-bold tracking-tight text-foreground">Choose your username</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  This is how people will find and mention you.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-border/50 p-4">
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">Your name</p>
+                  <p className="text-base font-semibold text-foreground">
+                    {firstName} {lastName}
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="username" className="mb-1.5 block text-sm font-medium">
+                    Username
+                  </Label>
+                  <div className="relative">
+                    <AtSign className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="username"
+                      autoComplete="off"
+                      value={username}
+                      onChange={(e) => handleUsernameChange(e.target.value)}
+                      placeholder="yourname"
+                      className={`h-12 pl-10 ${usernameStatus === "taken" || usernameStatus === "invalid" ? "border-destructive" : ""}`}
+                    />
+                  </div>
+                  <div className="mt-1.5 flex min-h-5 items-center gap-1.5 text-xs">
+                    {usernameStatus === "checking" && (
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Checking availability…
+                      </span>
+                    )}
+                    {usernameStatus === "available" && (
+                      <span className="text-green-600">@{username} is available</span>
+                    )}
+                    {usernameStatus === "taken" && (
+                      <span className="text-destructive">{usernameError}</span>
+                    )}
+                    {usernameStatus === "invalid" && (
+                      <span className="text-destructive">{usernameError}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                className="mt-6 h-12 w-full font-semibold"
+                onClick={handleContinueToNotifications}
+                disabled={usernameStatus === "checking" || usernameStatus === "taken" || usernameStatus === "invalid"}
               >
                 Continue
               </Button>
