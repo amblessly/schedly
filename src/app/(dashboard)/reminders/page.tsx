@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Bell, Clock, CalendarDays, MapPin, Camera } from "lucide-react";
+import { Bell, BellOff, Clock, CalendarDays, MapPin, Camera, Info } from "lucide-react";
 import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
+import { getUserReminders, updateReminder, type UpdateReminderResult } from "@/app/(dashboard)/reminders/actions";
+import { isPushSupported, subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
 
 type Day =
   | "monday"
@@ -46,6 +48,8 @@ const DAY_KEYS: Day[] = [
   "saturday",
 ];
 
+const MINUTE_OPTIONS = [5, 10, 15, 30, 60];
+
 function fmtTime(value: string | Date): string {
   const d = new Date(value);
   const h = d.getUTCHours();
@@ -60,12 +64,20 @@ function startMinutes(value: string | Date): number {
   return d.getUTCHours() * 60 + d.getUTCMinutes();
 }
 
+type ReminderUi = {
+  id: string;
+  classId: string;
+  minutesBefore: number;
+  isActive: boolean;
+};
+
 export default function RemindersPage() {
   const router = useRouter();
-  const [schedules, setSchedules] = useState<
-    null | Awaited<ReturnType<typeof getUserSchedules>>
-  >(null);
+  const [schedules, setSchedules] = useState<null | Awaited<ReturnType<typeof getUserSchedules>>>(null);
+  const [reminders, setReminders] = useState<ReminderUi[]>([]);
   const [now, setNow] = useState(() => new Date());
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushUpdating, setPushUpdating] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -82,10 +94,48 @@ export default function RemindersPage() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    getUserReminders()
+      .then((r) => {
+        if (active)
+          setReminders(
+            (r as unknown as ReminderUi[]).map((x) => ({
+              ...x,
+              // Prisma returns booleans/numbers as-is; keep the shape stable.
+            }))
+          );
+      })
+      .catch(() => {
+        if (active) setReminders([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Restore subscription state from the browser when supported.
+  useEffect(() => {
+    if (!isPushSupported()) return;
+    let active = true;
+    navigator.serviceWorker.ready
+      .then((reg) => reg.pushManager.getSubscription())
+      .then((sub) => {
+        if (active) setPushEnabled(Boolean(sub));
+      })
+      .catch(() => {
+        if (active) setPushEnabled(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(t);
   }, []);
 
+  const reminderByClass = new Map(reminders.map((r) => [r.classId, r]));
   const allClasses = (schedules ?? []).flatMap((s) =>
     s.classes.map((c) => ({ ...c, days: c.days as Day[] }))
   );
@@ -118,6 +168,41 @@ export default function RemindersPage() {
     contextLabel = nextKey ? DAY_FULL[nextKey] : "Upcoming";
   }
 
+  const togglePush = async () => {
+    if (pushUpdating) return;
+    setPushUpdating(true);
+    try {
+      if (pushEnabled) {
+        const ok = await unsubscribeFromPush();
+        if (ok) setPushEnabled(false);
+      } else {
+        const ok = await subscribeToPush();
+        if (ok) setPushEnabled(true);
+      }
+    } catch {
+      // Leave state unchanged on failure.
+    }
+    setPushUpdating(false);
+  };
+
+  const toggleReminder = async (classId: string) => {
+    const r = reminderByClass.get(classId);
+    if (!r) return;
+    const res = (await updateReminder(r.id, { isActive: !r.isActive })) as UpdateReminderResult;
+    if (res.success) {
+      setReminders((prev) =>
+        prev.map((x) => (x.id === r.id ? { ...x, isActive: !x.isActive } : x))
+      );
+    }
+  };
+
+  const changeMinutes = async (reminderId: string, minutes: number) => {
+    const res = (await updateReminder(reminderId, { minutesBefore: minutes })) as UpdateReminderResult;
+    if (res.success) {
+      setReminders((prev) => prev.map((x) => (x.id === reminderId ? { ...x, minutesBefore: minutes } : x)));
+    }
+  };
+
   return (
     <div className="mx-auto max-w-3xl space-y-6 pt-8 md:pt-0">
       <div>
@@ -125,9 +210,44 @@ export default function RemindersPage() {
           Reminders
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Your next upcoming classes from your schedule.
+          Push alerts before your next classes — times come straight from your schedule.
         </p>
       </div>
+
+      {/* Push subscription control */}
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-border/30 bg-card/30 px-4 py-3.5">
+        <div className="flex items-center gap-3">
+          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${pushEnabled ? "bg-green-500/15 text-green-600" : "bg-primary/12 text-primary"}`}>
+            {pushEnabled ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Class reminders</p>
+            <p className="text-xs text-muted-foreground">
+              {pushEnabled
+                ? "You'll get a push alert before every class."
+                : isPushSupported()
+                  ? "Get a push alert before every class."
+                  : "Push isn't supported on this browser."}
+            </p>
+          </div>
+        </div>
+        <Button
+          variant={pushEnabled ? "outline" : "default"}
+          size="sm"
+          className="h-9 shrink-0"
+          onClick={togglePush}
+          disabled={pushUpdating || !isPushSupported()}
+        >
+          {pushEnabled ? "Turn off" : "Turn on"}
+        </Button>
+      </div>
+
+      {pushEnabled && (
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Info className="h-3.5 w-3.5" />
+          Reminders fire at the exact class time from your timetable.
+        </p>
+      )}
 
       {schedules === null ? (
         <div className="space-y-3">
@@ -149,7 +269,7 @@ export default function RemindersPage() {
       ) : schedules.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-16 text-center">
           <Camera className="mb-3 h-10 w-10 text-muted-foreground/30" />
-          <p className="text-sm font-medium text-foreground">No reminders yet</p>
+          <p className="text-sm font-medium text-foreground">No classes yet</p>
           <p className="mt-1 max-w-xs text-xs text-muted-foreground">
             Upload a photo of your class schedule and we&rsquo;ll automatically
             create a reminder for each class.
@@ -165,40 +285,70 @@ export default function RemindersPage() {
             {contextLabel}
           </p>
           <div className="space-y-2">
-            {visible.map((c, i) => (
-              <div
-                key={c.id ?? i}
-                className="flex items-center gap-4 rounded-xl border border-border/30 bg-card/30 px-4 py-3.5 transition-[background-color,box-shadow] hover:shadow-sm"
-              >
+            {visible.map((c, i) => {
+              const reminder = reminderByClass.get(c.id);
+              return (
                 <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
-                  style={{ backgroundColor: c.color + "1f", color: c.color }}
+                  key={c.id ?? i}
+                  className="flex items-center gap-4 rounded-xl border border-border/30 bg-card/30 px-4 py-3.5 transition-[background-color,box-shadow] hover:shadow-sm"
                 >
-                  <Bell className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground">
-                    {c.shortName?.trim() || c.code?.trim() || c.subject}
-                  </p>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {fmtTime(c.startTime)} &ndash; {fmtTime(c.endTime)}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <CalendarDays className="h-3 w-3" />
-                      {c.days.map((d) => DAY_SHORT[d]).join(", ")}
-                    </span>
-                    {c.room && (
-                      <span className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {c.room}
-                      </span>
-                    )}
+                  <div
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                    style={{ backgroundColor: c.color + "1f", color: c.color }}
+                  >
+                    <Bell className="h-4 w-4" />
                   </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground">
+                      {c.shortName?.trim() || c.code?.trim() || c.subject}
+                    </p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {fmtTime(c.startTime)} &ndash; {fmtTime(c.endTime)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <CalendarDays className="h-3 w-3" />
+                        {c.days.map((d) => DAY_SHORT[d]).join(", ")}
+                      </span>
+                      {c.room && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {c.room}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {reminder && (
+                    <div className="flex shrink-0 items-center gap-2">
+                      <select
+                        aria-label="Remind minutes before"
+                        value={reminder.minutesBefore}
+                        onChange={(e) => changeMinutes(reminder.id, Number(e.target.value))}
+                        disabled={!reminder.isActive}
+                        className="h-9 rounded-lg border border-border/60 bg-card px-2 text-xs font-medium text-foreground outline-none disabled:opacity-40"
+                      >
+                        {MINUTE_OPTIONS.map((m) => (
+                          <option key={m} value={m}>
+                            {m} min
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        aria-label={reminder.isActive ? "Turn reminder off" : "Turn reminder on"}
+                        onClick={() => toggleReminder(reminder.classId)}
+                        className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+                          reminder.isActive ? "bg-primary/12 text-primary" : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {reminder.isActive ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}

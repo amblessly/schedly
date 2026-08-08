@@ -7,6 +7,7 @@ import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { Sidebar } from "@/components/sidebar";
 import { BottomNav } from "@/components/bottom-nav";
+import { OfflineBanner } from "@/components/offline-banner";
 import { useThemeConfig } from "@/features/theme";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 
@@ -75,6 +76,20 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     .toUpperCase()
     || firstName.charAt(0).toUpperCase();
   const userAvatar = u?.image || u?.avatarUrl || null;
+
+  // Auto-download offline support: once signed in, warm the cache with the
+  // main tab pages so they're instantly available (and work) offline.
+  useEffect(() => {
+    if (!user || !("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.ready
+      .then((reg) => {
+        reg.active?.postMessage({
+          type: "PRECACHE",
+          urls: ["/dashboard", "/schedule", "/notes", "/reminders", "/pomodoro", "/gpa"],
+        });
+      })
+      .catch(() => {});
+  }, [user]);
 
   useEffect(() => {
     if (needsOnboarding) router.replace("/onboarding");
@@ -232,6 +247,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {!isImmersive && !isSettings && !isProfile && !isAdmin && !isFeedback && <BottomNav />}
+      {!isImmersive && <OfflineBanner />}
     </div>
   );
 }

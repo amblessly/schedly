@@ -84,6 +84,18 @@ export const scheduleService = {
 
       await tx.class.createMany({ data: classData });
 
+      // Auto-create a reminder for every class so push notifications fire at
+      // the right time (configurable later from the Reminders page).
+      const createdClasses = await tx.class.findMany({
+        where: { scheduleId: s.id },
+        select: { id: true },
+      });
+      if (createdClasses.length > 0) {
+        await tx.reminder.createMany({
+          data: createdClasses.map((c) => ({ classId: c.id, userId })),
+        });
+      }
+
       if (input.uploadId) {
         // Only link the upload if it actually belongs to this user — an
         // arbitrary uploadId from another user must not be re-linked here.

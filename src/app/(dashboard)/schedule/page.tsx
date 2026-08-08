@@ -8,6 +8,7 @@ import { SchedulePreview } from "@/features/schedule/components/schedule-preview
 import { ScheduleCalendar } from "@/features/schedule/components/schedule-calendar";
 import { getUserSchedules, getSchedule, deleteSchedule } from "./actions";
 import { retry } from "@/lib/retry";
+import { withOfflineCache } from "@/lib/offline-cache";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -138,7 +139,7 @@ export default function SchedulePage() {
 
   useEffect(() => {
     if (!authLoading) {
-      retry(() => getUserSchedules(), { delayMs: 2000 }).then((data) => {
+      retry(() => withOfflineCache("schedule:list", () => getUserSchedules()), { delayMs: 2000 }).then((data) => {
         setSchedules(data as ScheduleData[]);
         setLoadingSchedules(false);
       });
@@ -223,7 +224,7 @@ export default function SchedulePage() {
   }, [reviewReady, userId, previewUrl]);
 
   const handleViewSchedule = async (scheduleId: string) => {
-    const data = await getSchedule(scheduleId);
+    const data = await withOfflineCache(`schedule:detail:${scheduleId}`, () => getSchedule(scheduleId));
     if (data) {
       setSelectedSchedule(data as ScheduleData);
       setPhase("view");
@@ -290,7 +291,7 @@ export default function SchedulePage() {
     clearReviewState(userId);
     clearUploadState(userId);
     clearProcessingStarted(userId);
-    const data = await getUserSchedules();
+    const data = await withOfflineCache("schedule:list", () => getUserSchedules());
     const schedules = data as ScheduleData[];
     setSchedules(schedules);
   };

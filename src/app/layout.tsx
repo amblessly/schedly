@@ -60,9 +60,6 @@ export const metadata: Metadata = {
     telephone: false,
   },
   manifest: "/manifest.webmanifest",
-  other: {
-    "theme-color": "#ffffff",
-  },
 };
 
 export const viewport: Viewport = {

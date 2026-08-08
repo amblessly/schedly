@@ -8,6 +8,7 @@ import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
 import { getAiInsights } from "@/app/(dashboard)/dashboard/actions";
 import { getWeatherByCoords, getWeatherByIp, type WeatherData } from "@/app/(dashboard)/dashboard/weather-actions";
 import { retry } from "@/lib/retry";
+import { withOfflineCache } from "@/lib/offline-cache";
 import { SchedulePreview } from "@/features/schedule/components/schedule-preview";
 import {
   getFreeTimeToday,
@@ -133,7 +134,7 @@ export default function DashboardPage() {
   const username = (user as { username?: string } | null)?.username || "there";
 
   useEffect(() => {
-    retry(() => getUserSchedules(), { delayMs: 2000 })
+    retry(() => withOfflineCache("schedule:list", () => getUserSchedules()), { delayMs: 2000 })
       .then((data) => setSchedules(data as ScheduleData[]))
       .catch(() => setSchedules([]));
   }, []);
