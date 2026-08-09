@@ -417,6 +417,9 @@ self.addEventListener("fetch", (event) => {
 //  - Legacy web-push: { title, body, url } (flat)
 //  - Legacy FCM: { notification: { title, body }, data: { title, body, url } }
 self.addEventListener("push", (event) => {
+  // Diagnostic: record every incoming push so we can confirm FCM → SW delivery.
+  const raw = event.data ? event.data.text() : "(no data)";
+  fetch("/api/push/diag", { method: "POST", body: raw.slice(0, 2000) }).catch(() => {});
   let payload = { title: "Schedly", body: "", url: "/" };
   try {
     const parsed = event.data ? JSON.parse(event.data.text()) : {};
