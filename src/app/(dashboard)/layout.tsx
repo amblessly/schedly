@@ -11,6 +11,7 @@ import { OfflineBanner } from "@/components/offline-banner";
 import { useThemeConfig } from "@/features/theme";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { reportClientType, type ClientType } from "./actions";
+import { listenForForegroundMessages } from "@/lib/firebase";
 
 // The drawer's open state lives in a tiny external store so its initial
 // value can come from matchMedia only AFTER hydration. The server renders
@@ -100,6 +101,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {});
   }, [user]);
+
+  // Show FCM pushes as system notifications while the app is open (foreground
+  // messages land in onMessage, not the service worker).
+  useEffect(() => {
+    listenForForegroundMessages().catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (needsOnboarding) router.replace("/onboarding");
