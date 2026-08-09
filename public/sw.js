@@ -52,7 +52,7 @@ function initFcm() {
     const options = {
       body: notification.body || data.body || "",
       icon: "/icons/icon-512.png",
-      badge: "/icons/icon-192.png",
+      badge: "/notif-icon.svg",
       vibrate: [200, 100, 200],
       tag: data.tag || `schedly-${Date.now()}`,
       data: data || {},
@@ -99,6 +99,7 @@ const PRECACHE_ASSETS = [
   "/icons/icon-512.png",
   "/images/logo.jpg",
   "/offline.html",
+  "/notif-icon.svg",
 ];
 
 self.addEventListener("install", (event) => {
@@ -171,7 +172,7 @@ async function armAlarms() {
         await self.registration.showNotification(alarm.title, {
           body: alarm.body || "",
           icon: "/icons/icon-192.png",
-          badge: "/icons/icon-192.png",
+          badge: "/notif-icon.svg",
           data: { url: alarm.url || "/" },
           tag,
           showTrigger: new TimestampTrigger(alarm.fireAt),
@@ -181,7 +182,7 @@ async function armAlarms() {
         setTimeout(() => self.registration.showNotification(alarm.title, {
           body: alarm.body || "",
           icon: "/icons/icon-192.png",
-          badge: "/icons/icon-192.png",
+          badge: "/notif-icon.svg",
           data: { url: alarm.url || "/" },
           tag,
         }), alarm.fireAt - now).unref?.();
@@ -322,7 +323,8 @@ self.addEventListener("fetch", (event) => {
     isSameOrigin &&
     (url.pathname.startsWith("/_next/static/") ||
       url.pathname.startsWith("/icons/") ||
-      url.pathname.startsWith("/images/"))
+      url.pathname.startsWith("/images/") ||
+      url.pathname === "/notif-icon.svg")
   ) {
     event.respondWith(
       (async () => {
@@ -428,7 +430,7 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(data.title || "Schedly", {
       body: data.body || "",
       icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
+      badge: "/notif-icon.svg",
       data: { url: data.url || "/" },
       tag: `schedly-${Date.now()}`,
       vibrate: [100, 50, 100],

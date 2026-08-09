@@ -81,7 +81,7 @@ export async function sendFCMPush({ userId, title, body, url, tag }: FcmPayload)
       headers: { Urgency: "high" },
       notification: {
         icon: "/icons/icon-512.png",
-        badge: "/icons/icon-192.png",
+        badge: "/notif-icon.svg",
         vibrate: [200, 100, 200],
         data: { url: url || "/" },
       },
