@@ -15,7 +15,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Megaphone, Loader2 } from "lucide-react";
+import { Megaphone, Loader2, LayoutDashboard, Users, Radio, type LucideIcon } from "lucide-react";
 
 type AdminUser = {
   id: string;
@@ -120,7 +120,7 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 p-4 sm:p-6">
+      <div className="mx-auto max-w-5xl space-y-8 p-4 sm:p-6 lg:p-8">
         <div>
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-4 w-64 mt-2" />
@@ -171,87 +171,107 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="mx-auto max-w-5xl space-y-8 p-4 sm:p-6 lg:p-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Admin Dashboard
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage users and monitor your platform.
-        </p>
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <LayoutDashboard className="h-5 w-5" />
+          </span>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              Admin Dashboard
+            </h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Manage users, monitor activity, and broadcast updates.
+            </p>
+          </div>
+        </div>
       </div>
 
-      {stats && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="Users" value={stats.users} />
-          <StatCard label="Schedules" value={stats.schedules} />
-          <StatCard label="Uploads" value={stats.uploads} />
-          <StatCard label="Feedback" value={stats.feedback} />
-        </div>
-      )}
+      <section className="space-y-3">
+        <SectionHeader
+          icon={LayoutDashboard}
+          title="Overview"
+          description="Platform activity at a glance"
+        />
+        {stats && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatCard label="Users" value={stats.users} />
+            <StatCard label="Schedules" value={stats.schedules} />
+            <StatCard label="Uploads" value={stats.uploads} />
+            <StatCard label="Feedback" value={stats.feedback} />
+          </div>
+        )}
+      </section>
 
-      <Card className="border-border/50">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Megaphone className="h-4 w-4" />
-            </span>
-            <div>
-              <CardTitle className="text-base">Send Notification</CardTitle>
-              <CardDescription className="mt-0.5 text-xs">
-                Shows in every user&rsquo;s Notifications tab. A push alert is
-                also sent when the server&rsquo;s FCM keys are set and the device
-                has notifications enabled.
-              </CardDescription>
+      <section className="space-y-3">
+        <SectionHeader
+          icon={Radio}
+          title="Broadcast"
+          description="Send a push notification to all users — or just yourself to test"
+        />
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle className="text-base">Send Notification</CardTitle>
+            <CardDescription className="mt-0.5 text-xs">
+              Shows in every user&rsquo;s Notifications tab. A push alert is
+              also sent when the server&rsquo;s FCM keys are set and the device
+              has notifications enabled.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Input
+              placeholder="Title (optional) — e.g. New update!"
+              value={broadcastTitle}
+              onChange={(e) => setBroadcastTitle(e.target.value)}
+              maxLength={100}
+              disabled={broadcasting}
+            />
+            <Textarea
+              placeholder="Message — e.g. Schedly v1.3 is out with bug fixes. Check it out!"
+              value={broadcastMessage}
+              onChange={(e) => setBroadcastMessage(e.target.value)}
+              maxLength={500}
+              disabled={broadcasting}
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                onClick={() => handleBroadcast()}
+                disabled={broadcasting}
+              >
+                {broadcasting ? (
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                ) : (
+                  <Megaphone className="mr-1.5 h-4 w-4" />
+                )}
+                Send to all users
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleBroadcast((user as { id?: string } | null)?.id)}
+                disabled={broadcasting}
+              >
+                Send to myself (test)
+              </Button>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Input
-            placeholder="Title (optional) — e.g. New update!"
-            value={broadcastTitle}
-            onChange={(e) => setBroadcastTitle(e.target.value)}
-            maxLength={100}
-            disabled={broadcasting}
-          />
-          <Textarea
-            placeholder="Message — e.g. Schedly v1.3 is out with bug fixes. Check it out!"
-            value={broadcastMessage}
-            onChange={(e) => setBroadcastMessage(e.target.value)}
-            maxLength={500}
-            disabled={broadcasting}
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              onClick={() => handleBroadcast()}
-              disabled={broadcasting}
-            >
-              {broadcasting ? (
-                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-              ) : (
-                <Megaphone className="mr-1.5 h-4 w-4" />
-              )}
-              Send to all users
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handleBroadcast((user as { id?: string } | null)?.id)}
-              disabled={broadcasting}
-            >
-              Send to myself (test)
-            </Button>
-          </div>
-          {broadcastResult && (
-            <p className="text-sm text-muted-foreground">{broadcastResult}</p>
-          )}
-        </CardContent>
-      </Card>
+            {broadcastResult && (
+              <p className="text-sm text-muted-foreground">{broadcastResult}</p>
+            )}
+          </CardContent>
+        </Card>
+      </section>
 
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle className="text-base">Users</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <section className="space-y-3">
+        <SectionHeader
+          icon={Users}
+          title="User Management"
+          description="Roles, devices, and account access"
+        />
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle className="text-base">Users</CardTitle>
+          </CardHeader>
+          <CardContent>
           <div className="max-h-[360px] overflow-y-auto pr-1">
           {/* Desktop table */}
           <div className="hidden overflow-x-auto sm:block">
@@ -338,6 +358,7 @@ export default function AdminPage() {
           )}
         </CardContent>
       </Card>
+      </section>
 
       {confirmId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -369,6 +390,28 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SectionHeader({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex items-center gap-2 px-1">
+      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-primary">
+        <Icon className="h-3.5 w-3.5" />
+      </span>
+      <div>
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </div>
     </div>
   );
 }
