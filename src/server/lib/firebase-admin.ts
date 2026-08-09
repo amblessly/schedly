@@ -69,8 +69,11 @@ export async function sendFCMPush({ userId, title, body, url, tag }: FcmPayload)
   const messaging = getMessaging();
   if (!messaging) return { sent, failed, tokens: tokens.length };
 
+  // Data-only payload: the browser routes foreground messages to the page's
+  // onMessage handler and background messages to the service worker's push
+  // listener. A top-level `notification` would make display browser-dependent
+  // and drop foreground messages entirely (no onMessage handler for it).
   const message = {
-    notification: { title, body },
     data: {
       title,
       body,
@@ -79,12 +82,6 @@ export async function sendFCMPush({ userId, title, body, url, tag }: FcmPayload)
     },
     webpush: {
       headers: { Urgency: "high" },
-      notification: {
-        icon: "/icons/icon-512.png",
-        badge: "/notif-icon.svg",
-        vibrate: [200, 100, 200],
-        data: { url: url || "/" },
-      },
     },
   };
 

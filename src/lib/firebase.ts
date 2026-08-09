@@ -74,8 +74,8 @@ function getFcmConfig() {
   };
 }
 
-/** Register the existing /sw.js (which embeds the FCM SDK) and post the
- *  Firebase config so background messages arrive. */
+/** Ensure the app's service worker is registered and current so push events
+ *  (and the FCM token request) have a handler to target. */
 export async function ensureFcmRegistration(): Promise<ServiceWorkerRegistration | null> {
   try {
     const existing = await navigator.serviceWorker.getRegistration("/");
@@ -86,21 +86,49 @@ export async function ensureFcmRegistration(): Promise<ServiceWorkerRegistration
       });
     }
     await reg.update().catch(() => {});
-    const config = getFcmConfig();
-    const post = (target: ServiceWorker | null) => {
-      if (target) target.postMessage({ type: "FIREBASE_CONFIG", config });
-    };
-    if (reg.active) {
-      post(reg.active);
-    } else if (reg.installing || reg.waiting) {
-      const sw = reg.installing || reg.waiting;
-      sw?.addEventListener("statechange", () => {
-        if (sw.state === "activated" && reg.active) post(reg.active);
-      });
-    }
     return reg;
   } catch {
     return null;
+  }
+}
+
+/** Show FCM pushes while the app is in the foreground. FCM delivers
+ *  foreground messages to `messaging.onMessage` (the service worker only gets
+ *  background ones), so without this handler nothing renders when the page is
+ *  open — e.g. an admin broadcasting to themselves from the dashboard.
+ *  Background messages keep flowing through the SW's own push listener. */
+export async function listenForForegroundMessages(): Promise<void> {
+  if (!isPushSupported()) return;
+  try {
+    const { initializeApp, getApps } = await import("firebase/app");
+    const { getMessaging, onMessage, isSupported } = await import("firebase/messaging");
+    const supported = await isSupported().catch(() => false);
+    if (!supported) return;
+
+    const config = getFcmConfig();
+    if (!config.apiKey) return;
+    if (getApps().length === 0) initializeApp(config);
+    const messaging = getMessaging(getApps()[0]!);
+
+    onMessage(messaging, (payload) => {
+      const data = payload.data || {};
+      const title = payload.notification?.title || data.title || "Schedly";
+      const body = payload.notification?.body || data.body || "";
+      const url = data.url || "/";
+      navigator.serviceWorker?.ready
+        .then((reg) =>
+          reg.showNotification(title, {
+            body,
+            icon: "/icons/icon-192.png",
+            badge: "/notif-icon.svg",
+            data: { url },
+            tag: data.tag || `schedly-${Date.now()}`,
+          })
+        )
+        .catch(() => {});
+    });
+  } catch {
+    // Foreground push is best-effort; background delivery still works.
   }
 }
 

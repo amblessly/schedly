@@ -97,6 +97,12 @@ export const adminService = {
       );
     }
 
-    return { users: userIds.length, fcmSent, legacySent };
+    return {
+      users: userIds.length,
+      fcmSent,
+      legacySent,
+      fcmConfigured: isFcmConfigured(),
+      vapidConfigured: isVapidConfigured(),
+    };
   },
 };

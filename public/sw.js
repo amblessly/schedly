@@ -13,55 +13,12 @@
  *    or server responses unless the page itself is cached as HTML.
  */
 
-// --- Firebase Cloud Messaging (background push) --------------------------
-// The web app posts its config (type: FIREBASE_CONFIG) after registration so
-// the keys stay in server env vars, never in this file.
-let firebaseConfig = null;
-
-self.addEventListener("message", (event) => {
-  const data = event.data || {};
-  if (data.type === "FIREBASE_CONFIG") {
-    firebaseConfig = data.config;
-    initFcm();
-  }
-});
-
-function initFcm() {
-  // Wait until the client posts the config — importing the SDK loads ~200KB
-  // from gstatic, so it isn't worth doing for a config-less SW.
-  if (!firebaseConfig || !firebaseConfig.apiKey) return;
-  try {
-    importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js");
-    importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js");
-  } catch {
-    return;
-  }
-  if (!self.firebase || !self.firebase.messaging) return;
-  if (self.firebase.apps && self.firebase.apps.length === 0) {
-    try {
-      self.firebase.initializeApp(firebaseConfig);
-    } catch {
-      return;
-    }
-  }
-  const messaging = self.firebase.messaging();
-  messaging.onBackgroundMessage((payload) => {
-    const notification = payload.notification || {};
-    const data = payload.data || {};
-    const title = notification.title || data.title || "Schedly";
-    const options = {
-      body: notification.body || data.body || "",
-      icon: "/icons/icon-512.png",
-      badge: "/notif-icon.svg",
-      vibrate: [200, 100, 200],
-      tag: data.tag || `schedly-${Date.now()}`,
-      data: data || {},
-    };
-    self.registration.showNotification(title, options);
-  });
-}
-
-const CACHE_NAME = "schedly-cache-v4";
+// --- Push notifications ----------------------------------------------------
+// The server sends data-only pushes (FCM and legacy web-push alike), so ALL
+// of them arrive here as a plain `push` event — foreground messages go to the
+// page's onMessage handler, background/closed-app messages land here. We
+// render the notification ourselves so display never depends on browser
+// auto-handling of a `notification` field.
 const RSC_CACHE = `${CACHE_NAME}-rsc`;
 
 // External images (avatars, weather icons) are fetched with no-cors so they
@@ -406,33 +363,41 @@ self.addEventListener("fetch", (event) => {
 });
 
 // --- Push notifications ----------------------------------------------------
-// The server (Vercel Cron → /api/cron/reminders) computes exact class times
-// from the timetable and pushes payloads here, so reminders arrive even when
-// Schedly isn't open.
+// The server sends data-only pushes (FCM and legacy web-push alike), so ALL
+// of them arrive here as a plain `push` event — foreground messages go to the
+// page's onMessage handler, background/closed-app messages land here. We
+// render the notification ourselves so display never depends on browser
+// auto-handling of a `notification` field.
 //
-// Pushes sent through FCM (the default since the FCM migration) are handled
-// by initFcm()'s onBackgroundMessage — skip them here to avoid a duplicate
-// notification. Legacy web-push payloads ({title,body,url} on the top level)
-// are the only ones this listener renders.
+// Payload shapes handled:
+//  - FCM data-only: { data: { title, body, url, tag }, from, messageId, ... }
+//  - Legacy web-push: { title, body, url } (flat)
+//  - Legacy FCM: { notification: { title, body }, data: { title, body, url } }
 self.addEventListener("push", (event) => {
-  let data = { title: "Schedly", body: "", url: "/" };
-  let isFcm = false;
+  let payload = { title: "Schedly", body: "", url: "/" };
   try {
     const parsed = event.data ? JSON.parse(event.data.text()) : {};
-    data = { ...data, ...parsed };
-    isFcm = Boolean(parsed.data || parsed.notification);
+    if (parsed && typeof parsed === "object") {
+      if (parsed.notification && typeof parsed.notification === "object") {
+        Object.assign(payload, parsed.notification);
+      }
+      if (parsed.data && typeof parsed.data === "object") {
+        Object.assign(payload, parsed.data);
+      } else if (!parsed.notification) {
+        Object.assign(payload, parsed);
+      }
+    }
   } catch {
     // Fall back to defaults if the payload isn't valid JSON.
   }
-  if (isFcm) return;
 
   event.waitUntil(
-    self.registration.showNotification(data.title || "Schedly", {
-      body: data.body || "",
+    self.registration.showNotification(payload.title || "Schedly", {
+      body: payload.body || "",
       icon: "/icons/icon-192.png",
       badge: "/notif-icon.svg",
-      data: { url: data.url || "/" },
-      tag: `schedly-${Date.now()}`,
+      data: { url: payload.url || "/" },
+      tag: payload.tag || `schedly-${Date.now()}`,
       vibrate: [100, 50, 100],
     })
   );

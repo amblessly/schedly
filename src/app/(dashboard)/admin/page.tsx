@@ -100,8 +100,14 @@ export default function AdminPage() {
         targetUserId,
       });
       const scope = targetUserId ? "self (test)" : `${res.users} users`;
+      const fcm = res.fcmConfigured
+        ? `FCM push delivered: ${res.fcmSent}`
+        : "FCM push NOT configured on server";
+      const vapid = res.vapidConfigured
+        ? `web push delivered: ${res.legacySent}`
+        : "web push not configured";
       setBroadcastResult(
-        `Sent to ${scope}. FCM delivered: ${res.fcmSent}, legacy push: ${res.legacySent}.`
+        `Sent to ${scope}. In-app: ${res.users} notification(s). ${fcm}; ${vapid}.`
       );
       toast.success("Notification sent.");
     } catch (err) {
@@ -193,7 +199,9 @@ export default function AdminPage() {
             <div>
               <CardTitle className="text-base">Send Notification</CardTitle>
               <CardDescription className="mt-0.5 text-xs">
-                Broadcast a message to all users — it appears as a push alert and in their Notifications tab.
+                Shows in every user&rsquo;s Notifications tab. A push alert is
+                also sent when the server&rsquo;s FCM keys are set and the device
+                has notifications enabled.
               </CardDescription>
             </div>
           </div>
