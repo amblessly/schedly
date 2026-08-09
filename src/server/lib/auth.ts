@@ -1,7 +1,6 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
-import { emailOTP } from "better-auth/plugins";
 import { db } from "@/server/db/client";
 import { sendEmail } from "@/server/lib/email";
 
@@ -88,47 +87,35 @@ export const auth = betterAuth({
           sendOnSignUp: true,
           sendOnSignIn: true,
           autoSignInAfterVerification: true,
-          // The emailOTP plugin overrides this (overrideDefaultEmailVerification)
-          // so the email carries a one-time code instead of a clickable link.
-          sendVerificationEmail: async () => {},
+          sendVerificationEmail: async ({ user, url }) => {
+            try {
+              await sendEmail({
+                to: user.email,
+                subject: "Verify your Schedly account",
+                html: `
+                  <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+                    <h1 style="color: #e11d48; font-size: 24px; margin-bottom: 8px;">Welcome to Schedly!</h1>
+                    <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+                      Thanks for signing up. Please verify your email address by clicking the button below.
+                    </p>
+                    <a href="${url}" style="display: inline-block; background-color: #e11d48; color: #ffffff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 16px 0;">
+                      Verify Email Address
+                    </a>
+                    <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
+                      If the button doesn't work, copy and paste this link into your browser:<br/>
+                      <a href="${url}" style="color: #e11d48;">${url}</a>
+                    </p>
+                    <p style="color: #9ca3af; font-size: 12px; margin-top: 24px;">
+                      If you didn't create an account, you can safely ignore this email.
+                    </p>
+                  </div>
+                `,
+              });
+            } catch (err) {
+              console.error("[Auth] Failed to send verification email:", err);
+            }
+          },
         },
-      }
-    : {}),
-  ...(process.env.RESEND_API_KEY
-    ? {
-        plugins: [
-          emailOTP({
-            otpLength: 6,
-            expiresIn: 600, // 10 minutes
-            allowedAttempts: 5,
-            overrideDefaultEmailVerification: true,
-            sendVerificationOTP: async ({ email, otp, type }) => {
-              if (type !== "email-verification") return;
-              try {
-                await sendEmail({
-                  to: email,
-                  subject: "Your Schedly verification code",
-                  html: `
-                    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
-                      <h1 style="color: #e11d48; font-size: 24px; margin-bottom: 8px;">Verify your email</h1>
-                      <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-                        Use the code below to verify your Schedly account. It expires in 10 minutes.
-                      </p>
-                      <div style="background-color: #f4f4f5; border-radius: 12px; padding: 24px; text-align: center; margin: 20px 0; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #111827;">
-                        ${otp}
-                      </div>
-                      <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
-                        If you didn't create an account, you can safely ignore this email.
-                      </p>
-                    </div>
-                  `,
-                });
-              } catch (err) {
-                console.error("[Auth] Failed to send OTP email:", err);
-              }
-            },
-          }),
-        ],
       }
     : {}),
   rateLimit: {

@@ -3,11 +3,9 @@
 import { Suspense, useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { authFetch } from "@/lib/auth-fetch";
-import { Loader2 } from "lucide-react";
 
 interface EmailProvider {
   app?: string;
@@ -40,8 +38,8 @@ function getProvider(email: string): EmailProvider {
 function openInbox(email: string) {
   const { app, web } = getProvider(email);
   if (app) {
-    // T
-    // he app scheme may not be installed; fall back to the web mail client.
+    // Try the native mail app first. If the page is still visible after a beat,
+    // the app wasn't installed / didn't handle the scheme, so fall back to web.
     window.location.href = app;
     setTimeout(() => {
       if (!document.hidden) {
@@ -57,12 +55,8 @@ function PendingContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const email = searchParams.get("email") || "";
-  const [otp, setOtp] = useState("");
-  const [verifying, setVerifying] = useState(false);
-  const [otpError, setOtpError] = useState("");
   const [resent, setResent] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [polling, setPolling] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
@@ -86,64 +80,34 @@ function PendingContent() {
     };
   }, [router]);
 
-  // Resend cooldown timer.
-  useEffect(() => {
-    if (cooldown <= 0) return;
-    const id = setInterval(() => setCooldown((c) => c - 1), 1000);
-    return () => clearInterval(id);
-  }, [cooldown]);
-
-  async function verifyOtp() {
-    if (!email || otp.trim().length < 6) {
-      setOtpError("Enter the 6-digit code from your email.");
-      return;
-    }
-    setVerifying(true);
-    setOtpError("");
+  const checkNow = async () => {
     try {
-      const res = await authClient.emailOtp.verifyEmail({
-        email,
-        otp: otp.trim(),
-      });
-      if (res.error) {
-        const code = (res.error as { code?: string })?.code;
-        const msg =
-          code === "OTP_EXPIRED"
-            ? "This code has expired. Request a new one."
-            : code === "TOO_MANY_ATTEMPTS"
-              ? "Too many incorrect attempts. Request a new code and try again."
-              : "Invalid code. Check your email and try again.";
-        setOtpError(msg);
+      const res = await authFetch("/api/auth/get-session");
+      const data = await res.json();
+      if (data?.user?.emailVerified) {
+        router.push("/dashboard");
         return;
       }
-      router.push("/dashboard");
-    } catch {
-      setOtpError("Something went wrong. Please try again.");
-    } finally {
-      setVerifying(false);
+    } catch { /* not yet */ }
+    if (email) {
+      openInbox(email);
     }
-  }
+  };
 
-  async function resendCode() {
-    if (!email || cooldown > 0) return;
-    setSending(true);
-    setOtpError("");
+  async function resendEmail() {
+    if (!email) return;
+    setLoading(true);
     try {
-      await authClient.emailOtp.sendVerificationOtp({
-        email,
-        type: "email-verification",
-      });
+      await authClient.sendVerificationEmail({ email });
       setResent(true);
-      setCooldown(30);
     } catch {
-      setOtpError("Couldn't send the code. Please try again in a moment.");
-    } finally {
-      setSending(false);
+      // silent
     }
+    setLoading(false);
   }
 
   return (
-    <Card className="w-full max-w-md border-border/50 shadow-lg shadow-primary/5">
+    <Card className="border-border/50 shadow-lg shadow-primary/5">
       <CardHeader className="space-y-1 pb-6 text-center">
         <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
           <svg
@@ -160,100 +124,59 @@ function PendingContent() {
             />
           </svg>
         </div>
-        <CardTitle className="text-2xl font-bold tracking-tight">
-          Check your email
-        </CardTitle>
+        <CardTitle className="text-2xl font-bold tracking-tight">Check your email</CardTitle>
         <p className="text-sm text-muted-foreground">
-          We sent a 6-digit verification code to{" "}
+          We sent a verification link to{" "}
           <span className="font-medium text-foreground">{email}</span>
         </p>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            verifyOtp();
-          }}
-        >
-          <div>
-            <Input
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              placeholder="Enter code"
-              value={otp}
-              maxLength={6}
-              disabled={verifying}
-              autoFocus
-              onChange={(e) => {
-                setOtp(e.target.value.replace(/\D/g, ""));
-                setOtpError("");
-              }}
-              className="h-14 text-center text-2xl font-semibold tracking-[0.5em] placeholder:tracking-normal"
-            />
-            {otpError && (
-              <p className="mt-2 text-xs text-destructive">{otpError}</p>
-            )}
-          </div>
-
-          <Button type="submit" className="h-11 w-full" disabled={verifying || !otp}>
-            {verifying ? (
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-            ) : null}
-            {verifying ? "Verifying..." : "Verify email"}
-          </Button>
-        </form>
-
-        <div className="flex items-center justify-center gap-2 text-sm">
-          <span className="text-muted-foreground">Didn&rsquo;t get a code?</span>
-          <Button
-            variant="link"
-            size="sm"
-            className="h-auto px-0 font-medium"
-            onClick={resendCode}
-            disabled={sending || cooldown > 0}
-          >
-            {sending
-              ? "Sending..."
-              : cooldown > 0
-                ? `Resend in ${cooldown}s`
-                : "Resend code"}
-          </Button>
-        </div>
-        {resent && (
-          <p className="text-center text-xs text-muted-foreground">
-            A new code was sent to your inbox.
+      <CardContent className="space-y-5">
+        <p className="text-sm text-muted-foreground text-center leading-relaxed">
+          Click the link in the email to verify your account.
+          The link expires in 24 hours.
+        </p>
+        {polling && (
+          <p className="text-xs text-center text-muted-foreground animate-pulse">
+            Waiting for verification{/* no dots needed */}
           </p>
         )}
-
-        <div className="flex flex-col items-center gap-2 pt-1">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => email && openInbox(email)}
-          >
-            Open email app
-          </Button>
-          {polling && (
-            <p className="text-xs text-muted-foreground animate-pulse">
-              Waiting for verification
+        <Button
+          variant="outline"
+          className="w-full h-11 font-medium"
+          onClick={checkNow}
+        >
+          I&apos;ve verified — check now
+        </Button>
+        {resent && (
+          <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-center dark:border-green-800 dark:bg-green-950">
+            <p className="text-sm font-medium text-green-700 dark:text-green-400">
+              Verification email resent!
             </p>
+          </div>
+        )}
+        <Button
+          variant="outline"
+          className="w-full h-11 font-medium"
+          onClick={resendEmail}
+          disabled={loading || !email}
+        >
+          {loading ? (
+            <span className="flex items-center gap-2">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              Sending...
+            </span>
+          ) : (
+            "Resend verification email"
           )}
-        </div>
+        </Button>
       </CardContent>
     </Card>
   );
 }
 
-export default function PendingPage() {
+export default function VerifyEmailPendingPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex h-full min-h-[60vh] items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </div>
-      }
-    >
+    <Suspense>
       <PendingContent />
     </Suspense>
   );
