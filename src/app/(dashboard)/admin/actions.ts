@@ -44,3 +44,32 @@ export async function toggleAdminRole(userId: string, password: string) {
   auditLog("user.admin_toggle", { targetUserId: userId, callerId: session.user.id });
   return result;
 }
+
+export async function sendBroadcastNotification(opts: {
+  title?: string;
+  message: string;
+  targetUserId?: string;
+}) {
+  const session = await requireAdmin();
+  const title = (opts.title || "Schedly").slice(0, 100);
+  const message = opts.message.trim().slice(0, 500);
+  if (!message) throw new Error("Message is required.");
+
+  const result = await adminService.broadcastNotification({
+    title,
+    message,
+    targetUserId: opts.targetUserId || undefined,
+  });
+
+  auditLog("admin.action", {
+    action: "notification.broadcast",
+    callerId: session.user.id,
+    targetUserId: opts.targetUserId || null,
+    title,
+    sentTo: result.users,
+    sentFcm: result.fcmSent,
+    sentLegacy: result.legacySent,
+  });
+
+  return result;
+}

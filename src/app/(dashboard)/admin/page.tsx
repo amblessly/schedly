@@ -1,16 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAdminStats, getUsers, toggleAdminRole } from "./actions";
+import { getAdminStats, getUsers, toggleAdminRole, sendBroadcastNotification } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/features/auth/hooks/use-auth";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from "@/components/ui/card";
+import { Megaphone, Loader2 } from "lucide-react";
 
 type AdminUser = {
   id: string;
@@ -39,6 +44,11 @@ export default function AdminPage() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [confirmError, setConfirmError] = useState("");
+  const { user } = useAuth();
+  const [broadcastTitle, setBroadcastTitle] = useState("");
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [broadcasting, setBroadcasting] = useState(false);
+  const [broadcastResult, setBroadcastResult] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -73,6 +83,33 @@ export default function AdminPage() {
       alert(err instanceof Error ? err.message : "Failed to update role");
     }
     setTogglingId(null);
+  }
+
+  async function handleBroadcast(targetUserId?: string) {
+    if (broadcasting) return;
+    if (!broadcastMessage.trim()) {
+      toast.error("Enter a message first.");
+      return;
+    }
+    setBroadcasting(true);
+    setBroadcastResult(null);
+    try {
+      const res = await sendBroadcastNotification({
+        title: broadcastTitle.trim() || undefined,
+        message: broadcastMessage.trim(),
+        targetUserId,
+      });
+      const scope = targetUserId ? "self (test)" : `${res.users} users`;
+      setBroadcastResult(
+        `Sent to ${scope}. FCM delivered: ${res.fcmSent}, legacy push: ${res.legacySent}.`
+      );
+      toast.success("Notification sent.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to send notification.";
+      toast.error(msg);
+      setBroadcastResult(null);
+    }
+    setBroadcasting(false);
   }
 
   if (loading) {
@@ -146,6 +183,61 @@ export default function AdminPage() {
           <StatCard label="Feedback" value={stats.feedback} />
         </div>
       )}
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Megaphone className="h-4 w-4" />
+            </span>
+            <div>
+              <CardTitle className="text-base">Send Notification</CardTitle>
+              <CardDescription className="mt-0.5 text-xs">
+                Broadcast a message to all users — it appears as a push alert and in their Notifications tab.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Input
+            placeholder="Title (optional) — e.g. New update!"
+            value={broadcastTitle}
+            onChange={(e) => setBroadcastTitle(e.target.value)}
+            maxLength={100}
+            disabled={broadcasting}
+          />
+          <Textarea
+            placeholder="Message — e.g. Schedly v1.3 is out with bug fixes. Check it out!"
+            value={broadcastMessage}
+            onChange={(e) => setBroadcastMessage(e.target.value)}
+            maxLength={500}
+            disabled={broadcasting}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              onClick={() => handleBroadcast()}
+              disabled={broadcasting}
+            >
+              {broadcasting ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <Megaphone className="mr-1.5 h-4 w-4" />
+              )}
+              Send to all users
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleBroadcast((user as { id?: string } | null)?.id)}
+              disabled={broadcasting}
+            >
+              Send to myself (test)
+            </Button>
+          </div>
+          {broadcastResult && (
+            <p className="text-sm text-muted-foreground">{broadcastResult}</p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="border-border/50">
         <CardHeader>

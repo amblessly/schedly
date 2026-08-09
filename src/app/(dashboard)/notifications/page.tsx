@@ -3,6 +3,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
+import {
+  getUserNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  deleteNotification as deleteNotificationAction,
+} from "@/app/(dashboard)/notifications/actions";
 import { getUserReminders, updateReminder, type UpdateReminderResult } from "@/app/(dashboard)/reminders/actions";
 import { isPushSupported, hasFcmSubscription, pushUnsupportedReasons, subscribeToPush, unsubscribeFromFcm } from "@/lib/firebase";
 import { programReminderAlarms } from "@/lib/notification-scheduler";
@@ -166,21 +172,39 @@ export function NotificationsPage() {
   const [pushMessage, setPushMessage] = useState<{ kind: "error"; text: string } | null>(null);
 
   useEffect(() => {
-    getUserSchedules()
-      .then((scheds) =>
+    let active = true;
+    Promise.all([getUserSchedules(), getUserNotifications()])
+      .then(([scheds, dbNotifications]) => {
+        if (!active) return;
+        const scheduleNotes = scheds.map((s) => ({
+          id: s.id,
+          type: "schedule_update" as const,
+          title: "Schedule Uploaded",
+          body: `${s.title} is ready — ${s.classes.length} class${s.classes.length !== 1 ? "es" : ""} added.`,
+          read: false,
+          createdAt: typeof s.createdAt === "string" ? s.createdAt : s.createdAt.toISOString(),
+        }));
+        const dbNotes = dbNotifications.map((n) => ({
+          id: n.id,
+          type: n.type as Notification["type"],
+          title: n.title,
+          body: n.body,
+          read: n.read,
+          createdAt: n.createdAt instanceof Date ? n.createdAt.toISOString() : String(n.createdAt),
+        }));
         setNotifications(
-          scheds.map((s) => ({
-            id: s.id,
-            type: "schedule_update" as const,
-            title: "Schedule Uploaded",
-            body: `${s.title} is ready — ${s.classes.length} class${s.classes.length !== 1 ? "es" : ""} added.`,
-            read: false,
-            createdAt: typeof s.createdAt === "string" ? s.createdAt : s.createdAt.toISOString(),
-          }))
-        )
-      )
+          [...dbNotes, ...scheduleNotes].sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+        );
+      })
       .catch(() => {})
-      .finally(() => setLoaded(true));
+      .finally(() => {
+        if (active) setLoaded(true);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Reminders data
@@ -328,14 +352,17 @@ export function NotificationsPage() {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+    markNotificationRead(id).catch(() => {});
   }
 
   function markAllRead() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    markAllNotificationsRead().catch(() => {});
   }
 
   function deleteNotification(id: string) {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+    deleteNotificationAction(id).catch(() => {});
   }
 
   const unreadCount = notifications.filter((n) => !n.read).length;

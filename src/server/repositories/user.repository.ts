@@ -41,6 +41,10 @@ export const userRepository = {
     });
   },
 
+  findAllUserIds() {
+    return db.user.findMany({ select: { id: true } }).then((users) => users.map((u) => u.id));
+  },
+
   updateAvatar(id: string, avatarUrl: string) {
     return db.user.update({ where: { id }, data: { avatarUrl } });
   },

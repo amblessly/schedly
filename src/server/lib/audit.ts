@@ -14,7 +14,8 @@ type AuditAction =
   | "reminders.update"
   | "reminders.cron"
   | "push.subscribe"
-  | "push.unsubscribe";
+  | "push.unsubscribe"
+  | "notification.delete";
 
 export function auditLog(action: AuditAction, metadata?: Record<string, unknown>) {
   console.log(
