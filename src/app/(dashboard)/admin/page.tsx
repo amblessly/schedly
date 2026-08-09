@@ -101,7 +101,7 @@ export default function AdminPage() {
       });
       const scope = targetUserId ? "self (test)" : `${res.users} users`;
       const fcm = res.fcmConfigured
-        ? `FCM push delivered: ${res.fcmSent}`
+        ? `FCM push delivered: ${res.fcmSent}${res.fcmFailed ? `, failed: ${res.fcmFailed}` : ""}${res.fcmErrors?.length ? ` (${res.fcmErrors.join("; ")})` : ""}`
         : "FCM push NOT configured on server";
       const vapid = res.vapidConfigured
         ? `web push delivered: ${res.legacySent}`

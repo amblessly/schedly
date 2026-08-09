@@ -135,6 +135,30 @@ export async function dispatchDueReminders(now: Date = new Date()) {
     fcmTokensByUser.set(row.userId, (fcmTokensByUser.get(row.userId) ?? 0) + 1);
   }
 
+  // Native Web Push (VAPID) is the primary channel; FCM remains the fallback
+  // for devices subscribed before the migration.
+  const deliverPush = async (
+    reminderUserId: string,
+    title: string,
+    body: string
+  ): Promise<string[]> => {
+    const subs = subsByUser.get(reminderUserId) ?? [];
+    const stale: string[] = [];
+    if (subs.length > 0) {
+      await Promise.all(
+        subs.map(async (sub) => {
+          const result = await sendPush(sub, { title, body, url: "/schedule" });
+          if (result.stale) stale.push(sub.endpoint);
+        })
+      );
+      return stale;
+    }
+    if ((fcmTokensByUser.get(reminderUserId) ?? 0) > 0) {
+      await sendFCMPush({ userId: reminderUserId, title, body, url: "/schedule" });
+    }
+    return stale;
+  };
+
   let sent = 0;
   const staleEndpoints: string[] = [];
   // Grace period after a class starts: a delayed cron can still deliver the
@@ -164,36 +188,15 @@ export async function dispatchDueReminders(now: Date = new Date()) {
 
     if (inBeforeWindow) {
       const remaining = Math.max(0, Math.round((occNext! - now.getTime()) / 60000));
-      // FCM is the primary channel; legacy web-push subs are the fallback
-      // for devices that subscribed before the FCM migration.
-      if ((fcmTokensByUser.get(reminder.userId) ?? 0) === 0) {
-        const subs = subsByUser.get(reminder.userId) ?? [];
-        if (subs.length > 0) {
-          await Promise.all(
-            subs.map(async (sub) => {
-              const result = await sendPush(sub, {
-                title: "Upcoming class",
-                body:
-                  remaining > 0
-                    ? `${label} starts in ${remaining} min (${startLabelTxt})`
-                    : `${label} starts now (${startLabelTxt})`,
-                url: "/schedule",
-              });
-if (result.stale) staleEndpoints.push(sub.endpoint);
-            })
-          );
-        }
-      } else {
-        await sendFCMPush({
-          userId: reminder.userId,
-          title: "Upcoming class",
-          body:
-            remaining > 0
-              ? `${label} starts in ${remaining} min (${startLabelTxt})`
-              : `${label} starts now (${startLabelTxt})`,
-          url: "/schedule",
-        });
-      }
+      staleEndpoints.push(
+        ...(await deliverPush(
+          reminder.userId,
+          "Upcoming class",
+          remaining > 0
+            ? `${label} starts in ${remaining} min (${startLabelTxt})`
+            : `${label} starts now (${startLabelTxt})`
+        ))
+      );
 
       await db.reminder.update({
         where: { id: reminder.id },
@@ -223,29 +226,13 @@ if (result.stale) staleEndpoints.push(sub.endpoint);
       !(occNext !== null && now.getTime() >= occNext - minutes * 60 * 1000) &&
       !(reminder.lastSentAt && reminder.lastSentAt.getTime() >= occPrev);
     if (inStartWindow) {
-      // FCM is the primary channel; legacy web-push subs are the fallback.
-      if ((fcmTokensByUser.get(reminder.userId) ?? 0) === 0) {
-        const subs = subsByUser.get(reminder.userId) ?? [];
-        if (subs.length > 0) {
-          await Promise.all(
-            subs.map(async (sub) => {
-              const result = await sendPush(sub, {
-                title: "Class starting now",
-                body: `You have class today — ${label} at ${startLabelTxt}`,
-                url: "/schedule",
-              });
-              if (result.stale) staleEndpoints.push(sub.endpoint);
-            })
-          );
-        }
-      } else {
-        await sendFCMPush({
-          userId: reminder.userId,
-          title: "Class starting now",
-          body: `You have class today — ${label} at ${startLabelTxt}`,
-          url: "/schedule",
-        });
-      }
+      staleEndpoints.push(
+        ...(await deliverPush(
+          reminder.userId,
+          "Class starting now",
+          `You have class today — ${label} at ${startLabelTxt}`
+        ))
+      );
 
       await db.reminder.update({
         where: { id: reminder.id },

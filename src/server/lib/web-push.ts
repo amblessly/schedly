@@ -25,11 +25,23 @@ export interface PushEndpoint {
   auth: string;
 }
 
+/** Strongly typed push payload — rendered by the service worker's push
+ *  handler, which falls back to sensible defaults for missing fields. */
+export interface PushNotificationPayload {
+  title: string;
+  body: string;
+  icon?: string;
+  badge?: string;
+  url?: string;
+  tag?: string;
+  data?: Record<string, unknown>;
+}
+
 /** Send a push payload to one subscription. Resolves to false when the
  *  subscription is stale (410/404) and should be removed from the DB. */
 export async function sendPush(
   sub: PushEndpoint,
-  payload: { title: string; body: string; url?: string }
+  payload: PushNotificationPayload
 ): Promise<{ ok: boolean; stale?: boolean }> {
   ensureVapidConfigured();
   try {

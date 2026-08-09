@@ -10,7 +10,7 @@ import {
   deleteNotification as deleteNotificationAction,
 } from "@/app/(dashboard)/notifications/actions";
 import { getUserReminders, updateReminder, type UpdateReminderResult } from "@/app/(dashboard)/reminders/actions";
-import { isPushSupported, hasFcmSubscription, pushUnsupportedReasons, subscribeToPush, unsubscribeFromFcm } from "@/lib/firebase";
+import { isPushSupported, getPushState, pushUnsupportedReasons, enablePush, disablePush, sendTestPush, isIosPwa } from "@/lib/push";
 import { programReminderAlarms } from "@/lib/notification-scheduler";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -169,7 +169,9 @@ export function NotificationsPage() {
   const [now, setNow] = useState(() => new Date());
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushUpdating, setPushUpdating] = useState(false);
+  const [pushBlocked, setPushBlocked] = useState(false);
   const [pushMessage, setPushMessage] = useState<{ kind: "error"; text: string } | null>(null);
+  const [pushTesting, setPushTesting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -234,13 +236,15 @@ export function NotificationsPage() {
   }, []);
 
   // Restore push subscription state — defaults to OFF unless this device is
-  // actually subscribed through the current FCM project's VAPID key.
+  // actually subscribed through the current VAPID key.
   useEffect(() => {
     if (!isPushSupported()) return;
     let active = true;
-    hasFcmSubscription()
-      .then((has) => {
-        if (active) setPushEnabled(has);
+    getPushState()
+      .then((s) => {
+        if (!active) return;
+        if (s.kind === "granted") setPushEnabled(s.subscribed);
+        if (s.kind === "denied") setPushBlocked(true);
       })
       .catch(() => {
         if (active) setPushEnabled(false);
@@ -306,20 +310,33 @@ export function NotificationsPage() {
     if (pushUpdating) return;
     setPushUpdating(true);
     setPushMessage(null);
+    setPushBlocked(false);
     try {
       if (pushEnabled) {
-        const result = await unsubscribeFromFcm();
+        const result = await disablePush();
         if (result.ok) setPushEnabled(false);
         else setPushMessage({ kind: "error", text: result.reason });
       } else {
-        const result = await subscribeToPush();
+        const result = await enablePush();
         if (result.ok) setPushEnabled(true);
-        else setPushMessage({ kind: "error", text: result.reason });
+        else {
+          if (result.code === "NOTIFICATION_PERMISSION_DENIED") setPushBlocked(true);
+          setPushMessage({ kind: "error", text: result.reason });
+        }
       }
     } catch {
       setPushMessage({ kind: "error", text: "Something went wrong. Try again." });
     }
     setPushUpdating(false);
+  };
+
+  const sendTest = async () => {
+    if (pushTesting) return;
+    setPushTesting(true);
+    setPushMessage(null);
+    const result = await sendTestPush();
+    if (!result.ok) setPushMessage({ kind: "error", text: result.reason });
+    setPushTesting(false);
   };
 
   const toggleReminder = async (classId: string) => {
@@ -612,12 +629,40 @@ export function NotificationsPage() {
             </p>
           )}
 
+          {pushBlocked && !pushEnabled && (
+            <p className="flex items-start gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-600 dark:text-amber-500">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              {isIosPwa()
+                ? "Notifications are blocked in iOS Settings. Go to Settings → Schedly → Notifications and allow them, then toggle this back on."
+                : "Notifications are blocked in your browser or device settings. Allow Schedly to send notifications there, then toggle this back on."}
+            </p>
+          )}
+
           <p className="flex items-start gap-1.5 rounded-xl border border-border/40 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            Reminders fire even when the app is closed — but only if Schedly is
-            installed to your home screen. Until then, they appear on time while
-            the app is open.
+            Reminders fire even when the app is closed. On iPhone, push requires
+            adding Schedly to your home screen first.
           </p>
+
+          {pushEnabled && (
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/30 bg-card/30 px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Test notifications</p>
+                <p className="text-xs text-muted-foreground">
+                  Send a test push to every device where you enabled reminders.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={sendTest}
+                disabled={pushTesting}
+                className="h-9 shrink-0"
+              >
+                {pushTesting ? "Sending..." : "Send test"}
+              </Button>
+            </div>
+          )}
 
           {schedules === null ? (
             <div className="space-y-3">

@@ -180,6 +180,9 @@ model PushSubscription {
   p256dh    String   @map("p256dh")
   auth      String
   timezone  String   @default("UTC")
+  userAgent String?  @map("user_agent")
+  device    String?  @map("device")
+  platform  String?  @map("platform")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

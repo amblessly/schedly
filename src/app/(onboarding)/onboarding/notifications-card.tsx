@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { BellRing, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { isPushSupported, subscribeToPush } from "@/lib/firebase";
+import { isPushSupported, enablePush } from "@/lib/push";
 
 type PermissionState = "default" | "granted" | "denied" | "unsupported" | "loading";
 
@@ -44,10 +44,11 @@ export function NotificationsCard() {
     try {
       const result = await Notification.requestPermission();
       if (result === "granted") {
-        // Register the device for push (FCM) so class reminders arrive even
-        // when the app isn't open — mirrors the notifications page toggle.
+        // Register the device for native Web Push (VAPID) so class reminders
+        // arrive even when the app isn't open — mirrors the notifications
+        // page toggle.
         if (isPushSupported()) {
-          await subscribeToPush().catch(() => {});
+          await enablePush().catch(() => {});
         }
         setStatus("granted");
       } else {

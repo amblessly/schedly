@@ -59,15 +59,16 @@ interface FcmPayload {
 export async function sendFCMPush({ userId, title, body, url, tag }: FcmPayload) {
   let sent = 0;
   let failed = 0;
+  const errors: unknown[] = [];
 
   const tokens = await db.fCMToken.findMany({
     where: { userId },
     select: { id: true, token: true },
   });
-  if (tokens.length === 0) return { sent, failed, tokens: 0 };
+  if (tokens.length === 0) return { sent, failed, tokens: 0, errors };
 
   const messaging = getMessaging();
-  if (!messaging) return { sent, failed, tokens: tokens.length };
+  if (!messaging) return { sent, failed, tokens: tokens.length, errors };
 
   // Data-only payload: the browser routes foreground messages to the page's
   // onMessage handler and background messages to the service worker's push
@@ -99,10 +100,11 @@ export async function sendFCMPush({ userId, title, body, url, tag }: FcmPayload)
           await db.fCMToken.delete({ where: { id: t.id } }).catch(() => {});
         } else {
           failed++;
+          errors.push({ code, message: (err as { message?: string })?.message });
         }
       }
     })
   );
 
-  return { sent, failed, tokens: tokens.length };
+  return { sent, failed, tokens: tokens.length, errors };
 }

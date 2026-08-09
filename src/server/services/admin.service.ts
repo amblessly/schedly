@@ -58,7 +58,9 @@ export const adminService = {
     );
 
     let fcmSent = 0;
+    let fcmFailed = 0;
     let legacySent = 0;
+    const fcmErrors: unknown[] = [];
 
     if (isFcmConfigured()) {
       const tokenUsers = await db.fCMToken.findMany({
@@ -74,8 +76,12 @@ export const adminService = {
             body: message,
             url: "/notifications",
             tag: `schedly-broadcast-${Date.now()}`,
-          }).catch(() => ({ sent: 0, failed: 1, tokens: 0 }));
+          }).catch(() => ({ sent: 0, failed: 1, tokens: 0, errors: [] }));
           fcmSent += r.sent;
+          fcmFailed += r.failed;
+          if (r.errors?.length && fcmErrors.length < 5) {
+            fcmErrors.push(...r.errors.slice(0, 1));
+          }
         })
       );
     }
@@ -100,7 +106,13 @@ export const adminService = {
     return {
       users: userIds.length,
       fcmSent,
+      fcmFailed,
       legacySent,
+      fcmErrors: fcmErrors.map((e) =>
+        typeof e === "object" && e
+          ? `${String((e as { code?: string }).code || "")} ${String((e as { message?: string }).message ?? "")}`.trim()
+          : String(e)
+      ),
       fcmConfigured: isFcmConfigured(),
       vapidConfigured: isVapidConfigured(),
     };
