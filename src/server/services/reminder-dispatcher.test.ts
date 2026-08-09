@@ -37,6 +37,19 @@ describe("nextOccurrence", () => {
     // EDT (UTC-4) → 13:30 UTC.
     expect(occ).toBe(new Date("2026-03-08T13:30:00Z").getTime());
   });
+
+  it("uses the LOCAL date when UTC has already rolled to the next day", () => {
+    // Manila Mon Aug 10 02:00 = UTC Sun Aug 9 18:00. A Monday 01:45 class
+    // already started at 17:45 UTC — lastOccurrence must catch it (Mon Aug 10
+    // 01:45 Manila = Aug 9 17:45 UTC), NOT the Sunday/UTC date (off-by-one-day
+    // bug for UTC hours ≥ 16:00). nextOccurrence skips ahead to Mon Aug 17.
+    const now = new Date("2026-08-09T18:00:00Z");
+    const start = wallDate(2026, 8, 10, 1, 45);
+    const occNext = nextOccurrence(start, ["monday"], "Asia/Manila", now);
+    expect(occNext).toBe(new Date("2026-08-16T17:45:00Z").getTime());
+    const occPrev = lastOccurrence(start, ["monday"], "Asia/Manila", now);
+    expect(occPrev).toBe(new Date("2026-08-09T17:45:00Z").getTime());
+  });
 });
 
 describe("lastOccurrence", () => {

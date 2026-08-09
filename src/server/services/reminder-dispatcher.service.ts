@@ -19,26 +19,30 @@ function wallParts(d: Date): { h: number; m: number } {
   return { h: d.getUTCHours(), m: d.getUTCMinutes() };
 }
 
-/** Offset (ms) of a given IANA timezone at a moment, so wall-clock times can
- *  be translated to absolute instants without a date library. */
-function tzOffsetMs(timezone: string, at: Date): number {
-  try {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      hour12: false,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }).formatToParts(at);
-    const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
-    const asUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"));
-    return asUtc - at.getTime();
-  } catch {
-    return 0;
-  }
+/** Local calendar date + UTC offset of `at` in the given timezone. The wall
+ *  clock stored in start_time is the user's local time, so the occurrence
+ *  instant must be built from the LOCAL date — not the UTC date, which drifts
+ *  by up to a day (e.g. at 18:00 UTC it's already 02:00 the next day in
+ *  Asia/Manila). */
+function localParts(timezone: string, at: Date): {
+  y: number;
+  mo: number;
+  d: number;
+  offsetMs: number;
+} {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(at);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  const asUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"));
+  return { y: get("year"), mo: get("month"), d: get("day"), offsetMs: asUtc - at.getTime() };
 }
 
 /** Local weekday (0=Sunday) of `at` in the given timezone. */
@@ -95,14 +99,8 @@ function nearestOccurrence(
     const localKey = DAYS_OF_WEEK[localWeekday(tz, probe)]!;
     if (!days.includes(localKey)) continue;
 
-    const offset = tzOffsetMs(tz, probe);
-    const instant = Date.UTC(
-      probe.getUTCFullYear(),
-      probe.getUTCMonth(),
-      probe.getUTCDate(),
-      h,
-      m
-    ) - offset;
+    const lp = localParts(tz, probe);
+    const instant = Date.UTC(lp.y, lp.mo - 1, lp.d, h, m) - lp.offsetMs;
     if (future) {
       if (instant > now.getTime()) return instant;
     } else if (instant <= now.getTime()) {

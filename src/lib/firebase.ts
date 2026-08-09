@@ -241,10 +241,11 @@ export async function subscribeToPush(): Promise<PushResult> {
     }
 
     try {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
       const res = await fetch("/api/push/fcm-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token, timezone }),
       });
       if (!res.ok) {
         return {

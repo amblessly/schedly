@@ -13,10 +13,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing token" }, { status: 400 });
   }
 
-  await db.fCMToken.upsert({
-    where: { token },
-    create: { userId: session.user.id, token },
-    update: { updatedAt: new Date() },
+  await db.$transaction(async (tx) => {
+    await tx.fCMToken.upsert({
+      where: { token },
+      create: { userId: session.user.id, token },
+      update: { updatedAt: new Date() },
+    });
+
+    // Keep the user's timezone in sync with this device (the model defaults
+    // to UTC, which would shift every reminder by the UTC offset).
+    const timezone = typeof body?.timezone === "string" ? body.timezone.slice(0, 64) : "UTC";
+    if (timezone !== "UTC") {
+      await tx.user.updateMany({
+        where: { id: session.user.id },
+        data: { timezone },
+      });
+    }
   });
 
   return NextResponse.json({ ok: true });
