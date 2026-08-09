@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { nextOccurrence } from "@/server/services/reminder-dispatcher.service";
+import { nextOccurrence, lastOccurrence } from "@/server/services/reminder-dispatcher.service";
 
 function wallDate(y: number, mo: number, d: number, h: number, m: number): Date {
   return new Date(Date.UTC(y, mo - 1, d, h, m));
@@ -36,5 +36,38 @@ describe("nextOccurrence", () => {
     const occ = nextOccurrence(start, ["sunday"], "America/New_York", now);
     // EDT (UTC-4) → 13:30 UTC.
     expect(occ).toBe(new Date("2026-03-08T13:30:00Z").getTime());
+  });
+});
+
+describe("lastOccurrence", () => {
+  it("returns today's occurrence when the class already started", () => {
+    // Monday 2026-08-03, class at 09:30 already past at 11:00 UTC.
+    const now = new Date("2026-08-03T11:00:00Z");
+    const start = wallDate(2026, 8, 3, 9, 30);
+    const occ = lastOccurrence(start, ["monday"], "UTC", now);
+    expect(occ).toBe(new Date("2026-08-03T09:30:00Z").getTime());
+  });
+
+  it("falls back to the previous week when today doesn't match", () => {
+    // Wednesday 2026-08-05, class is monday-only at 09:30.
+    const now = new Date("2026-08-05T12:00:00Z");
+    const start = wallDate(2026, 8, 3, 9, 30);
+    const occ = lastOccurrence(start, ["monday"], "UTC", now);
+    expect(occ).toBe(new Date("2026-08-03T09:30:00Z").getTime());
+  });
+
+  it("interprets stored time as wall clock in a non-UTC timezone", () => {
+    // Stored 09:30 in Asia/Manila = 01:30 UTC; now is 02:00 UTC.
+    const now = new Date("2026-08-03T02:00:00Z");
+    const start = wallDate(2026, 8, 3, 9, 30);
+    const occ = lastOccurrence(start, ["monday"], "Asia/Manila", now);
+    expect(occ).toBe(new Date("2026-08-03T01:30:00Z").getTime());
+  });
+
+  it("returns null when no occurrence ever matches", () => {
+    const now = new Date("2026-08-03T12:00:00Z");
+    const start = wallDate(2026, 8, 3, 9, 30);
+    const occ = lastOccurrence(start, [], "UTC", now);
+    expect(occ).toBeNull();
   });
 });

@@ -63,11 +63,35 @@ export function nextOccurrence(
   timezone: string,
   now: Date
 ): number | null {
+  return nearestOccurrence(startTime, days, timezone, now, true);
+}
+
+/** Latest occurrence (epoch ms, at or before `now`) — lets a delayed cron
+ *  still catch an occurrence that already started instead of skipping to the
+ *  next week. */
+export function lastOccurrence(
+  startTime: Date,
+  days: DayOfWeek[],
+  timezone: string,
+  now: Date
+): number | null {
+  return nearestOccurrence(startTime, days, timezone, now, false);
+}
+
+function nearestOccurrence(
+  startTime: Date,
+  days: DayOfWeek[],
+  timezone: string,
+  now: Date,
+  future: boolean
+): number | null {
   const { h, m } = wallParts(startTime);
   const tz = timezone || "UTC";
+  const step = future ? 1 : -1;
+  let best: number | null = null;
 
   for (let i = 0; i <= 14; i++) {
-    const probe = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
+    const probe = new Date(now.getTime() + step * i * 24 * 60 * 60 * 1000);
     const localKey = DAYS_OF_WEEK[localWeekday(tz, probe)]!;
     if (!days.includes(localKey)) continue;
 
@@ -79,9 +103,13 @@ export function nextOccurrence(
       h,
       m
     ) - offset;
-    if (instant > now.getTime()) return instant;
+    if (future) {
+      if (instant > now.getTime()) return instant;
+    } else if (instant <= now.getTime()) {
+      best = best === null ? instant : Math.max(best, instant);
+    }
   }
-  return null;
+  return best;
 }
 
 export async function dispatchDueReminders(now: Date = new Date()) {
@@ -111,28 +139,33 @@ export async function dispatchDueReminders(now: Date = new Date()) {
 
   let sent = 0;
   const staleEndpoints: string[] = [];
+  // Grace period after a class starts: a delayed cron can still deliver the
+  // "starting now" push during this window instead of skipping the occurrence.
+  const START_CATCHUP_MS = 90 * 60 * 1000;
 
   for (const reminder of reminders) {
     const cls = reminder.class;
     if (cls.days.length === 0) continue;
 
     const tz = reminder.user.timezone || "UTC";
-    const occ = nextOccurrence(cls.startTime, cls.days as DayOfWeek[], tz, now);
-    if (occ === null) continue;
+    const occNext = nextOccurrence(cls.startTime, cls.days as DayOfWeek[], tz, now);
+    const occPrev = lastOccurrence(cls.startTime, cls.days as DayOfWeek[], tz, now);
 
     const label = cls.shortName?.trim() || cls.code?.trim() || cls.subject;
     const startLabelTxt = startLabel(cls.startTime);
     const minutes = reminder.minutesBefore;
 
-    // 1) "Upcoming" push: now falls inside [occurrence - minutesBefore, occurrence - 30s].
-    //    The 30s slack prevents double-delivery when two crons run back-to-back.
-    const dueFrom = occ - minutes * 60 * 1000;
-    const dueTo = occ - 30 * 1000;
-    const inBeforeWindow = now.getTime() >= dueFrom && now.getTime() <= dueTo;
-    // Dedupe: never fire twice for the same occurrence.
-    const beforeFired = reminder.lastSentAt && reminder.lastSentAt.getTime() >= dueFrom;
+    // 1) "Upcoming" push: now is between [occurrence - minutesBefore] and the
+    //    class start. Catch-up semantics — a delayed cron fires this as long
+    //    as the class hasn't started yet (no fixed end-of-window).
+    const beforeFired = reminder.lastSentAt && reminder.lastSentAt.getTime() >= (occNext ?? 0) - minutes * 60 * 1000;
+    const inBeforeWindow =
+      occNext !== null &&
+      now.getTime() >= occNext - minutes * 60 * 1000 &&
+      !beforeFired;
 
-    if (inBeforeWindow && !beforeFired) {
+    if (inBeforeWindow) {
+      const remaining = Math.max(0, Math.round((occNext! - now.getTime()) / 60000));
       // FCM is the primary channel; legacy web-push subs are the fallback
       // for devices that subscribed before the FCM migration.
       if ((fcmTokensByUser.get(reminder.userId) ?? 0) === 0) {
@@ -143,8 +176,8 @@ export async function dispatchDueReminders(now: Date = new Date()) {
               const result = await sendPush(sub, {
                 title: "Upcoming class",
                 body:
-                  minutes > 0
-                    ? `${label} starts in ${minutes} min (${startLabelTxt})`
+                  remaining > 0
+                    ? `${label} starts in ${remaining} min (${startLabelTxt})`
                     : `${label} starts now (${startLabelTxt})`,
                 url: "/schedule",
               });
@@ -157,8 +190,8 @@ if (result.stale) staleEndpoints.push(sub.endpoint);
           userId: reminder.userId,
           title: "Upcoming class",
           body:
-            minutes > 0
-              ? `${label} starts in ${minutes} min (${startLabelTxt})`
+            remaining > 0
+              ? `${label} starts in ${remaining} min (${startLabelTxt})`
               : `${label} starts now (${startLabelTxt})`,
           url: "/schedule",
         });
@@ -166,7 +199,7 @@ if (result.stale) staleEndpoints.push(sub.endpoint);
 
       await db.reminder.update({
         where: { id: reminder.id },
-        data: { lastSentAt: new Date(dueFrom) },
+        data: { lastSentAt: new Date(occNext! - minutes * 60 * 1000) },
       });
 
       // Also record in the in-app notification list.
@@ -175,8 +208,8 @@ if (result.stale) staleEndpoints.push(sub.endpoint);
           userId: reminder.userId,
           type: "class_reminder",
           title: "Upcoming class",
-          body: `Reminder: ${label} starts in ${minutes} min.`,
-          scheduledAt: new Date(occ),
+          body: `Reminder: ${label} starts in ${remaining} min.`,
+          scheduledAt: new Date(occNext!),
         },
       });
 
@@ -184,13 +217,14 @@ if (result.stale) staleEndpoints.push(sub.endpoint);
       continue;
     }
 
-    // 2) "Starting now" window: exactly at the class time (cron fires on the
-    //    top of the minute, so allow up to 60s of delay). Fires a second
-    //    notification so the user knows the class has begun.
-    const inStartWindow = now.getTime() >= occ && now.getTime() <= occ + 60 * 1000;
-    // Dedupe against the before-window marker (dueFrom < occ, so an upcoming
-    // push never blocks the "starting now" one).
-    if (inStartWindow && !(reminder.lastSentAt && reminder.lastSentAt.getTime() >= occ)) {
+    // 2) "Starting now" push: the most recent occurrence is current (within
+    //    the catch-up grace), so a delayed cron still reports it.
+    const inStartWindow =
+      occPrev !== null &&
+      now.getTime() <= occPrev + START_CATCHUP_MS &&
+      !(occNext !== null && now.getTime() >= occNext - minutes * 60 * 1000) &&
+      !(reminder.lastSentAt && reminder.lastSentAt.getTime() >= occPrev);
+    if (inStartWindow) {
       // FCM is the primary channel; legacy web-push subs are the fallback.
       if ((fcmTokensByUser.get(reminder.userId) ?? 0) === 0) {
         const subs = subsByUser.get(reminder.userId) ?? [];
@@ -217,7 +251,7 @@ if (result.stale) staleEndpoints.push(sub.endpoint);
 
       await db.reminder.update({
         where: { id: reminder.id },
-        data: { lastSentAt: new Date(occ) },
+        data: { lastSentAt: new Date(occPrev!) },
       });
 
       // Also record in the in-app notification list.
@@ -227,7 +261,7 @@ if (result.stale) staleEndpoints.push(sub.endpoint);
           type: "class_reminder",
           title: "Class starting now",
           body: `${label} starts now (${startLabelTxt})`,
-          scheduledAt: new Date(occ),
+          scheduledAt: new Date(occPrev!),
         },
       });
 
