@@ -3,6 +3,7 @@
 import { auth } from "@/server/lib/auth";
 import { headers } from "next/headers";
 import { scheduleService } from "@/server/services/schedule.service";
+import { notificationService } from "@/server/services/notification.service";
 import { saveScheduleSchema } from "@/server/validators/ai.schema";
 import { auditLog } from "@/server/lib/audit";
 
@@ -28,6 +29,12 @@ export async function saveSchedule(data: unknown): Promise<SaveScheduleResult> {
   try {
     const schedule = await scheduleService.create(session.user.id, parsed.data);
     auditLog("schedule.create", { userId: session.user.id, scheduleId: schedule.id, title: parsed.data.title });
+    const classCount = parsed.data.classes.length;
+    await notificationService.create(session.user.id, {
+      type: "schedule_update",
+      title: "Schedule Uploaded",
+      body: `${parsed.data.title} is ready — ${classCount} class${classCount !== 1 ? "es" : ""} added.`,
+    });
     return { success: true, scheduleId: schedule.id };
   } catch (err) {
     console.error("[SAVE_SCHEDULE]", err);

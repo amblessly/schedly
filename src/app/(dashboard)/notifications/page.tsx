@@ -174,16 +174,8 @@ export function NotificationsPage() {
   useEffect(() => {
     let active = true;
     Promise.all([getUserSchedules(), getUserNotifications()])
-      .then(([scheds, dbNotifications]) => {
+      .then(([, dbNotifications]) => {
         if (!active) return;
-        const scheduleNotes = scheds.map((s) => ({
-          id: s.id,
-          type: "schedule_update" as const,
-          title: "Schedule Uploaded",
-          body: `${s.title} is ready — ${s.classes.length} class${s.classes.length !== 1 ? "es" : ""} added.`,
-          read: false,
-          createdAt: typeof s.createdAt === "string" ? s.createdAt : s.createdAt.toISOString(),
-        }));
         const dbNotes = dbNotifications.map((n) => ({
           id: n.id,
           type: n.type as Notification["type"],
@@ -193,7 +185,7 @@ export function NotificationsPage() {
           createdAt: n.createdAt instanceof Date ? n.createdAt.toISOString() : String(n.createdAt),
         }));
         setNotifications(
-          [...dbNotes, ...scheduleNotes].sort(
+          dbNotes.sort(
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           )
         );
@@ -619,6 +611,13 @@ export function NotificationsPage() {
               {pushMessage.text}
             </p>
           )}
+
+          <p className="flex items-start gap-1.5 rounded-xl border border-border/40 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            Reminders fire even when the app is closed — but only if Schedly is
+            installed to your home screen. Until then, they appear on time while
+            the app is open.
+          </p>
 
           {schedules === null ? (
             <div className="space-y-3">

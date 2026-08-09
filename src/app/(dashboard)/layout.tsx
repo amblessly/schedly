@@ -94,6 +94,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             ...(avatar ? [avatar] : []),
           ],
         });
+        // Re-arm pending class-reminder alarms after every app open so they
+        // still fire even if the tab/SW was closed since they were set.
+        reg.active?.postMessage({ type: "REARM_ALARMS" });
       })
       .catch(() => {});
   }, [user]);

@@ -111,10 +111,56 @@ async function writeAlarms(alarms) {
   await cache.put("/alarms.json", new Response(JSON.stringify(alarms), { headers: { "Content-Type": "application/json" } }));
 }
 
+/** Show a notification immediately (used by the ticker fallback). */
+async function fireAlarmNow(alarm) {
+  const tag = `rem-${alarm.id}-${alarm.fireAt}`;
+  await self.registration.showNotification(alarm.title || "Schedly", {
+    body: alarm.body || "",
+    icon: "/icons/icon-192.png",
+    badge: "/notif-icon.svg",
+    data: { url: alarm.url || "/" },
+    tag,
+  });
+}
+
+/** While the service worker is alive, fire any alarm that came due. This
+ *  covers browsers/installs where Notification Triggers aren't available
+ *  (e.g. the site isn't installed as an app) — alarms fire within ~20s of
+ *  their time as long as the browser tab is open. */
+let alarmTicker = null;
+function startAlarmTicker() {
+  if (alarmTicker) return;
+  alarmTicker = setInterval(async () => {
+    const alarms = await readAlarms();
+    if (alarms.length === 0) return;
+    const now = Date.now();
+    const remaining = [];
+    let changed = false;
+    for (const alarm of alarms) {
+      if (alarm.fireAt > now) {
+        remaining.push(alarm);
+        continue;
+      }
+      // Due. If a real trigger was armed, the browser already showed it —
+      // otherwise show it now. Either way, drop it from the cache.
+      if (!alarm.armed) {
+        try {
+          await fireAlarmNow(alarm);
+        } catch {
+          // Permission revoked or similar — skip.
+        }
+      }
+      changed = true;
+    }
+    if (changed) await writeAlarms(remaining);
+  }, 20000);
+}
+
 /** Re-arm programmed alarms. With Notification Triggers they fire exactly on
  *  time even when the SW later sleeps; storage survives so we re-arm after
- *  every activation. */
+ *  every activation. Without triggers, the ticker handles due alarms. */
 async function armAlarms() {
+  startAlarmTicker();
   const alarms = await readAlarms();
   const now = Date.now();
   const remaining = [];
@@ -124,9 +170,10 @@ async function armAlarms() {
     // Unique tag per (id, fireAt): the "upcoming" and "starting now" alarms
     // for the same class must not replace each other in the notification bar.
     const tag = `rem-${alarm.id}-${alarm.fireAt}`;
+    let armed = false;
     try {
       if (typeof TimestampTrigger !== "undefined") {
-        await self.registration.showNotification(alarm.title, {
+        await self.registration.showNotification(alarm.title || "Schedly", {
           body: alarm.body || "",
           icon: "/icons/icon-192.png",
           badge: "/notif-icon.svg",
@@ -134,19 +181,13 @@ async function armAlarms() {
           tag,
           showTrigger: new TimestampTrigger(alarm.fireAt),
         });
-      } else if (alarm.fireAt - now <= 60 * 1000) {
-        // No Trigger API: best-effort one-shot while the SW is alive.
-        setTimeout(() => self.registration.showNotification(alarm.title, {
-          body: alarm.body || "",
-          icon: "/icons/icon-192.png",
-          badge: "/notif-icon.svg",
-          data: { url: alarm.url || "/" },
-          tag,
-        }), alarm.fireAt - now).unref?.();
+        armed = true;
       }
     } catch {
-      // A failed trigger must not break other alarms.
+      // Trigger unsupported (not installed as an app): the ticker will fire
+      // this alarm while the SW is alive.
     }
+    remaining[remaining.length - 1] = { ...alarm, armed: alarm.armed || armed };
   }
   await writeAlarms(remaining);
 }
@@ -206,6 +247,8 @@ self.addEventListener("message", (event) => {
         await armAlarms();
       })()
     );
+  } else if (data.type === "REARM_ALARMS") {
+    event.waitUntil(armAlarms());
   }
 });
 
