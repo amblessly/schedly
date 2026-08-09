@@ -60,6 +60,14 @@ const nextConfig: NextConfig = {
   },
   headers: async () => [
     {
+      source: "/sw.js",
+      headers: [
+        // Service workers must never be cached — otherwise Chrome keeps the
+        // old push-handling SW and FCM pushes silently stop rendering.
+        { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+      ],
+    },
+    {
       source: "/(.*)",
       headers: securityHeaders,
     },
