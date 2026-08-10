@@ -6,6 +6,7 @@ import { Warmup } from "@/components/warmup";
 import { InstallPrompt } from "@/components/install-prompt";
 import { ZoomLock } from "@/components/zoom-lock";
 import { PushForegroundListener } from "@/components/push-foreground-listener";
+import { ReauthDialog } from "@/components/reauth-dialog";
 import { ThemeProvider } from "@/features/theme";
 import { Toaster } from "sonner";
 import "./globals.css";
@@ -122,6 +123,7 @@ export default async function RootLayout({
           <ZoomLock />
           <PushForegroundListener />
           <ThemeProvider initialThemeId={initialThemeId}>{children}</ThemeProvider>
+          <ReauthDialog />
           <Toaster position="top-right" richColors />
         </div>
       </body>

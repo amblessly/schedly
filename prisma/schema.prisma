@@ -53,7 +53,7 @@ model User {
   theme     String   @default("system")
   notificationsEnabled Boolean @default(false) @map("notifications_enabled")
   locationEnabled Boolean @default(false) @map("location_enabled")
-  requiresReauth Boolean @default(false) @map("requires_reauth")
+  requiresReauth Boolean @default(true) @map("requires_reauth")
   widgetToken String? @unique @map("widget_token")
   onboardingCompleted Boolean @default(false) @map("onboarding_completed")
   clientType String? @map("client_type")

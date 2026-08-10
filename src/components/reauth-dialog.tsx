@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Check, LogOut, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
-import { clearReauth, getReauthStatus } from "./actions";
+import { clearReauth, getReauthStatus } from "@/app/(dashboard)/actions";
 
 const WHATS_NEW = [
   "Reminder notifications before every class",
@@ -13,19 +13,29 @@ const WHATS_NEW = [
   "Asia/Manila timezone applied automatically",
 ];
 
+// Pre-app screens where a "sign in again" prompt makes no sense (the user just
+// signed up or hasn't finished setup yet).
+const EXCLUDED_PATHS = ["/login", "/register", "/onboarding"];
+
 /**
- * Forced one-time re-authentication dialog for accounts created before the
- * current session schema. Non-dismissable: the only way forward is Continue →
- * see what's new → Sign out, then sign back in. The re-auth flag is cleared
- * only when this dialog signs the user out.
+ * Forced one-time re-authentication dialog shown to every user on app load.
+ * Non-dismissable: the only way forward is Continue → see what's new → Sign
+ * out, then sign back in. The re-auth flag is cleared only when this dialog
+ * signs the user out, so it appears exactly once per account.
  */
 export function ReauthDialog() {
   const [show, setShow] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
   const [signingOut, setSigningOut] = useState(false);
+  const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
+    const excluded =
+      EXCLUDED_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
+      pathname.startsWith("/verify-email");
+    if (excluded) return;
+
     let active = true;
     getReauthStatus()
       .then((s) => {
@@ -35,7 +45,7 @@ export function ReauthDialog() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [pathname]);
 
   const handleSignOut = async () => {
     if (signingOut) return;

@@ -11,7 +11,6 @@ import { OfflineBanner } from "@/components/offline-banner";
 import { useThemeConfig } from "@/features/theme";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { reportClientType, type ClientType } from "./actions";
-import { ReauthDialog } from "./reauth-dialog";
 
 // The drawer's open state lives in a tiny external store so its initial
 // value can come from matchMedia only AFTER hydration. The server renders
@@ -317,7 +316,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
       {!isImmersive && <BottomNav />}
       {!isImmersive && <OfflineBanner />}
-      <ReauthDialog />
     </div>
   );
 }
