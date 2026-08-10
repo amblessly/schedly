@@ -211,6 +211,7 @@ model Upload {
     scheduleId   String?      @map("schedule_id")
     fileUrl      String       @map("file_url")
     fileData     String?      @map("file_data")
+    objectKey    String?      @map("object_key")
     fileName     String       @map("file_name")
     fileSize     Int          @map("file_size")
     mimeType     String       @map("mime_type")
