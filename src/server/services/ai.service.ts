@@ -8,6 +8,8 @@ import { ok, fail, type Result } from "@/server/lib/errors";
 import { PipelineLogger } from "@/server/lib/structured-logger";
 import { extractionCache, computeImageHash } from "@/server/lib/image-cache";
 import { preprocessImage } from "@/server/lib/image-processing";
+import { b2Client, B2_BUCKET } from "@/server/lib/b2-client";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { db } from "@/server/db/client";
 import {
   buildResult,
@@ -18,18 +20,26 @@ import {
 /**
  * Fetch raw image bytes (needed for hashing/caching).
  *
- * DB-backed files (/api/upload/:id/file, used when Vercel Blob is
- * unavailable/suspended) are read straight from Postgres to avoid an extra
- * HTTP round-trip — the bytes are guaranteed identical and immune to
- * middleware/proxy redirects returning HTML instead of the image.
+ * B2-backed files (objectKey set) are streamed straight from the private
+ * Backblaze bucket — no HTTP round-trip, immune to proxy/middleware redirects
+ * returning HTML instead of the image. Legacy DB-backed rows are read from
+ * Postgres. Any other URL is fetched over HTTP.
  */
 async function fetchImageBytes(imageUrl: string): Promise<Buffer> {
   const match = imageUrl.match(/\/api\/upload\/([^/]+)\/file/);
   if (match) {
     const upload = await db.upload.findUnique({
       where: { id: match[1]! },
-      select: { fileData: true },
+      select: { objectKey: true, fileData: true },
     });
+    if (upload?.objectKey && B2_BUCKET) {
+      const object = await b2Client().send(
+        new GetObjectCommand({ Bucket: B2_BUCKET, Key: upload.objectKey })
+      );
+      if (object.Body) {
+        return Buffer.from(await object.Body.transformToByteArray());
+      }
+    }
     if (upload?.fileData) {
       return Buffer.from(upload.fileData, "base64");
     }
