@@ -222,6 +222,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       <div className="px-4 pb-4 space-y-1.5">
         <Link
           href="/settings"
+          prefetch
           onClick={() => onClose?.()}
           className={cn(
             "flex w-full items-center gap-3 rounded-xl bg-white/5 px-3 py-2.5 transition-colors hover:bg-white/10",

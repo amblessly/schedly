@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -22,41 +21,20 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   timer: Timer,
 };
 
-/** Where the center "camera" button should take the user, per page. */
-const QUICK_ADD_TARGETS = [
-  { match: "/todo", href: "/todo?focus=1" },
-  { match: "/schedule", href: "/schedule?add=1" },
-];
-const DEFAULT_ADD = "/schedule?add=1";
+/** The center "camera" button always opens its own dedicated capture card. */
+const ADD_PAGE = "/capture";
 
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const items = primaryNav;
 
-  // The /schedule page reports which sub-screen it's on ("list", "upload"…)
-  // so the Calendar tab only lights up on the actual list, not upload/review.
-  const [schedulePhase, setSchedulePhase] = useState<string>("list");
-  useEffect(() => {
-    const onPhase = (e: Event) => setSchedulePhase((e as CustomEvent<string>).detail);
-    window.addEventListener("schedly:schedule-phase", onPhase);
-    return () => window.removeEventListener("schedly:schedule-phase", onPhase);
-  }, []);
-
   const handleQuickAdd = () => {
-    let target: string | null = null;
-    for (const t of QUICK_ADD_TARGETS) {
-      if (pathname.startsWith(t.match)) {
-        target = t.href;
-        break;
-      }
-    }
-    if (!target) target = DEFAULT_ADD;
-    if (target.split("?")[0] === pathname) {
-      // Already on the right page — tell it to open the add flow.
+    if (pathname === ADD_PAGE) {
+      // Already on the capture card — tell it to start a fresh capture.
       window.dispatchEvent(new CustomEvent("schedly:quickadd"));
     } else {
-      router.push(target);
+      router.push(ADD_PAGE);
     }
   };
 
@@ -71,11 +49,8 @@ export function BottomNav() {
       >
         {items.slice(0, 2).map((item) => {
           const Icon = iconMap[item.icon] || Calendar;
-          const noCalendarGlow = item.href === "/schedule";
-          const isUploadPhase = schedulePhase !== "list";
           const active =
-            (!(noCalendarGlow && isUploadPhase)) &&
-            (pathname === item.href || pathname.startsWith(item.href + "/"));
+            pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link
               key={item.href}
@@ -108,11 +83,8 @@ export function BottomNav() {
 
         {items.slice(2).map((item) => {
           const Icon = iconMap[item.icon] || Calendar;
-          const noCalendarGlow = item.href === "/schedule";
-          const isUploadPhase = schedulePhase !== "list";
           const active =
-            (!(noCalendarGlow && isUploadPhase)) &&
-            (pathname === item.href || pathname.startsWith(item.href + "/"));
+            pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link
               key={item.href}

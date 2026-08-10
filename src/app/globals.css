@@ -237,6 +237,13 @@ body {
   100% { transform: translateX(100%); }
 }
 
+/* Smooth, fast shimmer for skeleton placeholders — replaces the slow
+   opacity pulse. The highlight band sweeps across once per cycle. */
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 @keyframes scan-line {
   0%, 100% { top: 2%; }
   50% { top: 94%; }
@@ -250,6 +257,16 @@ body {
 @layer utilities {
   .animate-shimmer {
     animation: shimmer 1.5s ease-in-out infinite;
+  }
+  .animate-skeleton {
+    background: linear-gradient(
+      90deg,
+      color-mix(in oklch, var(--primary) 6%, transparent) 25%,
+      color-mix(in oklch, var(--primary) 13%, transparent) 50%,
+      color-mix(in oklch, var(--primary) 6%, transparent) 75%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.3s ease-in-out infinite;
   }
   .animate-scan-line {
     top: 2%;
@@ -388,7 +405,7 @@ body {
 }
 
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(18px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -416,7 +433,7 @@ body {
   animation: blob-drift 14s ease-in-out infinite;
 }
 .animate-fade-up {
-  animation: fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: fade-up 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .animate-twinkle {
   animation: twinkle 2.8s ease-in-out infinite;

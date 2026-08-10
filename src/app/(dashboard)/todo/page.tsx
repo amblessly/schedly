@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,21 +43,6 @@ export default function TodoPage() {
   const [newText, setNewText] = useState("");
   const [newPriority, setNewPriority] = useState<Priority>("medium");
   const [newDueDate, setNewDueDate] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Center "+" button in the bottom nav: focus the add-task input (also on
-  // arrival via /todo?focus=1).
-  useEffect(() => {
-    const onQuickAdd = () => {
-      inputRef.current?.focus();
-    };
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("focus") === "1") onQuickAdd();
-    }
-    window.addEventListener("schedly:quickadd", onQuickAdd);
-    return () => window.removeEventListener("schedly:quickadd", onQuickAdd);
-  }, []);
 
   function handleAdd() {
     if (!newText.trim()) return;
@@ -111,7 +96,6 @@ export default function TodoPage() {
         <CardContent className="pt-1">
           <div className="flex gap-2">
             <Input
-              ref={inputRef}
               placeholder="What do you need to do?"
               value={newText}
               onChange={(e) => setNewText(e.target.value)}
