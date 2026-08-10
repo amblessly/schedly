@@ -69,9 +69,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File must be an image (JPEG, PNG, GIF, WebP, or BMP)" }, { status: 400 });
     }
 
-    // Stored via Vercel Blob when available, otherwise persisted in Postgres
-    // (uploads.file_data) and served from /api/upload/:id/file. The row is
-    // created here in both cases, so polling status works identically.
+    // Stored via Vercel Blob (fail-closed: if Blob is unavailable the upload
+    // fails instead of persisting image bytes in Postgres). The row is created
+    // alongside, so polling status works identically.
     const stored = await storeImage(
       session.user.id,
       buffer,

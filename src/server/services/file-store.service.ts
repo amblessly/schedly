@@ -6,7 +6,7 @@ const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
 export type StoredFile = {
   url: string;
   uploadId: string;
-  storedIn: "blob" | "db";
+  storedIn: "blob";
 };
 
 const EXT_BY_MIME: Record<string, string> = {
@@ -28,11 +28,12 @@ type StoreOptions = {
 };
 
 /**
- * Store an image file. Vercel Blob is tried first when configured (fast,
- * public URLs); if the store is unavailable or suspended, the bytes are
- * persisted in Postgres (`uploads.file_data`) and served at
- * `/api/upload/{id}/file`. Always returns a row-backed `uploadId` so the
- * caller can poll AI progress or reuse the record for avatars.
+ * Store an image file in Vercel Blob (fast, public URLs). Fail-closed: if
+ * Blob is unavailable (suspended/quota/error) the upload fails loudly instead
+ * of persisting the image bytes in Postgres (`uploads.file_data`), which
+ * caused Neon data-transfer overages. Legacy rows already stored in
+ * `file_data` are untouched and still served by `/api/upload/{id}/file` until
+ * the backfill migration moves them to Blob.
  */
 export async function storeImage(
   userId: string,
@@ -43,47 +44,33 @@ export async function storeImage(
 ): Promise<StoredFile> {
   const status = opts.status ?? "completed";
 
-  if (BLOB_TOKEN) {
-    try {
-      const key = `${opts.folder ?? "files"}/${userId}/${crypto.randomUUID()}.${extForMime(mime)}`;
-      const result = await put(key, new Blob([Buffer.from(data)], { type: mime }), {
-        access: "public",
-        addRandomSuffix: false,
-        token: BLOB_TOKEN,
-      });
-      const upload = await db.upload.create({
-        data: {
-          userId,
-          scheduleId: opts.scheduleId ?? null,
-          fileUrl: result.url,
-          fileName,
-          fileSize: data.byteLength,
-          mimeType: mime,
-          status,
-        },
-      });
-      return { url: result.url, uploadId: upload.id, storedIn: "blob" };
-    } catch (err) {
-      console.error("[file-store] Vercel Blob unavailable — falling back to Postgres:", err);
-    }
+  if (!BLOB_TOKEN) {
+    throw new Error("BLOB_READ_WRITE_TOKEN is not configured — cannot store files");
   }
 
-  const upload = await db.upload.create({
-    data: {
-      userId,
-      scheduleId: opts.scheduleId ?? null,
-      fileUrl: "",
-      fileData: Buffer.from(data).toString("base64"),
-      fileName,
-      fileSize: data.byteLength,
-      mimeType: mime,
-      status,
-    },
-  });
-  const url = `/api/upload/${upload.id}/file`;
-  await db.upload.update({ where: { id: upload.id }, data: { fileUrl: url } });
-
-  return { url, uploadId: upload.id, storedIn: "db" };
+  try {
+    const key = `${opts.folder ?? "files"}/${userId}/${crypto.randomUUID()}.${extForMime(mime)}`;
+    const result = await put(key, new Blob([Buffer.from(data)], { type: mime }), {
+      access: "public",
+      addRandomSuffix: false,
+      token: BLOB_TOKEN,
+    });
+    const upload = await db.upload.create({
+      data: {
+        userId,
+        scheduleId: opts.scheduleId ?? null,
+        fileUrl: result.url,
+        fileName,
+        fileSize: data.byteLength,
+        mimeType: mime,
+        status,
+      },
+    });
+    return { url: result.url, uploadId: upload.id, storedIn: "blob" };
+  } catch (err) {
+    console.error("[file-store] Vercel Blob store failed:", err);
+    throw new Error("Vercel Blob store unavailable — refusing to persist image bytes in Postgres", { cause: err });
+  }
 }
 
 /** Remove a stored file by its URL. Blob URLs are left alone (orphaned like

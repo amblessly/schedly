@@ -9,20 +9,44 @@ export interface CreateUploadData {
   mimeType: string;
 }
 
+const BASIC_FIELDS = {
+  id: true,
+  userId: true,
+  scheduleId: true,
+  fileUrl: true,
+  fileName: true,
+  fileSize: true,
+  mimeType: true,
+  status: true,
+  aiResult: true,
+  errorMessage: true,
+  createdAt: true,
+} as const satisfies Prisma.UploadSelect;
+
 export const uploadRepository = {
   findById(id: string) {
-    return db.upload.findUnique({ where: { id } });
+    return db.upload.findUnique({ where: { id }, select: BASIC_FIELDS });
   },
 
   findByUser(userId: string) {
     return db.upload.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
+      select: BASIC_FIELDS,
     });
   },
 
   findBySchedule(scheduleId: string) {
-    return db.upload.findMany({ where: { scheduleId } });
+    return db.upload.findMany({ where: { scheduleId }, select: BASIC_FIELDS });
+  },
+
+  /** Legacy reader for rows still stored in `file_data` (pre-Blob). Kept until
+   *  the backfill migration moves those bytes to Vercel Blob. */
+  findFileData(id: string) {
+    return db.upload.findUnique({
+      where: { id },
+      select: { fileData: true, mimeType: true },
+    });
   },
 
   create(data: CreateUploadData) {
