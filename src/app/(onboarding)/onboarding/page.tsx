@@ -6,9 +6,11 @@ import { Camera, GraduationCap, Sparkles } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { authClient } from "@/lib/auth-client";
 import { uploadAvatar, removeAvatar } from "@/app/(dashboard)/settings/actions";
-import { NotificationsCard } from "./notifications-card";
+import { PermissionsStep } from "./permissions-step";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { authFetch } from "@/lib/auth-fetch";
 import {
   Dialog,
@@ -39,6 +41,8 @@ export default function OnboardingPage() {
   const [removing, setRemoving] = useState(false);
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [username, setUsername] = useState<string>((u?.username as string) || "");
+  const [usernameError, setUsernameError] = useState("");
 
   const firstName = u?.firstName || "User";
   const lastName = u?.lastName || "";
@@ -78,7 +82,23 @@ export default function OnboardingPage() {
     setFinishing(false);
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
+    const trimmed = username.trim().toLowerCase();
+    if (!trimmed) {
+      setUsernameError("Please choose a username.");
+      return;
+    }
+    setUsernameError("");
+    if (trimmed !== u?.username) {
+      const res = await authClient.updateUser({
+        username: trimmed,
+      } as Parameters<typeof authClient.updateUser>[0]);
+      if (res.error) {
+        setUsernameError("That username is already taken. Try another.");
+        return;
+      }
+      refetchSession();
+    }
     setStep(2);
   };
 
@@ -142,20 +162,12 @@ export default function OnboardingPage() {
   return (
     <div className="flex min-h-[100dvh] w-full items-center justify-center p-5">
       <div className="w-full max-w-md">
-        {/* Top bar: logo + skip */}
-        <div className="mb-8 flex items-center justify-between">
+        {/* Top bar: logo */}
+        <div className="mb-8 flex items-center">
           <div className="flex items-center gap-2.5">
             <img src="/images/logo.jpg" alt="" aria-hidden className="h-10 w-10 rounded-xl object-cover" />
             <span className="text-lg font-bold tracking-tight text-foreground">Schedly</span>
           </div>
-          <button
-            type="button"
-            onClick={markComplete}
-            disabled={finishing}
-            className={`text-sm font-medium text-muted-foreground transition-colors hover:text-foreground ${step !== 1 ? "invisible" : ""}`}
-          >
-            Skip
-          </button>
         </div>
 
         {/* Progress */}
@@ -220,6 +232,29 @@ export default function OnboardingPage() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="username" className="text-sm font-medium">Username</Label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    @
+                  </span>
+                  <Input
+                    id="username"
+                    type="text"
+                    placeholder="username"
+                    value={username}
+                    onChange={(e) => {
+                      setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ""));
+                      setUsernameError("");
+                    }}
+                    aria-invalid={!!usernameError}
+                    autoComplete="off"
+                    className="h-11 pl-7"
+                  />
+                </div>
+                {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
+              </div>
+
               <Button
                 className="mt-6 h-12 w-full font-semibold"
                 onClick={handleContinue}
@@ -237,19 +272,11 @@ export default function OnboardingPage() {
                 </span>
                 <h1 className="text-xl font-bold tracking-tight text-foreground">Almost done</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  These two steps make Schedly feel like a real app. You can skip them.
+                  These two steps make Schedly feel like a real app.
                 </p>
               </div>
 
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-border/50 p-4">
-                  <NotificationsCard />
-                </div>
-              </div>
-
-              <Button className="mt-6 h-12 w-full font-semibold" disabled={finishing} onClick={markComplete}>
-                {finishing ? "Finishing up..." : "Get started"}
-              </Button>
+              <PermissionsStep onComplete={markComplete} finishing={finishing} />
             </CardContent>
           </Card>
         )}

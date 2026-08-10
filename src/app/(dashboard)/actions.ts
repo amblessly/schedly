@@ -38,3 +38,28 @@ export async function reportClientType(clientType: string): Promise<{ ok: boolea
 
   return { ok: true };
 }
+
+/** Whether the signed-in account predates the current schema and must sign
+ *  in once more before using the app. Read fresh from the DB — not the
+ *  session cookie — so the forced re-auth dialog appears reliably. */
+export async function getReauthStatus(): Promise<{ requiresReauth: boolean }> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user?.id) return { requiresReauth: false };
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { requiresReauth: true },
+  });
+  return { requiresReauth: user?.requiresReauth ?? false };
+}
+
+/** Clear the re-auth requirement. Only called from the re-auth dialog right
+ *  before it signs the user out, so it never reappears after they log in. */
+export async function clearReauth(): Promise<{ ok: boolean }> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user?.id) return { ok: false };
+  await db.user.update({
+    where: { id: session.user.id },
+    data: { requiresReauth: false },
+  });
+  return { ok: true };
+}

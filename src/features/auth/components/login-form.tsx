@@ -4,9 +4,8 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { loginSchema, type LoginInput } from "@/lib/validations";
 import { TurnstileWidget } from "@/components/turnstile";
 import { verifyCaptcha } from "@/app/actions";
@@ -105,38 +104,26 @@ export function LoginForm() {
       <CardContent className="space-y-3">
         <form onSubmit={handleSubmit} className="space-y-3" noValidate>
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm font-medium">
-              Email
-            </Label>
-            <Input
-              id="email"
+            <FloatingLabelInput
+              label="Email"
               type="email"
-              placeholder="Enter email"
               value={form.email}
               onChange={(e) => update("email", e.target.value)}
               aria-invalid={!!errors.email}
               autoComplete="email"
-              className="h-10"
             />
             {errors.email && (
               <p className="text-xs text-destructive mt-1">{errors.email}</p>
             )}
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password" className="text-sm font-medium">
-                Password
-              </Label>
-            </div>
-            <Input
-              id="password"
+            <FloatingLabelInput
+              label="Password"
               type="password"
-              placeholder="Enter password"
               value={form.password}
               onChange={(e) => update("password", e.target.value)}
               aria-invalid={!!errors.password}
               autoComplete="current-password"
-              className="h-10"
             />
             {errors.password && (
               <p className="text-xs text-destructive mt-1">{errors.password}</p>

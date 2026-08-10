@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { Eye, EyeOff } from "lucide-react";
 import {
   registerStep1Schema,
   registerStep2Schema,
@@ -27,12 +27,12 @@ export function RegisterForm() {
   const [form, setForm] = useState<RegisterInput>({
     firstName: "",
     lastName: "",
-    username: "",
     email: "",
     password: "",
     confirmPassword: "",
-    birthdate: "",
-    sex: "",
+    school: "",
+    course: "",
+    year: "",
   });
   const [errors, setErrors] = useState<Partial<Record<keyof RegisterInput, string>>>({});
   const [serverError, setServerError] = useState("");
@@ -40,14 +40,12 @@ export function RegisterForm() {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [breachedCount, setBreachedCount] = useState(0);
   const [checkingBreach, setCheckingBreach] = useState(false);
+  const [showPasswords, setShowPasswords] = useState(false);
   const { signUp } = useAuth();
   const router = useRouter();
 
   function update(field: keyof RegisterInput, value: string) {
-    let processed = value;
-    if (field === "username") {
-      processed = value.toLowerCase().replace(/[^a-z0-9_.]/g, "");
-    }
+    const processed = value;
     setForm((prev) => ({ ...prev, [field]: processed }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
     if (serverError) setServerError("");
@@ -186,59 +184,34 @@ export function RegisterForm() {
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName" className="text-sm font-medium">First name</Label>
-                    <Input
-                      id="firstName"
-                      type="text"
-                      placeholder="Enter first name"
+                    <FloatingLabelInput
+                      label="First name"
                       value={form.firstName}
                       onChange={(e) => update("firstName", e.target.value)}
                       aria-invalid={!!errors.firstName}
                       autoComplete="given-name"
-                      className="h-10"
                     />
                     {errors.firstName && <p className="text-xs text-destructive">{errors.firstName}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="lastName" className="text-sm font-medium">Last name</Label>
-                    <Input
-                      id="lastName"
-                      type="text"
-                      placeholder="Enter last name"
+                    <FloatingLabelInput
+                      label="Last name"
                       value={form.lastName}
                       onChange={(e) => update("lastName", e.target.value)}
                       aria-invalid={!!errors.lastName}
                       autoComplete="family-name"
-                      className="h-10"
                     />
                     {errors.lastName && <p className="text-xs text-destructive">{errors.lastName}</p>}
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="username" className="text-sm font-medium">Username</Label>
-                  <Input
-                    id="username"
-                    type="text"
-                    placeholder="Enter username"
-                    value={form.username}
-                    onChange={(e) => update("username", e.target.value)}
-                    aria-invalid={!!errors.username}
-                    autoComplete="username"
-                    className="h-10"
-                  />
-                  {errors.username && <p className="text-xs text-destructive">{errors.username}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-                  <Input
-                    id="email"
+                  <FloatingLabelInput
+                    label="Email"
                     type="email"
-                    placeholder="Enter email"
                     value={form.email}
                     onChange={(e) => update("email", e.target.value)}
                     aria-invalid={!!errors.email}
                     autoComplete="email"
-                    className="h-10"
                   />
                   {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
                 </div>
@@ -251,37 +224,28 @@ export function RegisterForm() {
             {step === 2 && (
               <div className="space-y-3">
                 <div className="space-y-2">
-                  <Label htmlFor="birthdate" className="text-sm font-medium">Birthdate</Label>
-                  <Input
-                    id="birthdate"
-                    type="date"
-                    value={form.birthdate}
-                    onChange={(e) => update("birthdate", e.target.value)}
-                    aria-invalid={!!errors.birthdate}
-                    max={new Date(new Date().setFullYear(new Date().getFullYear() - 13)).toISOString().split("T")[0]}
-                    className="h-10"
+                  <FloatingLabelInput
+                    label="School / University"
+                    value={form.school}
+                    onChange={(e) => update("school", e.target.value)}
+                    autoComplete="organization"
                   />
-                  {errors.birthdate && <p className="text-xs text-destructive">{errors.birthdate}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Sex</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {["Male", "Female", "Other"].map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => update("sex", option.toLowerCase())}
-                        className={`h-11 rounded-lg border text-sm font-medium transition-colors ${
-                          form.sex === option.toLowerCase()
-                            ? "border-primary bg-primary/5 text-primary"
-                            : "border-border/60 bg-card/50 text-muted-foreground hover:border-border hover:text-foreground"
-                        }`}
-                      >
-                        {option}
-                      </button>
-                    ))}
-                  </div>
-                  {errors.sex && <p className="text-xs text-destructive">{errors.sex}</p>}
+                  <FloatingLabelInput
+                    label="Course / Program"
+                    value={form.course}
+                    onChange={(e) => update("course", e.target.value)}
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FloatingLabelInput
+                    label="Year Level"
+                    value={form.year}
+                    onChange={(e) => update("year", e.target.value)}
+                    autoComplete="off"
+                  />
                 </div>
               </div>
             )}
@@ -289,16 +253,14 @@ export function RegisterForm() {
             {step === 3 && (
               <div className="space-y-3">
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium">Password</Label>
-                  <Input
+                  <FloatingLabelInput
+                    label="Password"
                     id="password"
-                    type="password"
-                    placeholder="Enter password"
+                    type={showPasswords ? "text" : "password"}
                     value={form.password}
                     onChange={(e) => update("password", e.target.value)}
                     aria-invalid={!!errors.password}
                     autoComplete="new-password"
-                    className="h-10"
                   />
                   {form.password && (
                     <div className="flex gap-1.5 pt-1">
@@ -321,21 +283,31 @@ export function RegisterForm() {
                   {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirm password</Label>
-                  <Input
+                  <FloatingLabelInput
+                    label="Confirm password"
                     id="confirmPassword"
-                    type="password"
-                    placeholder="Confirm password"
+                    type={showPasswords ? "text" : "password"}
                     value={form.confirmPassword}
                     onChange={(e) => update("confirmPassword", e.target.value)}
                     aria-invalid={!!errors.confirmPassword}
                     autoComplete="new-password"
-                    className="h-10"
                   />
                   {errors.confirmPassword && (
                     <p className="text-xs text-destructive">{errors.confirmPassword}</p>
                   )}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPasswords((v) => !v)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {showPasswords ? (
+                    <EyeOff className="h-3.5 w-3.5" />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5" />
+                  )}
+                  {showPasswords ? "Hide passwords" : "Show passwords"}
+                </button>
                 {checkingBreach && (
                   <p className="text-xs text-muted-foreground">Checking password against known breaches...</p>
                 )}

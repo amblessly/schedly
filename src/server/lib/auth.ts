@@ -12,7 +12,7 @@ export const auth = betterAuth({
     additionalFields: {
       username: {
         type: "string",
-        required: true,
+        required: false,
         unique: true,
       },
       firstName: {
@@ -43,6 +43,18 @@ export const auth = betterAuth({
       },
       city: {
         type: "string",
+        required: false,
+      },
+      school: {
+        type: "string",
+        required: false,
+      },
+      course: {
+        type: "string",
+        required: false,
+      },
+      year: {
+        type: "number",
         required: false,
       },
       failedAttempts: {

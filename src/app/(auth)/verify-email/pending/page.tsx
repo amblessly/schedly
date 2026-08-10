@@ -107,7 +107,8 @@ function PendingContent() {
   }
 
   return (
-    <Card className="border-border/50 shadow-lg shadow-primary/5">
+    <div className="flex min-h-[70dvh] items-center justify-center lg:min-h-0">
+      <Card className="w-full border-border/50 shadow-lg shadow-primary/5">
       <CardHeader className="space-y-1 pb-6 text-center">
         <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
           <svg
@@ -124,20 +125,25 @@ function PendingContent() {
             />
           </svg>
         </div>
-        <CardTitle className="text-2xl font-bold tracking-tight">Check your email</CardTitle>
+        <CardTitle className="text-2xl font-bold tracking-tight">Verify your email</CardTitle>
         <p className="text-sm text-muted-foreground">
-          We sent a verification link to{" "}
-          <span className="font-medium text-foreground">{email}</span>
+          A verification link has been sent to{" "}
+          <a
+            href={`mailto:${email}`}
+            className="font-medium text-foreground underline-offset-2 hover:underline"
+          >
+            {email}
+          </a>
         </p>
       </CardHeader>
       <CardContent className="space-y-5">
         <p className="text-sm text-muted-foreground text-center leading-relaxed">
-          Click the link in the email to verify your account.
+          Open the email and click the link to verify your account.
           The link expires in 24 hours.
         </p>
         {polling && (
-          <p className="text-xs text-center text-muted-foreground animate-pulse">
-            Waiting for verification{/* no dots needed */}
+          <p className="text-xs font-semibold text-center text-muted-foreground animate-pulse">
+            Waiting for verification…
           </p>
         )}
         <Button
@@ -171,6 +177,7 @@ function PendingContent() {
         </Button>
       </CardContent>
     </Card>
+    </div>
   );
 }
 

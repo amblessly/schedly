@@ -1,27 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { put } from "@vercel/blob";
+import { Readable } from "node:stream";
 import { auth } from "@/server/lib/auth";
-
-const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
-const VERSION_KEY = "releases/version.json";
+import {
+  computeVersionCode,
+  putReleaseApk,
+  putReleaseInfo,
+} from "@/server/lib/release-store";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 export const runtime = "nodejs";
 
-function computeCode(versionName: string): number {
-  const clean = versionName.replace(/^v/i, "").trim();
-  const parts = clean.split(".").map((p) => parseInt(p, 10) || 0);
-  while (parts.length < 3) parts.push(0);
-  const [major = 0, minor = 0, patch = 0] = parts;
-  return major * 10000 + minor * 100 + patch;
-}
-
 export async function POST(request: NextRequest) {
-  if (!BLOB_TOKEN) {
-    return NextResponse.json({ error: "Blob storage not configured" }, { status: 503 });
-  }
-
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -53,32 +43,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const blob = await put(apkKey, res.body as unknown as ReadableStream, {
-      access: "public",
-      addRandomSuffix: false,
-      token: BLOB_TOKEN,
-      allowOverwrite: true,
-      contentType: "application/vnd.android.package-archive",
-    });
+    await putReleaseApk(
+      apkKey,
+      Readable.fromWeb(res.body as unknown as import("node:stream/web").ReadableStream),
+      "application/vnd.android.package-archive"
+    );
 
     const proxyUrl = `https://app.schedly.shop/api/admin/apk-download?v=${clean}`;
 
     const versionInfo = {
-      versionCode: computeCode(clean),
+      versionCode: computeVersionCode(clean),
       versionName: clean,
       apkUrl: proxyUrl,
       updateMessage,
     };
 
-    await put(VERSION_KEY, JSON.stringify(versionInfo, null, 2), {
-      access: "public",
-      addRandomSuffix: false,
-      token: BLOB_TOKEN,
-      allowOverwrite: true,
-      contentType: "application/json",
-    });
+    await putReleaseInfo(versionInfo);
 
-    return NextResponse.json({ ok: true, versionInfo, url: blob.url });
+    return NextResponse.json({ ok: true, versionInfo, url: proxyUrl });
   } catch (error) {
     console.error("[APK_UPLOAD_API] Error:", error);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });

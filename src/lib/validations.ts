@@ -22,14 +22,6 @@ const step1Schema = z.object({
     .min(1, "Last name is required")
     .max(50, "Last name is too long")
     .regex(/^[a-zA-Z\s'-]+$/, "Last name contains invalid characters"),
-  username: z
-    .string()
-    .min(3, "Username must be at least 3 characters")
-    .max(30, "Username is too long")
-    .regex(
-      /^[a-z0-9_.]+$/,
-      "Username can only contain lowercase letters, numbers, underscores, and dots"
-    ),
   email: z
     .string()
     .min(1, "Email is required")
@@ -37,18 +29,9 @@ const step1Schema = z.object({
 });
 
 const step2Schema = z.object({
-  birthdate: z
-    .string()
-    .min(1, "Birthdate is required")
-    .refine((val) => {
-      const date = new Date(val);
-      const now = new Date();
-      const age = now.getFullYear() - date.getFullYear();
-      return age >= 13 && age <= 120;
-    }, "You must be at least 13 years old"),
-  sex: z
-    .string()
-    .min(1, "Sex is required"),
+  school: z.string().optional(),
+  course: z.string().optional(),
+  year: z.string().optional(),
 });
 
 const step3Schema = z

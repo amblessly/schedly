@@ -64,16 +64,17 @@ export function useAuth() {
   const signUp = useCallback(
     async (data: {
       email: string;
-      username: string;
       firstName: string;
       lastName: string;
       password: string;
-      birthdate: string;
-      sex: string;
+      school?: string;
+      course?: string;
+      year?: string;
     }) => {
       const result = await retry(() => authClient.signUp.email({
         ...data,
         name: `${data.firstName} ${data.lastName}`,
+        year: data.year && !isNaN(Number(data.year)) ? Number(data.year) : undefined,
         callbackURL: "/verify-email/success",
       } as Parameters<typeof authClient.signUp.email>[0]));
       return result;

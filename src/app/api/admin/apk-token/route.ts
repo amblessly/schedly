@@ -1,102 +1,61 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
-import { put } from "@vercel/blob";
+import { Readable } from "node:stream";
 import { auth } from "@/server/lib/auth";
+import {
+  computeVersionCode,
+  putReleaseApk,
+  putReleaseInfo,
+  type ReleaseInfo,
+} from "@/server/lib/release-store";
 
-const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
-const VERSION_KEY = "releases/version.json";
+export const dynamic = "force-dynamic";
+export const maxDuration = 120;
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
-  if (!BLOB_TOKEN) {
-    return NextResponse.json(
-      { error: "Blob storage not configured" },
-      { status: 503 }
-    );
-  }
-
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (!session.user.isAdmin) {
-    return NextResponse.json(
-      { error: "Admin access required" },
-      { status: 403 }
-    );
+    return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
 
   try {
-    const body = (await request.json()) as HandleUploadBody;
+    const url = new URL(request.url);
+    const versionName = (url.searchParams.get("versionName") || "").replace(/^v/i, "").trim();
+    const updateMessage =
+      url.searchParams.get("updateMessage")?.trim() ||
+      (versionName ? `New version ${versionName} is now available.` : "");
 
-    const jsonResponse = await handleUpload({
-      request,
-      body,
-      token: BLOB_TOKEN,
-      onBeforeGenerateToken: async (pathname, clientPayload) => {
-        let versionName = "0.0.0";
-        let updateMessage = "New version available.";
-        if (clientPayload) {
-          try {
-            const parsed = JSON.parse(clientPayload) as {
-              versionName?: string;
-              updateMessage?: string;
-            };
-            versionName = parsed.versionName ?? versionName;
-            updateMessage = parsed.updateMessage ?? updateMessage;
-          } catch {
-            // ignore malformed payload
-          }
-        }
-        return {
-          allowedContentTypes: ["application/vnd.android.package-archive"],
-          maximumSizeInBytes: 100 * 1024 * 1024,
-          addRandomSuffix: false,
-          allowOverwrite: true,
-          tokenPayload: JSON.stringify({ versionName, updateMessage }),
-        };
-      },
-      onUploadCompleted: async ({ blob, tokenPayload }) => {
-        let versionName = "0.0.0";
-        let updateMessage = "New version available.";
-        if (tokenPayload) {
-          try {
-            const parsed = JSON.parse(tokenPayload) as {
-              versionName?: string;
-              updateMessage?: string;
-            };
-            versionName = parsed.versionName ?? versionName;
-            updateMessage = parsed.updateMessage ?? updateMessage;
-          } catch {
-            // ignore
-          }
-        }
+    if (!versionName) {
+      return NextResponse.json({ error: "Version name is required." }, { status: 400 });
+    }
 
-        const clean = versionName.replace(/^v/i, "").trim();
-        const parts = clean.split(".").map((p) => parseInt(p, 10) || 0);
-        while (parts.length < 3) parts.push(0);
-        const [major = 0, minor = 0, patch = 0] = parts;
-        const code = major * 10000 + minor * 100 + patch;
+    const bytes = new Uint8Array(await request.arrayBuffer());
+    if (bytes.byteLength === 0) {
+      return NextResponse.json({ error: "APK body is required." }, { status: 400 });
+    }
 
-        const versionInfo = {
-          versionCode: code,
-          versionName: clean,
-          apkUrl: blob.url,
-          updateMessage,
-        };
+    const apkKey = `releases/Schedly-${versionName}-release.apk`;
+    await putReleaseApk(
+      apkKey,
+      Readable.from(bytes),
+      "application/vnd.android.package-archive"
+    );
 
-        await put(VERSION_KEY, JSON.stringify(versionInfo, null, 2), {
-          access: "public",
-          addRandomSuffix: false,
-          token: BLOB_TOKEN,
-          allowOverwrite: true,
-          contentType: "application/json",
-        });
-      },
-    });
+    const versionInfo: ReleaseInfo = {
+      versionCode: computeVersionCode(versionName),
+      versionName,
+      apkUrl: `https://app.schedly.shop/api/admin/apk-download?v=${versionName}`,
+      updateMessage,
+    };
 
-    return NextResponse.json(jsonResponse);
+    await putReleaseInfo(versionInfo);
+
+    return NextResponse.json({ ok: true, versionInfo });
   } catch (error) {
     console.error("[APK_TOKEN_API] Error:", error);
-    return NextResponse.json({ error: "Token request failed" }, { status: 500 });
+    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
 }

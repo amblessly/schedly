@@ -9,12 +9,12 @@ export default function AuthLayout({
   return (
     <div className="relative min-h-screen w-full">
       <div className="relative z-10 flex min-h-screen">
-        <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 text-neutral-900">
-          <Link href="/" className="flex items-center gap-3">
+        <div className="hidden lg:flex lg:w-1/2 lg:flex-col lg:items-end lg:justify-between lg:pl-12 lg:pr-6 text-neutral-900">
+          <Link href="/" className="flex items-center gap-3 lg:w-full lg:max-w-md lg:mt-8">
             <img src="/images/logo.jpg" alt="" aria-hidden className="h-10 w-10 rounded-xl object-cover" />
             <span className="text-2xl font-bold tracking-tight">Schedly</span>
           </Link>
-          <div className="space-y-6">
+          <div className="space-y-6 lg:my-auto lg:w-full lg:max-w-md">
             <h1 className="text-4xl font-bold leading-tight tracking-tight">
               Your classes,
               <br />
@@ -41,11 +41,8 @@ export default function AuthLayout({
               </div>
             </div>
           </div>
-          <p className="text-sm text-neutral-400">
-            &copy; {new Date().getFullYear()}
-          </p>
         </div>
-        <div className="flex w-full items-center justify-center bg-transparent p-4 lg:w-1/2 lg:p-8">
+        <div className="flex min-h-screen w-full items-center justify-center bg-transparent p-4 lg:w-1/2 lg:justify-start lg:px-6 lg:py-8">
           <div className="w-full max-w-lg">
             <div className="mb-8 flex lg:hidden">
               <Link

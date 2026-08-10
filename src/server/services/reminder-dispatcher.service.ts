@@ -90,7 +90,7 @@ function nearestOccurrence(
   future: boolean
 ): number | null {
   const { h, m } = wallParts(startTime);
-  const tz = timezone || "UTC";
+  const tz = timezone || "Asia/Manila";
   const step = future ? 1 : -1;
   let best: number | null = null;
 
@@ -169,7 +169,7 @@ export async function dispatchDueReminders(now: Date = new Date()) {
     const cls = reminder.class;
     if (cls.days.length === 0) continue;
 
-    const tz = reminder.user.timezone || "UTC";
+    const tz = reminder.user.timezone || "Asia/Manila";
     const occNext = nextOccurrence(cls.startTime, cls.days as DayOfWeek[], tz, now);
     const occPrev = lastOccurrence(cls.startTime, cls.days as DayOfWeek[], tz, now);
 

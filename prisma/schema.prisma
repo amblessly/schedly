@@ -49,8 +49,11 @@ model User {
   school    String?
   course    String?
   year      Int?
-  timezone  String   @default("UTC")
+  timezone  String   @default("Asia/Manila")
   theme     String   @default("system")
+  notificationsEnabled Boolean @default(false) @map("notifications_enabled")
+  locationEnabled Boolean @default(false) @map("location_enabled")
+  requiresReauth Boolean @default(false) @map("requires_reauth")
   widgetToken String? @unique @map("widget_token")
   onboardingCompleted Boolean @default(false) @map("onboarding_completed")
   clientType String? @map("client_type")
@@ -179,7 +182,7 @@ model PushSubscription {
   endpoint  String   @unique
   p256dh    String   @map("p256dh")
   auth      String
-  timezone  String   @default("UTC")
+  timezone  String   @default("Asia/Manila")
   userAgent String?  @map("user_agent")
   device    String?  @map("device")
   platform  String?  @map("platform")
