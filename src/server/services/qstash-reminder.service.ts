@@ -190,9 +190,11 @@ export async function sendClassReminderPush(args: {
   const title = isStarting ? "Class starting now" : "Upcoming class";
   const body = isStarting
     ? `You have class today — ${label} at ${startLabelTxt}`
-    : remaining !== null && remaining > 0
-      ? `${label} starts in ${remaining} min (${startLabelTxt})`
-      : `${label} at ${startLabelTxt}`;
+    : remaining !== null && remaining > 180
+      ? `${label} at ${startLabelTxt}`
+      : remaining !== null && remaining > 0
+        ? `${label} starts in ${remaining} min (${startLabelTxt})`
+        : `${label} at ${startLabelTxt}`;
 
   const stale = await deliverPushToUser(reminder.userId, title, body);
 
@@ -208,7 +210,7 @@ export async function sendClassReminderPush(args: {
       title,
       body: isStarting
         ? `${label} starts now (${startLabelTxt})`
-        : `Reminder: ${label} at ${startLabelTxt} today.`,
+        : `Reminder: ${label} at ${startLabelTxt}.`,
       scheduledAt: occ !== null ? new Date(occ) : new Date(scheduledFireAt),
     },
   });
