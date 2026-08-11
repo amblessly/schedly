@@ -14,6 +14,7 @@ import { isPushSupported, getPushState, pushUnsupportedReasons, enablePush, disa
 import { programReminderAlarms } from "@/lib/notification-scheduler";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton as BoneSkeleton } from "boneyard-js/react";
 import {
   Bell,
   BellOff,
@@ -383,13 +384,13 @@ export function NotificationsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-5 pt-8 md:pt-0">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="flex items-center gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <BellRing className="h-5 w-5" />
           </span>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               Notifications
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
@@ -426,7 +427,7 @@ export function NotificationsPage() {
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 ${
+              className={`flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-all duration-200 sm:gap-2 sm:px-3 sm:text-sm ${
                 active
                   ? "bg-card text-foreground shadow-sm ring-1 ring-border/40"
                   : "text-muted-foreground hover:text-foreground"
@@ -435,7 +436,7 @@ export function NotificationsPage() {
               <Icon className={`h-4 w-4 ${active ? "text-primary" : ""}`} />
               {t.label}
               {t.key === "notifications" && unreadCount > 0 && (
-                <span className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold leading-none text-destructive-foreground">
+                <span className="hidden h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold leading-none text-destructive-foreground min-[360px]:flex">
                   {unreadCount}
                 </span>
               )}
@@ -473,22 +474,27 @@ export function NotificationsPage() {
             </div>
           )}
 
-          {!loaded ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-start gap-4 rounded-2xl border border-border/30 bg-card/30 px-4 py-4">
-                  <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Skeleton className="h-4 w-36" />
-                      <Skeleton className="h-3 w-12" />
+          <BoneSkeleton
+            name="notifications-tab-list"
+            loading={!loaded}
+            fallback={
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-start gap-4 rounded-2xl border border-border/30 bg-card/30 px-4 py-4">
+                    <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-36" />
+                        <Skeleton className="h-3 w-12" />
+                      </div>
+                      <Skeleton className="h-3 w-full" />
                     </div>
-                    <Skeleton className="h-3 w-full" />
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
+                ))}
+              </div>
+            }
+          >
+          {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-16 text-center">
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
                 <Bell className="h-7 w-7 text-primary/60" />
@@ -574,6 +580,7 @@ export function NotificationsPage() {
               })}
             </div>
           )}
+          </BoneSkeleton>
         </>
       )}
 
@@ -664,21 +671,26 @@ export function NotificationsPage() {
             </div>
           )}
 
-          {schedules === null ? (
-            <div className="space-y-3">
-              <Skeleton className="h-3 w-16" />
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center gap-4 rounded-2xl border border-border/30 bg-card/30 px-4 py-4">
-                  <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-28" />
-                    <Skeleton className="h-3 w-40" />
+          <BoneSkeleton
+            name="reminders-tab-list"
+            loading={schedules === null}
+            fallback={
+              <div className="space-y-3">
+                <Skeleton className="h-3 w-16" />
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-4 rounded-2xl border border-border/30 bg-card/30 px-4 py-4">
+                    <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-3 w-40" />
+                    </div>
+                    <Skeleton className="h-6 w-11 shrink-0 rounded-full" />
                   </div>
-                  <Skeleton className="h-6 w-11 shrink-0 rounded-full" />
-                </div>
-              ))}
-            </div>
-          ) : schedules.length === 0 ? (
+                ))}
+              </div>
+            }
+          >
+          {schedules && schedules.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-16 text-center">
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
                 <Camera className="h-7 w-7 text-primary/60" />
@@ -773,6 +785,7 @@ export function NotificationsPage() {
               )}
             </>
           )}
+          </BoneSkeleton>
         </>
       )}
     </div>

@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Camera, Image, AlertCircle, CheckCircle, ArrowLeft,
-  Calendar, Upload, Loader2, X,
+  Calendar, Upload, X,
 } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { validateExtractedClasses, type ValidationIssue } from "@/server/services/validation.service";
 import {
   getReviewState,
@@ -358,7 +359,7 @@ export default function CapturePage() {
                   <div className="flex items-center justify-between gap-3">
                     <span className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
                       {isAiWorking ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        <Spinner size={16} color="var(--primary)" />
                       ) : (
                         <Upload className="h-4 w-4 animate-pulse text-primary" />
                       )}

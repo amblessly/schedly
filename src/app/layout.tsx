@@ -4,11 +4,12 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { siteConfig } from "@/config/site";
 import { Warmup } from "@/components/warmup";
 import { InstallPrompt } from "@/components/install-prompt";
-import { ZoomLock } from "@/components/zoom-lock";
 import { PushForegroundListener } from "@/components/push-foreground-listener";
 import { ReauthDialog } from "@/components/reauth-dialog";
 import { ThemeProvider } from "@/features/theme";
 import { Toaster } from "sonner";
+import "ldrs/react/JellyTriangle.css";
+import "../bones/registry";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -68,8 +69,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
@@ -96,15 +95,6 @@ export default async function RootLayout({
           name="google-site-verification"
           content="IO2A9lf6gXvDGTZN9Lc6hj6Zk1WIoDqojV9OJgCyjC4"
         />
-        {/* Applies the zoom-lock before first paint, so refreshes don't flash
-            the page at the browser's raw zoom level. Same math as ZoomLock —
-            on native (Capacitor) the runtime is injected before this script.
-            Applied on every route so the scale is consistent app-wide. */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{if(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())return;var o=window.outerWidth,i=window.innerWidth;var z=o&&i?o/i:1;var c=0.8/Math.max(0.1,z);c=Math.min(1.5,Math.max(0.5,c));var s=Math.abs(c-1)<0.001?"":c.toFixed(4);var h=document.documentElement;if(h.style.zoom!==s)h.style.zoom=s;}catch(e){}})();`,
-          }}
-        />
       </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         {/* Soft Morning Mist background — one layer behind the whole site */}
@@ -120,7 +110,6 @@ export default async function RootLayout({
         <div className="relative z-10 flex min-h-full flex-1 flex-col safe-area-content">
           <Warmup />
           <InstallPrompt />
-          <ZoomLock />
           <PushForegroundListener />
           <ThemeProvider initialThemeId={initialThemeId}>{children}</ThemeProvider>
           <ReauthDialog />

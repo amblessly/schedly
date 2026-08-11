@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, GraduationCap, Sparkles } from "lucide-react";
+import { AtSign, BellRing, Camera, MapPin, Sparkles } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { authClient } from "@/lib/auth-client";
 import { uploadAvatar, removeAvatar } from "@/app/(dashboard)/settings/actions";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import { authFetch } from "@/lib/auth-fetch";
 import {
   Dialog,
@@ -35,7 +36,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [avatarUrl, setAvatarUrl] = useState<string | null>((u?.image as string) || (u?.avatarUrl as string) || null);
   const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -46,7 +47,7 @@ export default function OnboardingPage() {
 
   const firstName = u?.firstName || "User";
   const lastName = u?.lastName || "";
-  const initials = [firstName[0], lastName[0]].filter(Boolean).join("").toUpperCase();
+  const initials = firstName.charAt(0).toUpperCase();
 
   const markComplete = async () => {
     if (finishing) return;
@@ -99,7 +100,7 @@ export default function OnboardingPage() {
       }
       refetchSession();
     }
-    setStep(2);
+    setStep(3);
   };
 
   async function handleAvatarSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -148,7 +149,17 @@ export default function OnboardingPage() {
   };
 
   useEffect(() => {
-    if (!isLoading && !user) router.replace("/login");
+    if (!isLoading && !user) {
+      router.replace("/login");
+      return;
+    }
+    if (
+      !isLoading &&
+      user &&
+      (user as { onboardingCompleted?: boolean } | null)?.onboardingCompleted
+    ) {
+      router.replace("/dashboard");
+    }
   }, [isLoading, user, router]);
 
   if (isLoading || !user) {
@@ -172,24 +183,26 @@ export default function OnboardingPage() {
 
         {/* Progress */}
         <div className="mb-6 flex items-center gap-2">
-          {[1, 2].map((s) => (
+          {[1, 2, 3, 4].map((s) => (
             <span
               key={s}
-              className={`h-1.5 flex-1 rounded-full transition-colors ${s === step ? "bg-primary" : "bg-border"}`}
+              className={`h-1.5 flex-1 rounded-full transition-colors ${
+                s === step ? "bg-primary" : s < step ? "bg-primary/40" : "bg-border"
+              }`}
             />
           ))}
         </div>
 
-        {step === 1 ? (
+        {step === 1 && (
           <Card className="border-border/50 shadow-sm">
             <CardContent className="pt-8">
               <div className="mb-7 flex flex-col items-center text-center">
                 <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10">
                   <Sparkles className="h-5 w-5 text-primary" />
                 </span>
-                <h1 className="text-xl font-bold tracking-tight text-foreground">Set up your profile</h1>
+                <h1 className="text-xl font-bold tracking-tight text-foreground">Add your profile photo</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Add a profile photo so your friends can find you.
+                  So your friends can find you.
                 </p>
               </div>
 
@@ -214,7 +227,7 @@ export default function OnboardingPage() {
                     }`}
                   >
                     {uploading ? (
-                      <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      <Spinner size={20} color="white" />
                     ) : (
                       <Camera className="h-6 w-6 text-white" />
                     )}
@@ -230,6 +243,29 @@ export default function OnboardingPage() {
                   className="hidden"
                   onChange={handleAvatarSelect}
                 />
+              </div>
+
+              <Button
+                className="mt-6 h-12 w-full font-semibold"
+                onClick={() => setStep(2)}
+              >
+                Continue
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {step === 2 && (
+          <Card className="border-border/50 shadow-sm">
+            <CardContent className="pt-8">
+              <div className="mb-7 flex flex-col items-center text-center">
+                <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10">
+                  <AtSign className="h-5 w-5 text-primary" />
+                </span>
+                <h1 className="text-xl font-bold tracking-tight text-foreground">Choose your username</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  This is how your friends will find you.
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -255,28 +291,83 @@ export default function OnboardingPage() {
                 {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
               </div>
 
-              <Button
-                className="mt-6 h-12 w-full font-semibold"
-                onClick={handleContinue}
-              >
-                Continue
-              </Button>
+              <div className="mt-6 flex gap-2">
+                <Button
+                  variant="outline"
+                  className="h-12 w-24 font-semibold"
+                  onClick={() => setStep(1)}
+                >
+                  Back
+                </Button>
+                <Button
+                  className="h-12 flex-1 font-semibold"
+                  onClick={handleContinue}
+                >
+                  Continue
+                </Button>
+              </div>
             </CardContent>
           </Card>
-        ) : (
+        )}
+
+        {step === 3 && (
           <Card className="border-border/50 shadow-sm">
             <CardContent className="pt-8">
               <div className="mb-7 flex flex-col items-center text-center">
                 <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10">
-                  <GraduationCap className="h-5 w-5 text-primary" />
+                  <BellRing className="h-5 w-5 text-primary" />
                 </span>
-                <h1 className="text-xl font-bold tracking-tight text-foreground">Almost done</h1>
+                <h1 className="text-xl font-bold tracking-tight text-foreground">Stay on top of your classes</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  These two steps make Schedly feel like a real app.
+                  Turn on notifications so you never miss a class.
                 </p>
               </div>
 
-              <PermissionsStep onComplete={markComplete} finishing={finishing} />
+              <PermissionsStep
+                mode="notifications"
+                onComplete={() => setStep(4)}
+                finishing={false}
+                buttonLabel="Continue"
+              />
+
+              <Button
+                variant="ghost"
+                className="mt-2 h-10 w-full font-semibold text-muted-foreground"
+                onClick={() => setStep(2)}
+              >
+                Back
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {step === 4 && (
+          <Card className="border-border/50 shadow-sm">
+            <CardContent className="pt-8">
+              <div className="mb-7 flex flex-col items-center text-center">
+                <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10">
+                  <MapPin className="h-5 w-5 text-primary" />
+                </span>
+                <h1 className="text-xl font-bold tracking-tight text-foreground">One more thing</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Allow location so we can show weather for your schedule.
+                </p>
+              </div>
+
+              <PermissionsStep
+                mode="location"
+                onComplete={markComplete}
+                finishing={finishing}
+                buttonLabel="Get started"
+              />
+
+              <Button
+                variant="ghost"
+                className="mt-2 h-10 w-full font-semibold text-muted-foreground"
+                onClick={() => setStep(3)}
+              >
+                Back
+              </Button>
             </CardContent>
           </Card>
         )}

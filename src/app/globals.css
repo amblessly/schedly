@@ -308,13 +308,15 @@ body {
   }
 }
 
-/* PWA edge-to-edge: content respects safe areas, background extends to edges */
+/* PWA edge-to-edge: content respects safe areas, background extends to edges.
+   Uses the --s* custom properties so a plain browser tab (where the browser's
+   own toolbar already covers the safe areas) gets zero insets. */
 @supports (padding: max(0px)) {
   .safe-area-content {
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-    padding-left: env(safe-area-inset-left, 0px);
-    padding-right: env(safe-area-inset-right, 0px);
+    padding-top: var(--sat, env(safe-area-inset-top, 0px));
+    padding-bottom: var(--sab, env(safe-area-inset-bottom, 0px));
+    padding-left: var(--sal, env(safe-area-inset-left, 0px));
+    padding-right: var(--sar, env(safe-area-inset-right, 0px));
   }
 }
 
@@ -443,5 +445,52 @@ body {
 }
 .animate-bounce-soft {
   animation: bounce-soft 2s ease-in-out infinite;
+}
+
+/* ===== Dashboard bento grid — asymmetric L-shape, responsive ===== */
+/* Always an L: the dominant tile (today's classes) spans two rows on the
+   left, with the weather and free-time tiles stacked on the right. Below
+   360px (legacy small phones) the side column can't fit next to the class
+   cards, so the grid simplifies to a full-width hero tile over two half
+   tiles — the shape stays bento, never a plain list. The page content
+   column is capped (max-w) and centered, so the grid never stretches on
+   large screens. */
+.bento-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(118px, 1fr);
+  /* Equal rows keep the bento's height constant while content swaps between
+     skeletons and real data — auto rows shift when skeleton content differs,
+     making the layout jump on load. */
+  grid-auto-rows: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0.75rem;
+}
+.bento-grid > * {
+  min-width: 0;
+}
+.bento-tile-main {
+  grid-column: 1;
+  grid-row: span 2;
+}
+@media (max-width: 359.98px) {
+  .bento-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .bento-tile-main {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+}
+/* The side tiles live in a ~118–220px column below sm, so their padding
+   tightens (0.625rem vs 1.25rem default) to give the content more room. */
+@media (max-width: 559.98px) {
+  .bento-grid > .bento-tile-side {
+    --card-spacing: 0.625rem;
+  }
+}
+@media (min-width: 560px) {
+  .bento-grid {
+    grid-template-columns: minmax(0, 1.5fr) minmax(220px, 1fr);
+  }
 }
 

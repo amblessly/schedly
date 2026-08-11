@@ -8,8 +8,8 @@ import {
   StickyNote,
   Plus,
   Trash2,
-  Loader2,
 } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 
 type Note = {
   id: string;
@@ -121,7 +121,7 @@ export default function NotesPage() {
           <div className="flex justify-end">
             <Button onClick={addNote} disabled={saving || (!title.trim() && !body.trim())}>
               {saving ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
+                <><Spinner size={16} color="var(--primary-foreground)" /> Saving...</>
               ) : (
                 <><Plus className="mr-2 h-4 w-4" /> Add note</>
               )}
@@ -148,7 +148,7 @@ export default function NotesPage() {
                     {n.title}
                   </p>
                   {n.body && (
-                    <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
+                    <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted-foreground">
                       {n.body}
                     </p>
                   )}

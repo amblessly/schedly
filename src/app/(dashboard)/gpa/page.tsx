@@ -84,7 +84,7 @@ export default function GPACalculatorPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 pt-8 md:pt-0">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
             GPA Calculator

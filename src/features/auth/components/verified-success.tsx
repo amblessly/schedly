@@ -11,7 +11,7 @@ export function VerifiedSuccess() {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          window.location.href = "/dashboard";
+          window.location.href = "/onboarding";
           return 0;
         }
         return prev - 1;
@@ -45,7 +45,7 @@ export function VerifiedSuccess() {
       </CardHeader>
       <CardContent className="text-center">
         <p className="text-sm text-muted-foreground">
-          Redirecting to your schedule in{" "}
+          Let&apos;s set up your profile in{" "}
           <span className="font-semibold text-primary">{countdown}</span>...
         </p>
       </CardContent>

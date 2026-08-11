@@ -99,22 +99,6 @@
       </div>
     </div>
     <script>
-      // Match the app's zoom-lock (80% visual scale) so landing on this page
-      // while offline doesn't flash a bigger screen than the rest of the app.
-      (function () {
-        try {
-          if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) return;
-          var o = window.outerWidth,
-            i = window.innerWidth;
-          var z = o && i ? o / i : 1;
-          var c = 0.8 / Math.max(0.1, z);
-          c = Math.min(1.5, Math.max(0.5, c));
-          var s = Math.abs(c - 1) < 0.001 ? "" : c.toFixed(4);
-          var h = document.documentElement;
-          if (h.style.zoom !== s) h.style.zoom = s;
-        } catch (e) {}
-      })();
-
       // Real auto-reload: the moment connectivity returns, jump straight back
       // into the app instead of waiting for the user to notice.
       function onBackOnline() {

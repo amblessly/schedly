@@ -6,6 +6,7 @@ import { authClient } from "@/lib/auth-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { authFetch } from "@/lib/auth-fetch";
+import { Spinner } from "@/components/ui/spinner";
 
 interface EmailProvider {
   app?: string;
@@ -68,7 +69,7 @@ function PendingContent() {
         if (data?.user?.emailVerified) {
           clearInterval(pollRef.current);
           setPolling(false);
-          router.push("/dashboard");
+          router.push("/onboarding");
         }
       } catch {
         // keep polling
@@ -85,7 +86,7 @@ function PendingContent() {
       const res = await authFetch("/api/auth/get-session");
       const data = await res.json();
       if (data?.user?.emailVerified) {
-        router.push("/dashboard");
+        router.push("/onboarding");
         return;
       }
     } catch { /* not yet */ }
@@ -168,7 +169,7 @@ function PendingContent() {
         >
           {loading ? (
             <span className="flex items-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <Spinner size={16} color="var(--primary)" />
               Sending...
             </span>
           ) : (

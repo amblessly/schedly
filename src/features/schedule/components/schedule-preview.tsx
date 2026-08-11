@@ -127,10 +127,14 @@ export function SchedulePreview({ classes, filename = "schedule.png", scale, cap
         <div className="h-3 w-3 rounded-full bg-destructive/60" />
         <div className="h-3 w-3 rounded-full bg-yellow-400/60" />
         <div className="h-3 w-3 rounded-full bg-green-400/60" />
-        <span className="ml-2 truncate text-xs font-mono text-muted-foreground">{filename}</span>
+        <span className="ml-2 min-w-0 flex-1 truncate text-xs font-mono text-muted-foreground">{filename}</span>
         {!isCapture && action && <div className="ml-auto shrink-0">{action}</div>}
       </div>
 
+      {/* The non-capture timetable fills its container so the whole week is
+          always visible without horizontal scrolling — columns shrink evenly
+          on small screens. The capture render keeps a fixed wide size for
+          the off-screen image export. */}
       <div className="overflow-hidden">
         <div
           className={isCapture ? "grid min-w-[760px] gap-3" : "grid gap-1"}

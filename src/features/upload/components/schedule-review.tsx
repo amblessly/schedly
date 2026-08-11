@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Loader2, Plus, Trash2, Save, AlertCircle, ChevronDown, ChevronUp, AlertTriangle, XCircle, Paintbrush } from "lucide-react";
+import { Plus, Trash2, Save, AlertCircle, ChevronDown, ChevronUp, AlertTriangle, XCircle, Paintbrush } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 
 const DAYS = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"] as const;
 const DAY_LABELS: Record<string, string> = {
@@ -430,7 +431,7 @@ export function ScheduleReview({
         </Button>
         <Button onClick={handleSave} disabled={saving || classes.length === 0} className="flex-1">
           {saving ? (
-            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
+            <><Spinner size={16} color="var(--primary-foreground)" /> Saving...</>
           ) : (
             <><Save className="mr-2 h-4 w-4" /> Save Schedule</>
           )}

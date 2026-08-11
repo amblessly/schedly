@@ -9,9 +9,10 @@ import { Input } from "@/components/ui/input";
 import {
   ArrowLeft, Download, ImageIcon, ImagePlus, RotateCcw,
   Undo2, Redo2, Copy, BringToFront, SendToBack, Eraser, Type,
-  Grid3x3, Palette, Plus, Trash2, Loader2, Sparkles,
+  Grid3x3, Palette, Plus, Trash2, Sparkles,
   ChevronDown, ChevronUp, Check,
 } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 
 const DAY_LABELS: Record<string, string> = {
   monday: "Mon", tuesday: "Tue", wednesday: "Wed", thursday: "Thu",
@@ -592,7 +593,7 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
           className="shrink-0 px-2.5 sm:px-4"
         >
           {exporting ? (
-            <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
+            <Spinner size={16} color="var(--primary-foreground)" className="sm:mr-2" />
           ) : (
             <Download className="h-4 w-4 sm:mr-2" />
           )}

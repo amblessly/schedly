@@ -18,6 +18,7 @@ import { TurnstileWidget } from "@/components/turnstile";
 import { verifyCaptcha } from "@/app/actions";
 import { isPasswordBreached } from "@/lib/hibp";
 import Link from "next/link";
+import { Spinner } from "@/components/ui/spinner";
 
 const TOTAL_STEPS = 3;
 
@@ -359,7 +360,7 @@ export function RegisterForm() {
               >
                 {loading ? (
                   <span className="flex items-center gap-2">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                    <Spinner size={16} color="var(--secondary-foreground)" />
                     Creating account...
                   </span>
                 ) : (

@@ -11,6 +11,7 @@ import { retry } from "@/lib/retry";
 import { withOfflineCache } from "@/lib/offline-cache";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton as BoneSkeleton } from "boneyard-js/react";
 import { ArrowLeft, Calendar, Camera, Trash2 } from "lucide-react";
 
 type ClassData = {
@@ -134,19 +135,24 @@ export default function SchedulePage() {
       {/* === CALENDAR === */}
       {phase === "list" && (
         <div className="space-y-4">
-          {loadingSchedules ? (
-            <div className="rounded-2xl border border-border/50 bg-card p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-8 w-16 rounded-full" />
+          <BoneSkeleton
+            name="schedule-page-list"
+            loading={loadingSchedules}
+            fallback={
+              <div className="rounded-2xl border border-border/50 bg-card p-3 sm:p-4">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-8 w-16 rounded-full" />
+                </div>
+                <div className="mt-3 grid grid-cols-7 gap-1">
+                  {Array.from({ length: 35 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full rounded-lg" />
+                  ))}
+                </div>
               </div>
-              <div className="mt-3 grid grid-cols-7 gap-1">
-                {Array.from({ length: 35 }).map((_, i) => (
-                  <Skeleton key={i} className="h-10 w-full rounded-lg" />
-                ))}
-              </div>
-            </div>
-          ) : schedules.length === 0 ? (
+            }
+          >
+          {schedules.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-16 text-center">
               <Calendar className="mb-3 h-8 w-8 text-muted-foreground/40" />
               <h3 className="text-lg font-semibold text-foreground">No schedules yet</h3>
@@ -166,6 +172,7 @@ export default function SchedulePage() {
               onViewSchedule={handleViewSchedule}
             />
           )}
+          </BoneSkeleton>
         </div>
       )}
     </div>

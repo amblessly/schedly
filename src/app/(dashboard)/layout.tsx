@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, ArrowLeft, Bell } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
@@ -11,6 +11,9 @@ import { OfflineBanner } from "@/components/offline-banner";
 import { useThemeConfig } from "@/features/theme";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { reportClientType, type ClientType } from "./actions";
+import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
+import { getUserReminders } from "@/app/(dashboard)/reminders/actions";
+import { programReminderAlarms } from "@/lib/notification-scheduler";
 
 // The drawer's open state lives in a tiny external store so its initial
 // value can come from matchMedia only AFTER hydration. The server renders
@@ -51,7 +54,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   const userObj = user as { onboardingCompleted?: boolean; emailVerified?: boolean } | null;
   const needsOnboarding =
-    !isLoading && user && userObj?.onboardingCompleted === false;
+    !isLoading && user && !userObj?.onboardingCompleted;
   // Email must be verified before the user can enter the app — covers users
   // who still hold a session created before verification was enforced.
   const needsEmailVerification =
@@ -71,11 +74,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const firstName = u?.firstName || "User";
   const lastName = u?.lastName || "";
   const displayName = lastName ? `${firstName} ${lastName}` : firstName;
-  const initials = [u?.firstName?.[0], u?.lastName?.[0]]
-    .filter(Boolean)
-    .join("")
-    .toUpperCase()
-    || firstName.charAt(0).toUpperCase();
+  const initials = firstName.charAt(0).toUpperCase();
   const userAvatar = u?.image || u?.avatarUrl || null;
 
   // Auto-download offline support: once signed in, warm the cache with the
@@ -100,6 +99,28 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {});
   }, [user]);
+
+  // Arm local class-reminder alarms from the service worker on every app open
+  // (any dashboard page), not just the Notifications page. Local alarms fire
+  // at the exact minute via Notification Triggers (installed PWA) or the SW
+  // ticker while the app is open — they don't depend on the Vercel cron, which
+  // is capped at 2 runs/day on the free plan. Re-runs on navigation so edits
+  // made on the Reminders page take effect immediately.
+  useEffect(() => {
+    if (!user || !("serviceWorker" in navigator)) return;
+    let active = true;
+    Promise.all([getUserSchedules(), getUserReminders()])
+      .then(([schedules, reminders]) => {
+        if (!active) return;
+        if (schedules.length > 0 && reminders.length > 0) {
+          programReminderAlarms(schedules as never, reminders as never).catch(() => {});
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [user, pathname]);
 
   useEffect(() => {
     if (needsOnboarding) router.replace("/onboarding");
@@ -155,9 +176,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const isSettings = pathname === "/settings";
 
   // Profile page turns the top-left avatar into a back arrow.
-  const isProfile = pathname === "/profile";
-
-  // Admin pages are full-screen — same treatment as settings/profile.
+  const isProfile = pathname === "/profile";  // Admin pages are full-screen — same treatment as settings/profile.
   const isAdmin = pathname.startsWith("/admin");
 
   // Feedback page is opened from Settings → Support, so it goes back there too.
@@ -166,31 +185,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   // Notifications page is opened from the bell icon — the avatar becomes a
   // back arrow that exits back to the dashboard.
   const isNotifications = pathname === "/notifications";
-
-  // Fade the top-left logo out only after a meaningful scroll down, back in
-  // on scroll up — small scrolls don't hide it.
-  const [logoHidden, setLogoHidden] = useState(false);
-  const logoLastY = useRef(0);
-  const logoTicking = useRef(false);
-
-  useEffect(() => {
-    const onScroll = () => {
-      if (logoTicking.current) return;
-      logoTicking.current = true;
-      requestAnimationFrame(() => {
-        logoTicking.current = false;
-        const y = window.scrollY;
-        const delta = y - logoLastY.current;
-        if (Math.abs(delta) > 48) {
-          setLogoHidden(delta > 0 && y > 200);
-        }
-        logoLastY.current = y;
-      });
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   // Close the mobile drawer on every navigation so it never stays open
   // covering a page (e.g., after coming back from the design editor).
@@ -241,9 +235,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       />
 
       {/* Avatar/back top-left — fixed to the page (stays put while content scrolls).
-          On account settings and admin pages it becomes a back arrow. The
-          profile page keeps the avatar (identifying page) and has its own
-          back button inside, so the avatar never "turns into" an arrow. */}
+          On account settings, profile, admin, feedback, and notifications pages it
+          becomes a back arrow. Elsewhere it's the user's avatar; tapping it opens
+          the profile page. */}
       {!isImmersive && showButton && (
         <button
           type="button"
@@ -256,12 +250,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                   : router.push("/settings?tab=support")
                 : router.push("/profile")
           }
-          className={`fixed left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center transition-all duration-300 ${isSettings || isAdmin || isFeedback || isNotifications ? "" : "hover:scale-105"} ${logoHidden ? "pointer-events-none -translate-y-2 opacity-0" : "opacity-100"}`}
+          className={`fixed left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center transition-all duration-300 ${isSettings || isProfile || isAdmin || isFeedback || isNotifications ? "" : "hover:scale-105"}`}
           aria-label={
-            isSettings || isAdmin || isFeedback || isNotifications ? "Back" : "Open profile"
+            isSettings || isProfile || isAdmin || isFeedback || isNotifications ? "Back" : "Open profile"
           }
         >
-          {isSettings || isAdmin || isFeedback || isNotifications ? (
+          {isSettings || isProfile || isAdmin || isFeedback || isNotifications ? (
             <ArrowLeft className="h-6 w-6 text-foreground" />
           ) : userAvatar ? (
             <img src={userAvatar} alt={displayName} className="h-11 w-11 rounded-full object-cover ring-2 ring-border/40" />
@@ -295,7 +289,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </button>
       )}
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <main
           onClick={() => setOpen(false)}
           className={[
@@ -309,12 +303,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               {children}
             </div>
           ) : (
-            <div key={pathname} className="animate-fade-up mx-auto w-full max-w-3xl md:w-full">{children}</div>
+            <div key={pathname} className="animate-fade-up mx-auto w-full min-w-0 max-w-5xl md:w-full">{children}</div>
           )}
         </main>
       </div>
 
-      {!isImmersive && <BottomNav />}
+      {!isImmersive && !isProfile && !isNotifications && !isSettings && <BottomNav />}
       {!isImmersive && <OfflineBanner />}
     </div>
   );

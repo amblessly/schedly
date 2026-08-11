@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LifeBuoy, Send, CheckCircle, Loader2, AlertCircle } from "lucide-react";
+import { LifeBuoy, Send, CheckCircle, AlertCircle } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { authFetch } from "@/lib/auth-fetch";
 
 const TYPE_OPTIONS = [
@@ -176,7 +177,7 @@ export default function FeedbackPage() {
             <Button type="submit" disabled={loading} className="w-full sm:w-auto">
               {loading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Spinner size={16} color="var(--primary-foreground)" />
                   Sending...
                 </>
               ) : (

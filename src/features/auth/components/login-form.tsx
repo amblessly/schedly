@@ -8,6 +8,7 @@ import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { loginSchema, type LoginInput } from "@/lib/validations";
 import { TurnstileWidget } from "@/components/turnstile";
+import { Spinner } from "@/components/ui/spinner";
 import { verifyCaptcha } from "@/app/actions";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -145,7 +146,7 @@ export function LoginForm() {
           >
             {loading ? (
               <span className="flex items-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                <Spinner size={16} color="var(--secondary-foreground)" />
                 Signing in...
               </span>
             ) : (

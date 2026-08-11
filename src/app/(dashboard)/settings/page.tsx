@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton as BoneSkeleton } from "boneyard-js/react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 type UserWithExtras = {
@@ -42,49 +43,50 @@ export default function SettingsPage() {
       : "account";
   const [activeTab, setActiveTab] = useState(initialTab);
 
-  if (isLoading) {
-    return (
-      <div className="mx-auto max-w-2xl space-y-6 pt-8 md:pt-0">
-        <div>
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-4 w-64 mt-2" />
-        </div>
-        <Skeleton className="h-10 w-full rounded-lg" />
-        <Card className="border-border/50">
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center gap-4 sm:flex-row">
-              <Skeleton className="h-20 w-20 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-5 w-32" />
-                <Skeleton className="h-4 w-48" />
-                <Skeleton className="h-3 w-24" />
-                <div className="flex gap-2 pt-1">
-                  <Skeleton className="h-8 w-16 rounded-lg" />
-                  <Skeleton className="h-8 w-20 rounded-lg" />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50">
-          <CardHeader>
-            <Skeleton className="h-5 w-32" />
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex items-center justify-between py-2 border-b border-border/40">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-28" />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="mx-auto max-w-4xl pt-8 md:pt-0">
+      <BoneSkeleton
+        name="settings-page"
+        loading={isLoading}
+        fallback={
+          <div className="space-y-6">
+            <div>
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-64 mt-2" />
+            </div>
+            <Skeleton className="h-10 w-full rounded-lg" />
+            <Card className="border-border/50">
+              <CardContent className="pt-6">
+                <div className="flex flex-col items-center gap-4 sm:flex-row">
+                  <Skeleton className="h-20 w-20 rounded-full" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-5 w-32" />
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-3 w-24" />
+                    <div className="flex gap-2 pt-1">
+                      <Skeleton className="h-8 w-16 rounded-lg" />
+                      <Skeleton className="h-8 w-20 rounded-lg" />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-border/50">
+              <CardHeader>
+                <Skeleton className="h-5 w-32" />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center justify-between py-2 border-b border-border/40">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-28" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        }
+      >
       <div className="mb-6 sm:mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
           Settings
@@ -137,6 +139,7 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+      </BoneSkeleton>
     </div>
   );
 }
@@ -229,9 +232,6 @@ function AccountTab({ u }: { u: UserWithExtras | null }) {
   const [form, setForm] = useState({
     firstName: u?.firstName || "",
     lastName: u?.lastName || "",
-    username: u?.username || "",
-    birthdate: u?.birthdate ? new Date(u.birthdate).toISOString().split("T")[0] : "",
-    sex: u?.sex || "",
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -247,8 +247,6 @@ function AccountTab({ u }: { u: UserWithExtras | null }) {
         name: form.lastName ? `${form.firstName} ${form.lastName}` : form.firstName,
         firstName: form.firstName,
         lastName: form.lastName,
-        birthdate: form.birthdate ? new Date(form.birthdate) : null,
-        sex: form.sex,
       } as Parameters<typeof authClient.updateUser>[0]);
 
       if (result.error) {
@@ -287,47 +285,6 @@ function AccountTab({ u }: { u: UserWithExtras | null }) {
                 id="lastName"
                 value={form.lastName}
                 onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))}
-                className="h-10"
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="username" className="text-sm font-medium">Username</Label>
-            <Input
-              id="username"
-              value={form.username}
-              disabled
-              className="h-10 opacity-60"
-            />
-            <p className="text-xs text-muted-foreground">Username cannot be changed.</p>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Sex</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {["Male", "Female", "Other"].map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => setForm((p) => ({ ...p, sex: option.toLowerCase() }))}
-                    className={`h-10 rounded-lg border text-sm font-medium transition-colors ${
-                      form.sex === option.toLowerCase()
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-border/60 bg-card/50 text-muted-foreground hover:border-border hover:text-foreground"
-                    }`}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="birthdate" className="text-sm font-medium">Birthdate</Label>
-              <Input
-                id="birthdate"
-                type="date"
-                value={form.birthdate}
-                onChange={(e) => setForm((p) => ({ ...p, birthdate: e.target.value }))}
                 className="h-10"
               />
             </div>

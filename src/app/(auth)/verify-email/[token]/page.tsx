@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 
 function VerifyHandler() {
   const searchParams = useSearchParams();
@@ -25,7 +26,7 @@ function VerifyHandler() {
       .then(() => {
         if (!cancelled) {
           setStatus("success");
-          window.location.href = "/dashboard";
+          window.location.href = "/onboarding";
         }
       })
       .catch((err) => {
@@ -45,7 +46,9 @@ function VerifyHandler() {
       <CardHeader className="text-center">
         {status === "loading" && (
           <>
-            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <div className="mx-auto mb-4 flex justify-center">
+              <Spinner size={40} color="var(--foreground)" />
+            </div>
             <CardTitle className="text-xl">Verifying your email...</CardTitle>
           </>
         )}
@@ -57,7 +60,7 @@ function VerifyHandler() {
               </svg>
             </div>
             <CardTitle className="text-xl text-primary">Email verified!</CardTitle>
-            <CardDescription>Redirecting you to your schedule...</CardDescription>
+            <CardDescription>Setting up your profile...</CardDescription>
           </>
         )}
         {status === "error" && (

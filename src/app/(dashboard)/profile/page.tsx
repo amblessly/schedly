@@ -1,9 +1,13 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { Check, Save } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { authClient } from "@/lib/auth-client";
 import { uploadAvatar } from "@/app/(dashboard)/settings/actions";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton as BoneSkeleton } from "boneyard-js/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,39 +41,41 @@ export default function ProfilePage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (isLoading) {
-    return (
-      <div className="mx-auto max-w-2xl pt-8 md:pt-0">
-        <div className="flex flex-col items-center gap-4">
-          <Skeleton className="h-20 w-20 rounded-full" />
-          <Skeleton className="h-6 w-40" />
-          <Skeleton className="h-4 w-56" />
-        </div>
-        <Card className="mt-6 border-border/50">
-          <CardHeader>
-            <Skeleton className="h-5 w-32" />
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex items-center justify-between py-2 border-b border-border/40">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-28" />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-    );
+  const [username, setUsername] = useState(u?.username || "");
+  const [savingUsername, setSavingUsername] = useState(false);
+  const [usernameSaved, setUsernameSaved] = useState(false);
+  const [usernameError, setUsernameError] = useState("");
+
+  async function handleSaveUsername() {
+    const value = username.trim().replace(/^@/, "");
+    if (!value) {
+      setUsernameError("Username cannot be empty.");
+      return;
+    }
+    setSavingUsername(true);
+    setUsernameError("");
+    setUsernameSaved(false);
+    try {
+      const result = await authClient.updateUser({
+        username: value,
+      } as Parameters<typeof authClient.updateUser>[0]);
+      if (result.error) {
+        setUsernameError(result.error.message || "Could not save username.");
+      } else {
+        setUsernameSaved(true);
+        refetchSession();
+        setTimeout(() => setUsernameSaved(false), 2000);
+      }
+    } catch {
+      setUsernameError("Something went wrong. Try again.");
+    }
+    setSavingUsername(false);
   }
 
   const firstName = u?.firstName || "User";
   const lastName = u?.lastName || "";
   const displayName = lastName ? `${firstName} ${lastName}` : firstName;
-  const initials = [u?.firstName?.[0], u?.lastName?.[0]]
-    .filter(Boolean)
-    .join("")
-    .toUpperCase()
-    || firstName.charAt(0).toUpperCase();
+  const initials = firstName.charAt(0).toUpperCase();
 
   const memberSince = u?.createdAt
     ? new Date(u.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })
@@ -104,6 +110,32 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-2xl pt-8 md:pt-0">
+      <BoneSkeleton
+        name="profile-page"
+        loading={isLoading}
+        fallback={
+          <>
+            <div className="flex flex-col items-center gap-4">
+              <Skeleton className="h-20 w-20 rounded-full" />
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-4 w-56" />
+            </div>
+            <Card className="mt-6 border-border/50">
+              <CardHeader>
+                <Skeleton className="h-5 w-32" />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center justify-between py-2 border-b border-border/40">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-28" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </>
+        }
+      >
       <div className="mb-6 sm:mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
           Profile
@@ -143,7 +175,7 @@ export default function ProfilePage() {
                   </DialogHeader>
                   <div className="flex items-center justify-center p-4">
                     {avatarUrl ? (
-                      <img src={avatarUrl} alt={displayName} className="max-h-80 rounded-xl object-contain" />
+                      <img src={avatarUrl} alt={displayName} className="max-h-[70vh] max-w-full rounded-xl object-contain" />
                     ) : (
                       <div className="flex h-40 w-40 items-center justify-center rounded-full bg-primary/10 text-5xl font-semibold text-primary">
                         {initials}
@@ -153,9 +185,8 @@ export default function ProfilePage() {
                 </DialogContent>
               </Dialog>
 
-              <div className="flex flex-col items-center gap-2 sm:items-start">
-                <h3 className="text-lg font-semibold text-foreground truncate">{displayName}</h3>
-                <p className="text-sm text-muted-foreground truncate">{u?.email}</p>
+              <div className="flex min-w-0 flex-1 flex-col items-center gap-2 sm:items-start">
+                <h3 className="w-full truncate text-center text-lg font-semibold text-foreground sm:text-left">{displayName}</h3>
                 <p className="text-xs text-muted-foreground">@{u?.username}</p>
                 <div className="flex gap-2 pt-1">
                   <Button
@@ -179,7 +210,7 @@ export default function ProfilePage() {
                   >
                     {uploading ? (
                       <span className="flex items-center gap-1">
-                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                        <Spinner size={14} color="var(--primary)" />
                         Uploading...
                       </span>
                     ) : (
@@ -219,19 +250,45 @@ export default function ProfilePage() {
                 {u?.emailVerified ? "Verified" : "Pending"}
               </span>
             </div>
-            <div className="flex items-center justify-between py-2 border-b border-border/40">
-              <span className="text-sm text-muted-foreground">Username</span>
-              <span className="text-sm font-medium text-foreground">@{u?.username}</span>
+            <div className="flex items-center justify-between gap-3 py-2 border-b border-border/40">
+              <span className="shrink-0 text-sm text-muted-foreground">Email</span>
+              <span className="truncate text-sm font-medium text-foreground">{u?.email}</span>
             </div>
-            <div className="flex items-center justify-between py-2 border-b border-border/40">
-              <span className="text-sm text-muted-foreground">Birthdate</span>
-              <span className="text-sm font-medium text-foreground">
-                {u?.birthdate ? new Date(u.birthdate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "Not set"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between py-2 border-b border-border/40">
-              <span className="text-sm text-muted-foreground">Sex</span>
-              <span className="text-sm font-medium text-foreground capitalize">{u?.sex || "Not set"}</span>
+            <div className="py-2 border-b border-border/40">
+              <div className="flex items-center justify-between gap-3">
+                <span className="shrink-0 text-sm text-muted-foreground">Username</span>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <div className="flex min-w-0 items-center gap-0.5 rounded-lg border border-border/60 bg-card/50 px-2 focus-within:border-primary/50">
+                    <span className="text-sm text-muted-foreground">@</span>
+                    <input
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      maxLength={24}
+                      aria-label="Username"
+                      className="w-28 min-w-0 bg-transparent py-1.5 text-sm font-medium text-foreground outline-none sm:w-36"
+                    />
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
+                    onClick={handleSaveUsername}
+                    disabled={savingUsername}
+                    aria-label="Save username"
+                  >
+                    {savingUsername ? (
+                      <Spinner size={16} color="var(--foreground)" />
+                    ) : usernameSaved ? (
+                      <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+              {usernameError && (
+                <p className="mt-1 text-right text-xs text-destructive">{usernameError}</p>
+              )}
             </div>
             <div className="flex items-center justify-between py-2">
               <span className="text-sm text-muted-foreground">Member since</span>
@@ -240,6 +297,7 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+      </BoneSkeleton>
     </div>
   );
 }

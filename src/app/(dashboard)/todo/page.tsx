@@ -63,7 +63,7 @@ export default function TodoPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 pt-8 md:pt-0">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
             To-Do List

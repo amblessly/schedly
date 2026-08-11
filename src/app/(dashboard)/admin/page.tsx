@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton as BoneSkeleton } from "boneyard-js/react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { toast } from "sonner";
 import {
@@ -15,7 +16,8 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Megaphone, Loader2, LayoutDashboard, Users, Radio, type LucideIcon } from "lucide-react";
+import { Megaphone, LayoutDashboard, Users, Radio, type LucideIcon } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 
 type AdminUser = {
   id: string;
@@ -118,60 +120,61 @@ export default function AdminPage() {
     setBroadcasting(false);
   }
 
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-5xl space-y-8 p-4 sm:p-6 lg:p-8">
-        <div>
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-4 w-64 mt-2" />
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="border-border/50">
-              <CardContent className="pt-5 pb-4 text-center">
-                <Skeleton className="h-8 w-16 mx-auto" />
-                <Skeleton className="h-3 w-12 mx-auto mt-2" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        <Card className="border-border/50">
-          <CardHeader>
-            <Skeleton className="h-5 w-16" />
-          </CardHeader>
-          <CardContent>
-            <div className="hidden sm:block space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center gap-4 py-3">
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-4 w-40" />
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-5 w-12 rounded-full" />
-                  <Skeleton className="h-7 w-20 ml-auto" />
-                </div>
-              ))}
-            </div>
-            <div className="sm:hidden space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="rounded-xl border border-border/40 bg-muted/20 p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Skeleton className="h-4 w-28" />
-                    <Skeleton className="h-5 w-12 rounded-full" />
-                  </div>
-                  <Skeleton className="h-3 w-40" />
-                  <Skeleton className="h-3 w-20" />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="mx-auto max-w-5xl space-y-8 p-4 sm:p-6 lg:p-8">
+      <BoneSkeleton
+        name="admin-page"
+        loading={loading}
+        fallback={
+          <>
+            <div>
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-64 mt-2" />
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => (
+                <Card key={i} className="border-border/50">
+                  <CardContent className="pt-5 pb-4 text-center">
+                    <Skeleton className="h-8 w-16 mx-auto" />
+                    <Skeleton className="h-3 w-12 mx-auto mt-2" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            <Card className="border-border/50">
+              <CardHeader>
+                <Skeleton className="h-5 w-16" />
+              </CardHeader>
+              <CardContent>
+                <div className="hidden sm:block space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center gap-4 py-3">
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-5 w-12 rounded-full" />
+                      <Skeleton className="h-7 w-20 ml-auto" />
+                    </div>
+                  ))}
+                </div>
+                <div className="sm:hidden space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="rounded-xl border border-border/40 bg-muted/20 p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-5 w-12 rounded-full" />
+                      </div>
+                      <Skeleton className="h-3 w-40" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        }
+      >
       <div>
         <div className="flex items-center gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -240,7 +243,7 @@ export default function AdminPage() {
                 disabled={broadcasting}
               >
                 {broadcasting ? (
-                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  <Spinner size={16} color="var(--primary-foreground)" className="mr-1.5" />
                 ) : (
                   <Megaphone className="mr-1.5 h-4 w-4" />
                 )}
@@ -390,6 +393,7 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+      </BoneSkeleton>
     </div>
   );
 }
