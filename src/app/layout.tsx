@@ -5,7 +5,6 @@ import { siteConfig } from "@/config/site";
 import { Warmup } from "@/components/warmup";
 import { InstallPrompt } from "@/components/install-prompt";
 import { PushForegroundListener } from "@/components/push-foreground-listener";
-import { ReauthDialog } from "@/components/reauth-dialog";
 import { ThemeProvider } from "@/features/theme";
 import { Toaster } from "sonner";
 import "ldrs/react/JellyTriangle.css";
@@ -112,7 +111,6 @@ export default async function RootLayout({
           <InstallPrompt />
           <PushForegroundListener />
           <ThemeProvider initialThemeId={initialThemeId}>{children}</ThemeProvider>
-          <ReauthDialog />
           <Toaster position="top-right" richColors />
         </div>
       </body>

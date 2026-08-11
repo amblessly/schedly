@@ -77,13 +77,14 @@ function Toggle({
   );
 }
 
+/** Onboarding step that lets the user optionally enable notifications AND
+ *  location on one screen. Both are optional — the continue button is always
+ *  enabled and "Skip for now" lives next to it. */
 export function PermissionsStep({
-  mode,
   onComplete,
   finishing,
   buttonLabel,
 }: {
-  mode: "notifications" | "location";
   onComplete: () => void;
   finishing: boolean;
   buttonLabel: string;
@@ -93,8 +94,6 @@ export function PermissionsStep({
   const [loc, setLoc] = useState<LocState>("loading");
   const [locMsg, setLocMsg] = useState<string | null>(null);
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
-
-  const ready = mode === "notifications" ? notif === "granted" : loc === "granted";
 
   useEffect(() => {
     let active = true;
@@ -223,70 +222,61 @@ export function PermissionsStep({
 
   return (
     <div className="space-y-4">
-      {mode === "notifications" ? (
-        <>
-          {permissionRow(
-            <BellRing className="h-5 w-5" />,
-            "Allow notifications",
-            "You’ll get reminders about your classes.",
-            <Toggle
-              checked={notif === "granted"}
-              onChange={handleNotifications}
-              disabled={notif === "requesting" || notif === "unsupported"}
-              label="Allow notifications"
-            />
-          )}
-          {notifMsg && (
-            <p className="flex items-start gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-600 dark:text-amber-500">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              {notifMsg}
-            </p>
-          )}
-          {notif === "requesting" ? (
-            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Spinner size={14} color="var(--muted-foreground)" />
-              Waiting for permission…
-            </p>
-          ) : null}
-        </>
-      ) : (
-        <>
-          {permissionRow(
-            <MapPin className="h-5 w-5" />,
-            "Allow location",
-            "We’ll use your location to provide weather information for your schedule.",
-            <Toggle
-              checked={loc === "granted"}
-              onChange={handleLocation}
-              disabled={loc === "requesting" || loc === "unsupported"}
-              label="Allow location"
-            />
-          )}
-          {locMsg && (
-            <p className="flex items-start gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-600 dark:text-amber-500">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              {locMsg}
-            </p>
-          )}
-          {loc === "requesting" ? (
-            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Spinner size={14} color="var(--muted-foreground)" />
-              Waiting for permission…
-            </p>
-          ) : null}
-        </>
+      {permissionRow(
+        <BellRing className="h-5 w-5" />,
+        "Allow notifications",
+        "You’ll get reminders about your classes.",
+        <Toggle
+          checked={notif === "granted"}
+          onChange={handleNotifications}
+          disabled={notif === "requesting" || notif === "unsupported"}
+          label="Allow notifications"
+        />
       )}
-
-      <Button className="mt-2 h-12 w-full font-semibold" disabled={!ready || finishing} onClick={onComplete}>
-        {finishing ? "Finishing up..." : buttonLabel}
-      </Button>
-      {!ready && (
-        <p className="text-center text-xs text-muted-foreground">
-          {mode === "notifications"
-            ? "Allow notifications to continue."
-            : "Allow location to continue."}
+      {notifMsg && (
+        <p className="flex items-start gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-600 dark:text-amber-500">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          {notifMsg}
         </p>
       )}
+      {notif === "requesting" ? (
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Spinner size={14} color="var(--muted-foreground)" />
+          Waiting for permission…
+        </p>
+      ) : null}
+
+      {permissionRow(
+        <MapPin className="h-5 w-5" />,
+        "Allow location",
+        "We’ll use your location to provide weather information for your schedule.",
+        <Toggle
+          checked={loc === "granted"}
+          onChange={handleLocation}
+          disabled={loc === "requesting" || loc === "unsupported"}
+          label="Allow location"
+        />
+      )}
+      {locMsg && (
+        <p className="flex items-start gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-600 dark:text-amber-500">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          {locMsg}
+        </p>
+      )}
+      {loc === "requesting" ? (
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Spinner size={14} color="var(--muted-foreground)" />
+          Waiting for permission…
+        </p>
+      ) : null}
+
+      <Button
+        className="mt-2 h-12 w-full font-semibold"
+        disabled={finishing}
+        onClick={onComplete}
+      >
+        {finishing ? "Finishing up..." : buttonLabel}
+      </Button>
     </div>
   );
 }

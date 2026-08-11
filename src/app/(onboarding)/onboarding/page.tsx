@@ -36,7 +36,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2>(1);
   const [avatarUrl, setAvatarUrl] = useState<string | null>((u?.image as string) || (u?.avatarUrl as string) || null);
   const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -100,7 +100,7 @@ export default function OnboardingPage() {
       }
       refetchSession();
     }
-    setStep(3);
+    setStep(2);
   };
 
   async function handleAvatarSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -183,7 +183,7 @@ export default function OnboardingPage() {
 
         {/* Progress */}
         <div className="mb-6 flex items-center gap-2">
-          {[1, 2, 3, 4].map((s) => (
+          {[1, 2].map((s) => (
             <span
               key={s}
               className={`h-1.5 flex-1 rounded-full transition-colors ${
@@ -200,9 +200,9 @@ export default function OnboardingPage() {
                 <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10">
                   <Sparkles className="h-5 w-5 text-primary" />
                 </span>
-                <h1 className="text-xl font-bold tracking-tight text-foreground">Add your profile photo</h1>
+                <h1 className="text-xl font-bold tracking-tight text-foreground">Set up your profile</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  So your friends can find you.
+                  Add a photo and pick a username so friends can find you.
                 </p>
               </div>
 
@@ -245,29 +245,7 @@ export default function OnboardingPage() {
                 />
               </div>
 
-              <Button
-                className="mt-6 h-12 w-full font-semibold"
-                onClick={() => setStep(2)}
-              >
-                Continue
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {step === 2 && (
-          <Card className="border-border/50 shadow-sm">
-            <CardContent className="pt-8">
-              <div className="mb-7 flex flex-col items-center text-center">
-                <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10">
-                  <AtSign className="h-5 w-5 text-primary" />
-                </span>
-                <h1 className="text-xl font-bold tracking-tight text-foreground">Choose your username</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  This is how your friends will find you.
-                </p>
-              </div>
-
+              {/* Username */}
               <div className="space-y-2">
                 <Label htmlFor="username" className="text-sm font-medium">Username</Label>
                 <div className="relative">
@@ -291,71 +269,30 @@ export default function OnboardingPage() {
                 {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
               </div>
 
-              <div className="mt-6 flex gap-2">
-                <Button
-                  variant="outline"
-                  className="h-12 w-24 font-semibold"
-                  onClick={() => setStep(1)}
-                >
-                  Back
-                </Button>
-                <Button
-                  className="h-12 flex-1 font-semibold"
-                  onClick={handleContinue}
-                >
-                  Continue
-                </Button>
-              </div>
+              <Button
+                className="mt-6 h-12 w-full font-semibold"
+                onClick={handleContinue}
+              >
+                Continue
+              </Button>
             </CardContent>
           </Card>
         )}
 
-        {step === 3 && (
+        {step === 2 && (
           <Card className="border-border/50 shadow-sm">
             <CardContent className="pt-8">
               <div className="mb-7 flex flex-col items-center text-center">
                 <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10">
                   <BellRing className="h-5 w-5 text-primary" />
                 </span>
-                <h1 className="text-xl font-bold tracking-tight text-foreground">Stay on top of your classes</h1>
+                <h1 className="text-xl font-bold tracking-tight text-foreground">You&apos;re almost there</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Turn on notifications so you never miss a class.
+                  Optional — set it up now or skip, you can change it later.
                 </p>
               </div>
 
               <PermissionsStep
-                mode="notifications"
-                onComplete={() => setStep(4)}
-                finishing={false}
-                buttonLabel="Continue"
-              />
-
-              <Button
-                variant="ghost"
-                className="mt-2 h-10 w-full font-semibold text-muted-foreground"
-                onClick={() => setStep(2)}
-              >
-                Back
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {step === 4 && (
-          <Card className="border-border/50 shadow-sm">
-            <CardContent className="pt-8">
-              <div className="mb-7 flex flex-col items-center text-center">
-                <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10">
-                  <MapPin className="h-5 w-5 text-primary" />
-                </span>
-                <h1 className="text-xl font-bold tracking-tight text-foreground">One more thing</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Allow location so we can show weather for your schedule.
-                </p>
-              </div>
-
-              <PermissionsStep
-                mode="location"
                 onComplete={markComplete}
                 finishing={finishing}
                 buttonLabel="Get started"
@@ -364,9 +301,10 @@ export default function OnboardingPage() {
               <Button
                 variant="ghost"
                 className="mt-2 h-10 w-full font-semibold text-muted-foreground"
-                onClick={() => setStep(3)}
+                onClick={markComplete}
+                disabled={finishing}
               >
-                Back
+                Skip for now
               </Button>
             </CardContent>
           </Card>
