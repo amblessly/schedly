@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  ArrowLeft,
   Bell,
   CalendarDays,
   Camera,
@@ -173,66 +174,81 @@ function NavRow({ onBack, onSkip }: { onBack?: () => void; onSkip?: () => void }
 
 /* ============ Screen 1 — Welcome ============ */
 
-/* Photo of a timetable → organized schedule, built with real Schedly styling */
+type Cell = { name: string; color: string } | null;
+
+/* Static grid data for the two timetable cards. Each is Mon–Sat × 3 rows.
+ * A cell is null = empty, or { name, color } = subject block. */
+const GRID_A: Cell[][] = [
+  [null, { name: "Phys", color: "#0ea5e9" }, null, { name: "Hist", color: "#ef4444" }, { name: "Eng", color: "#8b5cf6" }, null],
+  [{ name: "Math", color: "#3b82f6" }, null, { name: "Bio", color: "#f59e0b" }, null, { name: "CS", color: "#22c55e" }, { name: "Phys", color: "#0ea5e9" }],
+  [null, { name: "Eng", color: "#8b5cf6" }, { name: "Math", color: "#3b82f6" }, { name: "CS", color: "#22c55e" }, null, { name: "Hist", color: "#ef4444" }],
+];
+
+const GRID_B: Cell[][] = [
+  [{ name: "Bio", color: "#f59e0b" }, null, { name: "CS", color: "#22c55e" }, { name: "Phys", color: "#0ea5e9" }, null, { name: "Math", color: "#3b82f6" }],
+  [null, { name: "Hist", color: "#ef4444" }, { name: "Eng", color: "#8b5cf6" }, null, { name: "Math", color: "#3b82f6" }, { name: "Bio", color: "#f59e0b" }],
+  [{ name: "Eng", color: "#8b5cf6" }, { name: "Phys", color: "#0ea5e9" }, null, { name: "Hist", color: "#ef4444" }, { name: "Bio", color: "#f59e0b" }, null],
+];
+
+const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function MiniTimetable({ grid, label }: { grid: Cell[][]; label: string }) {
+  return (
+    <div className="mx-auto w-full max-w-2xl rounded-lg border border-border/60 bg-card p-1.5 shadow-xl shadow-primary/5 sm:p-2">
+      <div className="mb-1.5 flex items-center gap-1.5">
+        <div className="h-2 w-2 rounded-full bg-destructive/60" />
+        <div className="h-2 w-2 rounded-full bg-yellow-400/60" />
+        <div className="h-2 w-2 rounded-full bg-green-400/60" />
+        <span className="ml-1 text-[9px] font-mono text-muted-foreground">{label}</span>
+      </div>
+      <div className="grid gap-0.5" style={{ gridTemplateColumns: `repeat(${DAY_LABELS.length}, minmax(0, 1fr))` }}>
+        {DAY_LABELS.map((d) => (
+          <div key={d} className="rounded bg-primary/10 p-0.5 text-center text-[9px] font-semibold text-primary">
+            {d}
+          </div>
+        ))}
+        {grid.map((row, ri) =>
+          row.map((cell, ci) => (
+            <div key={`${ri}-${ci}`} className="min-h-[30px]">
+              {cell ? (
+                <div className="flex h-full min-h-[30px] items-center justify-center rounded bg-muted/5 p-0.5 text-center" style={{ backgroundColor: cell.color + "1f", color: cell.color }}>
+                  <span className="text-[9px] font-semibold leading-tight">{cell.name}</span>
+                </div>
+              ) : (
+                <div className="flex h-full min-h-[30px] items-center justify-center rounded bg-muted/30" />
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* Two timetable cards stacked, both equal in size. */
 function TimetableVisual({ active }: { active: boolean }) {
   return (
     <div
-      className={`relative mx-auto h-[clamp(10rem,32dvh,15.5rem)] w-[clamp(12.5rem,86vw,16.5rem)] transition-all duration-500 ease-out ${
+      className={`relative mx-auto h-[clamp(8rem,25dvh,12rem)] w-[clamp(20rem,96vw,28rem)] transition-all duration-500 ease-out ${
         active ? "opacity-100" : "opacity-0"
       }`}
     >
-      {/* Source: messy timetable photo, tilting away on the left */}
+      {/* Back timetable */}
       <div
-        className={`absolute right-[calc(50%+1.1rem)] top-5 h-[72%] w-[62%] -rotate-6 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-transform duration-500 ease-out ${
-          active ? "translate-x-0" : "-translate-x-4"
+        className={`absolute left-0 top-1 w-[92%] -rotate-2 transition-all duration-500 ease-out ${
+          active ? "translate-x-0 opacity-80" : "-translate-x-3 opacity-40"
         }`}
       >
-        <div className="grid h-full grid-cols-4 grid-rows-3 gap-[3px] p-1.5 opacity-90">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <div
-              key={i}
-              className={`rounded-[5px] ${
-                i % 4 === 1 ? "bg-primary/15" : "bg-muted"
-              }`}
-            />
-          ))}
-        </div>
-        {/* Camera chip */}
-        <div className="absolute bottom-2 left-1/2 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md shadow-primary/30">
-          <Camera className="h-4 w-4" strokeWidth={2} />
-        </div>
+        <MiniTimetable grid={GRID_B} label="Next Week" />
       </div>
 
-      {/* Result: clean, color-coded schedule card */}
+      {/* Front timetable */}
       <div
-        className={`absolute inset-x-0 top-0 h-[74%] rotate-[1.5deg] rounded-2xl border border-border/70 bg-card p-3.5 shadow-[0_18px_50px_rgba(0,0,0,0.10)] transition-transform duration-500 ease-out ${
-          active ? "translate-y-0" : "translate-y-2"
+        className={`absolute right-0 bottom-0 w-[92%] rotate-[1.5deg] transition-all duration-500 ease-out ${
+          active ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
         }`}
       >
-        <div className="mb-2 flex items-center justify-between">
-          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-primary">
-            TODAY
-          </span>
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
-            <Check className="h-3 w-3 text-primary" /> Organized
-          </span>
-        </div>
-        <div className="space-y-1.5">
-          {[
-            { label: "Math 101", time: "9:00", bar: "bg-primary", dot: "bg-primary" },
-            { label: "CS 201", time: "11:30", bar: "bg-subject-5", dot: "bg-subject-5" },
-            { label: "Phys 301", time: "14:00", bar: "bg-subject-3", dot: "bg-subject-3" },
-          ].map((row, i) => (
-            <div key={row.label} className="flex items-center gap-2">
-              <span className={`h-6 w-1 rounded-full ${row.bar}`} />
-              <div className="flex flex-1 items-baseline justify-between">
-                <span className="text-[11px] font-semibold text-foreground">{row.label}</span>
-                <span className="text-[10px] tabular-nums text-muted-foreground">{row.time}</span>
-              </div>
-              <span className={`h-1.5 w-1.5 rounded-full ${row.dot} ${i === 0 ? "opacity-60" : "opacity-40"}`} />
-            </div>
-          ))}
-        </div>
+        <MiniTimetable grid={GRID_A} label="This Week" />
       </div>
     </div>
   );
