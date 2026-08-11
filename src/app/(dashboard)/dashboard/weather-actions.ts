@@ -3,6 +3,7 @@
 import { auth } from "@/server/lib/auth";
 import { headers } from "next/headers";
 import { checkRateLimitDb } from "@/server/lib/security";
+import { db } from "@/server/db/client";
 
 const WEATHER_MAX = 30;
 const WEATHER_WINDOW_MS = 60 * 60 * 1000;
@@ -87,10 +88,6 @@ export async function getWeatherByCoords(
   }
 }
 
-// Fallback: if we can't determine the user's location, show Manila (PH) rather
-// than a random server-located country.
-const MANILA_COORDS = { lat: 14.5995, lon: 120.9842 };
-
 function getClientIp(h: Headers): string | null {
   const fwd = h.get("x-forwarded-for");
   if (fwd) {
@@ -99,6 +96,56 @@ function getClientIp(h: Headers): string | null {
   }
   const real = h.get("x-real-ip");
   if (real) return real.trim();
+  return null;
+}
+
+// Best-effort IP geolocation with a fallback chain. The browser geolocation
+// path (getWeatherByCoords) is preferred — this runs only when that permission
+// is missing. We never show weather for a location the user isn't in, so a
+// failed lookup ends as an honest error instead of a wrong hardcoded city.
+async function locateByIp(clientIp: string | null): Promise<{ lat: number; lon: number } | null> {
+  const targets = clientIp
+    ? [
+        `https://ipwho.is/${encodeURIComponent(clientIp)}`,
+        `http://ip-api.com/json/${encodeURIComponent(clientIp)}?fields=status,lat,lon`,
+      ]
+    : ["https://ipwho.is/", "http://ip-api.com/json/?fields=status,lat,lon"];
+
+  for (const url of targets) {
+    try {
+      const res = await fetch(url, {
+        next: { revalidate: 3600 },
+        signal: AbortSignal.timeout(4000),
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const lat = data.latitude ?? data.lat;
+      const lon = data.longitude ?? data.lon;
+      if (typeof lat === "number" && typeof lon === "number") {
+        return { lat, lon };
+      }
+    } catch {
+      // Try the next service.
+    }
+  }
+  return null;
+}
+
+// Locate the city the user entered in their profile (if any) via OpenWeather's
+// free geocoding API.
+async function locateByCity(city: string, apiKey: string): Promise<{ lat: number; lon: number } | null> {
+  try {
+    const url = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(city)}&limit=1&appid=${apiKey}`;
+    const res = await fetch(url, { next: { revalidate: 86_400 } });
+    if (!res.ok) return null;
+    const list = (await res.json()) as Array<{ lat: number; lon: number }>;
+    const first = Array.isArray(list) ? list[0] : null;
+    if (first && typeof first.lat === "number" && typeof first.lon === "number") {
+      return { lat: first.lat, lon: first.lon };
+    }
+  } catch {
+    // Fall through to the honest error below.
+  }
   return null;
 }
 
@@ -125,26 +172,32 @@ export async function getWeatherByIp(): Promise<WeatherResult> {
   try {
     const h = await headers();
     const clientIp = getClientIp(h);
-    const ipUrl = clientIp
-      ? `http://ip-api.com/json/${clientIp}?fields=status,lat,lon,country,countryCode,regionName,city`
-      : "http://ip-api.com/json/?fields=status,lat,lon,country,countryCode,regionName,city";
 
-    const ipRes = await fetch(ipUrl, { next: { revalidate: 3600 } });
-    if (!ipRes.ok) return { success: false, error: "Could not detect location" };
-    const ipData = await ipRes.json();
-    if (ipData.status !== "success") {
-      // Unknown location — fall back to Manila so we never point abroad.
-      const weather = await fetchWeather(MANILA_COORDS.lat, MANILA_COORDS.lon, apiKey);
-      if (!weather) return { success: false, error: "Failed to fetch weather data" };
-      return { success: true, data: weather };
+    // 1) Best effort from the client's IP (multi-service chain).
+    const ipLoc = await locateByIp(clientIp);
+    if (ipLoc) {
+      const weather = await fetchWeather(ipLoc.lat, ipLoc.lon, apiKey);
+      if (weather) return { success: true, data: weather };
     }
 
-    const weather = await fetchWeather(ipData.lat, ipData.lon, apiKey);
-    if (!weather) {
-      return { success: false, error: "Failed to fetch weather data" };
+    // 2) Fall back to the city the user saved in their profile.
+    const user = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { city: true },
+    });
+    if (user?.city) {
+      const cityLoc = await locateByCity(user.city, apiKey);
+      if (cityLoc) {
+        const weather = await fetchWeather(cityLoc.lat, cityLoc.lon, apiKey);
+        if (weather) return { success: true, data: weather };
+      }
     }
 
-    return { success: true, data: weather };
+    // 3) Honest failure — never show weather for a place the user isn't in.
+    return {
+      success: false,
+      error: "Could not detect your location. Allow location access, or set your city in Profile.",
+    };
   } catch (err) {
     console.error("[WEATHER_IP]", err);
     return { success: false, error: "Could not fetch weather. Please try again." };
