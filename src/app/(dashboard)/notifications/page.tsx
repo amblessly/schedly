@@ -28,6 +28,7 @@ import {
   CalendarDays,
   MapPin,
   Camera,
+  Loader2,
 } from "lucide-react";
 
 type Notification = {
@@ -173,6 +174,7 @@ export function NotificationsPage() {
   const [pushBlocked, setPushBlocked] = useState(false);
   const [pushMessage, setPushMessage] = useState<{ kind: "error"; text: string } | null>(null);
   const [pushTesting, setPushTesting] = useState(false);
+  const [savingMinutes, setSavingMinutes] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -352,9 +354,14 @@ export function NotificationsPage() {
   };
 
   const changeMinutes = async (reminderId: string, minutes: number) => {
-    const res = (await updateReminder(reminderId, { minutesBefore: minutes })) as UpdateReminderResult;
-    if (res.success) {
-      setReminders((prev) => prev.map((x) => (x.id === reminderId ? { ...x, minutesBefore: minutes } : x)));
+    setSavingMinutes(reminderId);
+    try {
+      const res = (await updateReminder(reminderId, { minutesBefore: minutes })) as UpdateReminderResult;
+      if (res.success) {
+        setReminders((prev) => prev.map((x) => (x.id === reminderId ? { ...x, minutesBefore: minutes } : x)));
+      }
+    } finally {
+      setSavingMinutes(null);
     }
   };
 
@@ -756,19 +763,24 @@ export function NotificationsPage() {
                             onChange={() => toggleReminder(reminder.classId)}
                             label={`Toggle reminder for ${c.subject}`}
                           />
-                          <select
-                            aria-label="Remind minutes before"
-                            value={reminder.minutesBefore}
-                            onChange={(e) => changeMinutes(reminder.id, Number(e.target.value))}
-                            disabled={!active}
-                            className="h-7 w-[4.5rem] rounded-md border border-border/60 bg-card px-1.5 text-[11px] font-medium text-foreground outline-none disabled:opacity-40"
-                          >
-                            {MINUTE_OPTIONS.map((m) => (
-                              <option key={m} value={m}>
-                                {m} min
-                              </option>
-                            ))}
-                          </select>
+                          <div className="relative h-7 w-[4.5rem]">
+                            <select
+                              aria-label="Remind minutes before"
+                              value={reminder.minutesBefore}
+                              onChange={(e) => changeMinutes(reminder.id, Number(e.target.value))}
+                              disabled={!active || savingMinutes === reminder.id}
+                              className={`h-7 w-full rounded-md border border-border/60 bg-card px-1.5 text-[11px] font-medium text-foreground outline-none disabled:opacity-40 ${savingMinutes === reminder.id ? "invisible" : ""}`}
+                            >
+                              {MINUTE_OPTIONS.map((m) => (
+                                <option key={m} value={m}>
+                                  {m} min
+                                </option>
+                              ))}
+                            </select>
+                            {savingMinutes === reminder.id && (
+                              <Loader2 className="absolute inset-0 m-auto h-4 w-4 animate-spin text-primary" />
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>

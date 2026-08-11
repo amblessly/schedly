@@ -101,7 +101,9 @@ async function readAlarms() {
     const res = await cache.match("/alarms.json");
     if (!res) return [];
     const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    // Drop legacy "upcoming" (-X min) alarms: they now arrive as server
+    // pushes, so this alarm only fires the "class now" notification.
+    return Array.isArray(data) ? data.filter((a) => !String(a && a.id).endsWith(":upcoming")) : [];
   } catch {
     return [];
   }

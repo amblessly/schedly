@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
-import { Download, X, Share, Home, Check, Smartphone } from "lucide-react";
+import { Download, X, Share, Home, Check, Smartphone, ExternalLink } from "lucide-react";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -17,6 +17,20 @@ function isIOS(): boolean {
   return (
     /iphone|ipad|ipod/i.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
+/* True when the page is loaded inside a social app's built-in webview
+ * (Facebook, Instagram, Messenger, TikTok, ...). These webviews block
+ * PWA installs, so we redirect users to their real browser instead. */
+function isInAppBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return (
+    /FBAN|FBAV|FBIOS|FB_IAB|fbsbrowser|Instagram|Messenger|TikTok|musical_ly|Line\/|KakaoTalk|NaverApp|WhatsApp/i.test(
+      ua,
+    ) ||
+    (/Android/i.test(ua) && /wv/i.test(ua))
   );
 }
 
@@ -36,6 +50,7 @@ export function InstallPrompt() {
   const [visible, setVisible] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
+  const [inAppBrowser, setInAppBrowser] = useState(false);
   const [ios, setIos] = useState(false);
   const reloadedOnce = useRef(false);
   const pathname = usePathname();
@@ -77,6 +92,7 @@ export function InstallPrompt() {
     const timer = setTimeout(() => {
       if (!localStorage.getItem(DISMISS_KEY)) {
         setIos(isIOS());
+        setInAppBrowser(isInAppBrowser());
         setVisible(true);
       }
     }, 5000);
@@ -130,9 +146,21 @@ export function InstallPrompt() {
     setShowFallback(true);
   };
 
+  const openInExternalBrowser = () => {
+    // Try to escape the in-app webview (Facebook/Instagram/etc.) into the
+    // real external browser, where one-tap PWA install actually works.
+    const a = document.createElement("a");
+    a.href = window.location.href;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
   if (!visible) return null;
 
-  const isSheet = !ios && !showFallback;
+  const isSheet = !ios && !showFallback && !inAppBrowser;
 
   return (
     <>
@@ -142,7 +170,59 @@ export function InstallPrompt() {
         aria-hidden
       />
 
-      {isSheet ? (
+      {inAppBrowser ? (
+        /* ===== In-app browser escape dialog (Facebook/Instagram/etc.) ===== */
+        <div className="fixed inset-x-0 bottom-0 z-[70] mx-auto w-full max-w-md rounded-t-3xl border border-border/70 bg-card p-6 pb-[calc(1.25rem+var(--sab))] shadow-[0_-8px_40px_rgba(0,0,0,0.2)]">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary">
+              <Smartphone className="h-5 w-5" />
+            </div>
+            <button
+              type="button"
+              onClick={dismiss}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <h2 className="mt-4 text-lg font-bold tracking-tight text-foreground">
+            Open Schedly in your browser
+          </h2>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            You&apos;re browsing inside Facebook&apos;s built-in browser, which
+            can&apos;t install apps. Open Schedly in your normal browser to
+            install it — one tap and you&apos;re set.
+          </p>
+
+          <button
+            type="button"
+            onClick={openInExternalBrowser}
+            className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#EC4899] to-[#F472B6] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(236,72,153,0.35)] active:scale-[0.97]"
+          >
+            <ExternalLink className="h-5 w-5" />
+            Open in browser
+          </button>
+          <div className="mt-4">
+            <Step
+              icon={<Share className="h-4 w-4" />}
+              text={
+                ios
+                  ? "No luck? Tap Share &quot;Open in Safari&quot; (iOS) or ⋯ &quot;Open in Browser&quot; (Android)."
+                  : "No luck? Tap ⋯ and choose &quot;Open in Browser&quot;."
+              }
+            />
+          </div>
+          <button
+            type="button"
+            onClick={dismiss}
+            className="mt-2.5 h-10 w-full text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Not now
+          </button>
+        </div>
+      ) : isSheet ? (
         /* ===== Install sheet (Android / desktop Chrome, Edge) ===== */
         <div className="fixed inset-x-0 bottom-0 z-[70] mx-auto w-full max-w-md rounded-t-3xl border border-border/70 bg-card p-6 pb-[calc(1.25rem+var(--sab))] shadow-[0_-8px_40px_rgba(0,0,0,0.2)]">
           <div className="flex items-start justify-between gap-3">

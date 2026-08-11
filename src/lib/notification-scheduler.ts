@@ -95,21 +95,13 @@ export function computeAlarms(
     for (const cls of schedule.classes ?? []) {
       const rem = byClass.get(cls.id);
       if (rem && !rem.isActive) continue;
-      const minutes = rem?.minutesBefore ?? 15;
       const occ = nextOccurrenceMs(cls.startTime, cls.days, now);
       if (occ === null) continue;
-      const fireAt = occ - minutes * 60 * 1000;
       const label = classLabel(cls);
       const time = clockLabel(new Date(cls.startTime).getUTCHours(), new Date(cls.startTime).getUTCMinutes());
-      if (fireAt > now.getTime()) {
-        alarms.push({
-          id: `${cls.id}:upcoming`,
-          fireAt,
-          title: "Upcoming class",
-          body: `You have an upcoming class today — ${label} at ${time}.`,
-          url: "/schedule",
-        });
-      }
+      // The "-X min" (upcoming) reminder is served by the server push (QStash
+      // exact-time + daily cron). Only the "class starting now" alarm stays
+      // local — otherwise the same reminder arrives twice on the device.
       if (occ > now.getTime()) {
         alarms.push({
           id: `${cls.id}:start`,
