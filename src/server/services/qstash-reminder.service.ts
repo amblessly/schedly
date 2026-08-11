@@ -22,6 +22,9 @@ import type { DayOfWeek } from "@/generated/prisma/client";
 
 let _client: Client | null = null;
 
+// QStash free tier caps how far ahead a message can be scheduled (7 days).
+const MAX_DELAY_MS = 604_800_000; // 604800 seconds
+
 function getQStashClient(): Client | null {
   const token = process.env.QSTASH_TOKEN;
   if (!token) return null;
@@ -86,6 +89,10 @@ export async function scheduleQstashReminders(
 
     const fireAt = occ - reminder.minutesBefore * 60 * 1000;
     if (fireAt <= now.getTime()) continue;
+    // QStash free tier won't accept schedules further than 7 days out — the
+    // daily cron re-schedules each morning, so anything beyond the cap just
+    // waits for a later run.
+    if (fireAt > now.getTime() + MAX_DELAY_MS) continue;
 
     const messageId = `rem-${reminder.id}-${occ}`;
     try {
@@ -93,14 +100,15 @@ export async function scheduleQstashReminders(
         url: `${baseUrl}/api/reminders/fire`,
         method: "POST",
         body: { reminderId: reminder.id, fireAt },
-        notBefore: fireAt,
+        // The Upstash-Not-Before header expects unix SECONDS (not ms).
+        notBefore: Math.floor(fireAt / 1000),
         messageId,
         retries: 1,
       });
       scheduled++;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (/duplicate|already exists/i.test(msg)) {
+      if (/duplicate|already exists|maxDelay/i.test(msg)) {
         skipped++;
       } else {
         console.error("[QSTASH_SCHEDULE]", err);
