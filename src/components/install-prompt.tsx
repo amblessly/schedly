@@ -20,6 +20,17 @@ function isIOS(): boolean {
   );
 }
 
+/* True when the page is already running as an installed app — either a
+ * standalone PWA (launched from home screen) or the Capacitor app. */
+function isStandaloneApp(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    (window.matchMedia?.("(display-mode: standalone)")?.matches ?? false) ||
+    (navigator as { standalone?: boolean }).standalone === true ||
+    Capacitor.isNativePlatform()
+  );
+}
+
 export function InstallPrompt() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
@@ -34,7 +45,8 @@ export function InstallPrompt() {
     // global install sheet should not compete with it.
     if (pathname?.startsWith("/onboarding")) return;
 
-    if (Capacitor.isNativePlatform()) return;
+    // Already running as an installed app — nothing to install, never show.
+    if (isStandaloneApp()) return;
 
     // Register the service worker so the PWA is installable (Chrome/Edge)
     // and the app shell is cached for offline use. Registered on every mount
@@ -52,6 +64,7 @@ export function InstallPrompt() {
       if (!localStorage.getItem(DISMISS_KEY)) setVisible(true);
     };
     const onInstalled = () => {
+      // Permanently remember the install so the prompt never returns.
       localStorage.setItem(DISMISS_KEY, "1");
       setVisible(false);
     };
@@ -59,6 +72,8 @@ export function InstallPrompt() {
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", onInstalled);
 
+    // Show the prompt on every visit until the user actually installs the
+    // app. "Not now" only hides it for the current session.
     const timer = setTimeout(() => {
       if (!localStorage.getItem(DISMISS_KEY)) {
         setIos(isIOS());
@@ -74,9 +89,11 @@ export function InstallPrompt() {
   }, [pathname]);
 
   if (pathname?.startsWith("/onboarding")) return null;
+  if (isStandaloneApp()) return null;
 
   const dismiss = () => {
-    localStorage.setItem(DISMISS_KEY, "1");
+    // Session-only dismiss: the prompt returns on the next visit until the
+    // app is actually installed (see appinstalled handler above).
     setVisible(false);
   };
 
