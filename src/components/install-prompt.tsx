@@ -51,6 +51,7 @@ export function InstallPrompt() {
   const [installing, setInstalling] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
   const [inAppBrowser, setInAppBrowser] = useState(false);
+  const [escapeTried, setEscapeTried] = useState(false);
   const [ios, setIos] = useState(false);
   const reloadedOnce = useRef(false);
   const pathname = usePathname();
@@ -149,13 +150,34 @@ export function InstallPrompt() {
   const openInExternalBrowser = () => {
     // Try to escape the in-app webview (Facebook/Instagram/etc.) into the
     // real external browser, where one-tap PWA install actually works.
-    const a = document.createElement("a");
-    a.href = window.location.href;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    const url = window.location.href;
+    try {
+      const ua = navigator.userAgent;
+      if (/android/i.test(ua) && /FBAN|FBAV|FB_IAB|fbsbrowser|Instagram|Messenger|TikTok|musical_ly/i.test(ua)) {
+        // Android: hand off to Chrome via an intent URL. If Chrome isn't
+        // installed, browser_fallback_url opens the default browser instead.
+        const target = new URL(url);
+        const intentUrl = `intent://${target.host}${target.pathname}${target.search}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(url)};end`;
+        const a = document.createElement("a");
+        a.href = intentUrl;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } else {
+        const a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+    } catch {
+      // Ignore — the manual steps are shown right after.
+    }
+    setEscapeTried(true);
   };
 
   if (!visible) return null;
@@ -187,40 +209,87 @@ export function InstallPrompt() {
             </button>
           </div>
 
-          <h2 className="mt-4 text-lg font-bold tracking-tight text-foreground">
-            Open Schedly in your browser
-          </h2>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            You&apos;re browsing inside Facebook&apos;s built-in browser, which
-            can&apos;t install apps. Open Schedly in your normal browser to
-            install it — one tap and you&apos;re set.
-          </p>
+          {!escapeTried ? (
+            <>
+              <h2 className="mt-4 text-lg font-bold tracking-tight text-foreground">
+                Open Schedly in your browser
+              </h2>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                You&apos;re browsing inside a social app&apos;s built-in browser,
+                which can&apos;t install apps. Open Schedly in your normal
+                browser to install it — one tap and you&apos;re set.
+              </p>
 
-          <button
-            type="button"
-            onClick={openInExternalBrowser}
-            className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#EC4899] to-[#F472B6] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(236,72,153,0.35)] active:scale-[0.97]"
-          >
-            <ExternalLink className="h-5 w-5" />
-            Open in browser
-          </button>
-          <div className="mt-4">
-            <Step
-              icon={<Share className="h-4 w-4" />}
-              text={
-                ios
-                  ? "No luck? Tap Share &quot;Open in Safari&quot; (iOS) or ⋯ &quot;Open in Browser&quot; (Android)."
-                  : "No luck? Tap ⋯ and choose &quot;Open in Browser&quot;."
-              }
-            />
-          </div>
-          <button
-            type="button"
-            onClick={dismiss}
-            className="mt-2.5 h-10 w-full text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Not now
-          </button>
+              <button
+                type="button"
+                onClick={openInExternalBrowser}
+                className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#EC4899] to-[#F472B6] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(236,72,153,0.35)] active:scale-[0.97]"
+              >
+                <ExternalLink className="h-5 w-5" />
+                Open in browser
+              </button>
+              <button
+                type="button"
+                onClick={dismiss}
+                className="mt-2.5 h-10 w-full text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Not now
+              </button>
+            </>
+          ) : (
+            <>
+              <h2 className="mt-4 text-lg font-bold tracking-tight text-foreground">
+                Didn&apos;t open? Do it manually
+              </h2>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                Some apps block the automatic open. It takes two taps — then
+                Schedly opens in your regular browser and the install pop-up
+                appears there.
+              </p>
+
+              <div className="mt-5 space-y-3">
+                {ios ? (
+                  <>
+                    <Step
+                      icon={<Share className="h-4 w-4" />}
+                      text="Tap the Share button at the bottom."
+                    />
+                    <Step
+                      icon={<ExternalLink className="h-4 w-4" />}
+                      text="Tap &quot;Open in Safari&quot;."
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Step
+                      icon={<Share className="h-4 w-4" />}
+                      text="Tap the ⋯ (three-dot) menu at the top right."
+                    />
+                    <Step
+                      icon={<ExternalLink className="h-4 w-4" />}
+                      text="Tap &quot;Open in Browser&quot; — Schedly opens in your real browser."
+                    />
+                  </>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={openInExternalBrowser}
+                className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#EC4899] to-[#F472B6] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(236,72,153,0.35)] active:scale-[0.97]"
+              >
+                <ExternalLink className="h-5 w-5" />
+                Try opening again
+              </button>
+              <button
+                type="button"
+                onClick={dismiss}
+                className="mt-2.5 h-10 w-full text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Not now
+              </button>
+            </>
+          )}
         </div>
       ) : isSheet ? (
         /* ===== Install sheet (Android / desktop Chrome, Edge) ===== */
