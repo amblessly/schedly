@@ -332,7 +332,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      {!isImmersive && !isProfile && !isNotifications && !isSettings && <BottomNav />}
+      {!isImmersive && !isProfile && !isNotifications && !isSettings && !isAdmin && <BottomNav />}
       {!isImmersive && <OfflineBanner />}
     </div>
   );
