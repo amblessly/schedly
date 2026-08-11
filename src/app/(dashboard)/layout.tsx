@@ -14,6 +14,7 @@ import { reportClientType, type ClientType } from "./actions";
 import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
 import { getUserReminders } from "@/app/(dashboard)/reminders/actions";
 import { programReminderAlarms } from "@/lib/notification-scheduler";
+import { cachedAction } from "@/lib/server-action-cache";
 
 // The drawer's open state lives in a tiny external store so its initial
 // value can come from matchMedia only AFTER hydration. The server renders
@@ -80,24 +81,40 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   // Auto-download offline support: once signed in, warm the cache with the
   // main tab pages so they're instantly available (and work) offline. The
   // avatar is warmed too so the user's photo still renders without internet.
+  // Runs once per session and only after the page has settled — hitting 7
+  // pages at once on app open just competes with the first paint.
   useEffect(() => {
     if (!user || !("serviceWorker" in navigator)) return;
-    navigator.serviceWorker.ready
-      .then((reg) => {
-        const avatar = (user as { image?: string; avatarUrl?: string } | null)?.image
-          || (user as { image?: string; avatarUrl?: string } | null)?.avatarUrl;
-        reg.active?.postMessage({
-          type: "PRECACHE",
-          urls: [
-            "/dashboard", "/schedule", "/capture", "/notes", "/notifications", "/pomodoro", "/gpa",
-            ...(avatar ? [avatar] : []),
-          ],
-        });
-        // Re-arm pending class-reminder alarms after every app open so they
-        // still fire even if the tab/SW was closed since they were set.
-        reg.active?.postMessage({ type: "REARM_ALARMS" });
-      })
-      .catch(() => {});
+    const KEY = `schedly-precached-${(user as { id?: string }).id ?? ""}`;
+    try {
+      if (sessionStorage.getItem(KEY)) return;
+    } catch {
+      // No sessionStorage (rare) — still precache.
+    }
+    const timer = setTimeout(() => {
+      navigator.serviceWorker.ready
+        .then((reg) => {
+          const avatar = (user as { image?: string; avatarUrl?: string } | null)?.image
+            || (user as { image?: string; avatarUrl?: string } | null)?.avatarUrl;
+          reg.active?.postMessage({
+            type: "PRECACHE",
+            urls: [
+              "/dashboard", "/schedule", "/capture", "/notes", "/notifications", "/pomodoro", "/gpa",
+              ...(avatar ? [avatar] : []),
+            ],
+          });
+          // Re-arm pending class-reminder alarms after every app open so they
+          // still fire even if the tab/SW was closed since they were set.
+          reg.active?.postMessage({ type: "REARM_ALARMS" });
+        })
+        .catch(() => {});
+    }, 3000);
+    try {
+      sessionStorage.setItem(KEY, "1");
+    } catch {
+      // Best-effort.
+    }
+    return () => clearTimeout(timer);
   }, [user]);
 
   // Arm local class-reminder alarms from the service worker on every app open
@@ -109,7 +126,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user || !("serviceWorker" in navigator)) return;
     let active = true;
-    Promise.all([getUserSchedules(), getUserReminders()])
+    // Deduped: the layout and the pages both fetch schedules/reminders, so
+    // these collapse into one request instead of 2-4 per navigation.
+    Promise.all([
+      cachedAction("layout:schedules", () => getUserSchedules()),
+      cachedAction("layout:reminders", () => getUserReminders()),
+    ])
       .then(([schedules, reminders]) => {
         if (!active) return;
         if (schedules.length > 0 && reminders.length > 0) {

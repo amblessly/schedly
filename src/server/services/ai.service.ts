@@ -96,7 +96,16 @@ export const aiService = {
       // rooms easy to misread. Preprocessing is deterministic, so the cache key
       // above (a hash of the raw bytes) stays valid for repeat uploads.
       const pt0 = performance.now();
-      const processedImage = await preprocessImage(imageBuffer);
+      let processedImage: Buffer;
+      try {
+        processedImage = await preprocessImage(imageBuffer);
+      } catch (preprocessErr) {
+        // Preprocessing is best-effort enhancement. If it fails (tiny/corrupt
+        // source, unsupported pixel layout, etc.) fall back to the original
+        // bytes so the model still gets a chance instead of failing the upload.
+        PipelineLogger.warn("preprocess", "Preprocess failed — using original image", { runId }, preprocessErr);
+        processedImage = imageBuffer;
+      }
       PipelineLogger.info("preprocess", "Image preprocessed", {
         runId,
         preprocessMs: Math.round(performance.now() - pt0),

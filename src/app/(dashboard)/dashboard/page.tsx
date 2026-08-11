@@ -14,6 +14,7 @@ import {
 } from "@/app/(dashboard)/dashboard/weather-actions";
 import { retry } from "@/lib/retry";
 import { withOfflineCache } from "@/lib/offline-cache";
+import { cachedAction } from "@/lib/server-action-cache";
 import { useMounted } from "@/lib/use-mounted";
 import {
   getFreeTimeToday,
@@ -74,7 +75,7 @@ export default function DashboardPage() {
   const username = (user as { username?: string } | null)?.username || "there";
 
   useEffect(() => {
-    retry(() => withOfflineCache("schedule:list", () => getUserSchedules()), { delayMs: 2000 })
+    retry(() => withOfflineCache("schedule:list", () => cachedAction("dash:schedules", () => getUserSchedules())), { delayMs: 2000 })
       .then((data) => setSchedules(data as ScheduleData[]))
       .catch(() => setSchedules([]));
   }, []);
@@ -125,7 +126,7 @@ export default function DashboardPage() {
         setWeatherLoading(false);
       },
       fetchByIp,
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+      { enableHighAccuracy: false, timeout: 2000, maximumAge: 300000 }
     );
   }, []);
 
@@ -175,7 +176,7 @@ export default function DashboardPage() {
         setWeatherLoading(false);
       },
       fetchByIp,
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: false, timeout: 2000, maximumAge: 300000 }
     );
   }, []);
 
