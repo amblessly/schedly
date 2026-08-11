@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { Megaphone, LayoutDashboard, Users, Radio, type LucideIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 
 type AdminUser = {
   id: string;
@@ -51,6 +52,7 @@ export default function AdminPage() {
   const [broadcastMessage, setBroadcastMessage] = useState("");
   const [broadcasting, setBroadcasting] = useState(false);
   const [broadcastResult, setBroadcastResult] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
     async function load() {
@@ -121,7 +123,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8 p-4 sm:p-6 lg:p-8">
+    <div className="mx-auto max-w-5xl pt-8 md:pt-0">
       <BoneSkeleton
         name="admin-page"
         loading={loading}
@@ -175,7 +177,7 @@ export default function AdminPage() {
           </>
         }
       >
-      <div>
+      <div className="mb-6 sm:mb-8">
         <div className="flex items-center gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <LayoutDashboard className="h-5 w-5" />
@@ -191,177 +193,213 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <section className="space-y-3">
-        <SectionHeader
-          icon={LayoutDashboard}
-          title="Overview"
-          description="Platform activity at a glance"
-        />
-        {stats && (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatCard label="Users" value={stats.users} />
-            <StatCard label="Schedules" value={stats.schedules} />
-            <StatCard label="Uploads" value={stats.uploads} />
-            <StatCard label="Feedback" value={stats.feedback} />
-          </div>
-        )}
-      </section>
+      <div className="flex flex-col gap-6 md:flex-row md:items-start">
+        {/* Left nav */}
+        <nav className="flex shrink-0 gap-1 overflow-x-auto md:w-48 md:flex-col md:overflow-visible md:rounded-2xl md:border md:border-border/60 md:bg-card/50 md:p-2">
+          {[
+            { id: "overview", label: "Overview", icon: LayoutDashboard },
+            { id: "broadcast", label: "Broadcast", icon: Radio },
+            { id: "users", label: "Users", icon: Users },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-left text-sm font-medium transition-colors",
+                activeTab === tab.id
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+              )}
+            >
+              <tab.icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          ))}
+        </nav>
 
-      <section className="space-y-3">
-        <SectionHeader
-          icon={Radio}
-          title="Broadcast"
-          description="Send a push notification to all users — or just yourself to test"
-        />
-        <Card className="border-border/50">
-          <CardHeader>
-            <CardTitle className="text-base">Send Notification</CardTitle>
-            <CardDescription className="mt-0.5 text-xs">
-              Shows in every user&rsquo;s Notifications tab. A push alert is
-              also sent when the server&rsquo;s FCM keys are set and the device
-              has notifications enabled.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Input
-              placeholder="Title (optional) — e.g. New update!"
-              value={broadcastTitle}
-              onChange={(e) => setBroadcastTitle(e.target.value)}
-              maxLength={100}
-              disabled={broadcasting}
-            />
-            <Textarea
-              placeholder="Message — e.g. Schedly v1.3 is out with bug fixes. Check it out!"
-              value={broadcastMessage}
-              onChange={(e) => setBroadcastMessage(e.target.value)}
-              maxLength={500}
-              disabled={broadcasting}
-            />
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                onClick={() => handleBroadcast()}
-                disabled={broadcasting}
-              >
-                {broadcasting ? (
-                  <Spinner size={16} color="var(--primary-foreground)" className="mr-1.5" />
-                ) : (
-                  <Megaphone className="mr-1.5 h-4 w-4" />
-                )}
-                Send to all users
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => handleBroadcast((user as { id?: string } | null)?.id)}
-                disabled={broadcasting}
-              >
-                Send to myself (test)
-              </Button>
-            </div>
-            {broadcastResult && (
-              <p className="text-sm text-muted-foreground">{broadcastResult}</p>
-            )}
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="space-y-3">
-        <SectionHeader
-          icon={Users}
-          title="User Management"
-          description="Roles, devices, and account access"
-        />
-        <Card className="border-border/50">
-          <CardHeader>
-            <CardTitle className="text-base">Users</CardTitle>
-          </CardHeader>
-          <CardContent>
-          <div className="max-h-[360px] overflow-y-auto pr-1">
-          {/* Desktop table */}
-          <div className="hidden overflow-x-auto sm:block">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-card">
-                <tr className="border-b border-border/40 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  <th className="pb-3 pr-4">Name</th>
-                  <th className="pb-3 pr-4">Email</th>
-                  <th className="pb-3 pr-4">Username</th>
-                  <th className="pb-3 pr-4">Device</th>
-                  <th className="pb-3 pr-4">Joined</th>
-                  <th className="pb-3 pr-4">Role</th>
-                  <th className="pb-3 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/30">
-                {users.slice(0, visibleCount).map((user) => (
-                  <tr key={user.id} className="transition-colors hover:bg-muted/30">
-                    <td className="py-3 pr-4 font-medium text-foreground">
-                      {user.firstName} {user.lastName}
-                    </td>
-                    <td className="py-3 pr-4 text-muted-foreground">{user.email}</td>
-                    <td className="py-3 pr-4 text-muted-foreground">@{user.username}</td>
-                    <td className="py-3 pr-4">
-                      <DeviceBadge clientType={user.clientType} lastSeenAt={user.lastSeenAt} />
-                    </td>
-                    <td className="py-3 pr-4 text-muted-foreground">
-                      {new Date(user.createdAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </td>
-                    <td className="py-3 pr-4">
-                      <RoleBadge isAdmin={user.isAdmin} />
-                    </td>
-                    <td className="py-3 text-right">
-                      <ToggleAdminButton user={user} togglingId={togglingId} onToggle={handleToggle} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile cards */}
-          <div className="space-y-3 sm:hidden">
-            {users.slice(0, visibleCount).map((user) => (
-              <div key={user.id} className="rounded-xl border border-border/40 bg-muted/20 p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="font-medium text-foreground text-sm">
-                    {user.firstName} {user.lastName}
-                  </p>
-                  <RoleBadge isAdmin={user.isAdmin} />
+        {/* Content */}
+        <div className="min-w-0 flex-1 space-y-6">
+          {activeTab === "overview" && (
+            <section className="space-y-3">
+              <SectionHeader
+                icon={LayoutDashboard}
+                title="Overview"
+                description="Platform activity at a glance"
+              />
+              {stats && (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <StatCard label="Users" value={stats.users} />
+                  <StatCard label="Schedules" value={stats.schedules} />
+                  <StatCard label="Uploads" value={stats.uploads} />
+                  <StatCard label="Feedback" value={stats.feedback} />
                 </div>
-                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                <p className="text-xs text-muted-foreground">@{user.username}</p>
-                <div className="flex items-center justify-between pt-1">
-                  <DeviceBadge clientType={user.clientType} lastSeenAt={user.lastSeenAt} />
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(user.createdAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </p>
-                  <ToggleAdminButton user={user} togglingId={togglingId} onToggle={handleToggle} />
-                </div>
-              </div>
-            ))}
-          </div>
-          </div>
-
-          {visibleCount < users.length && (
-            <div className="flex shrink-0 justify-center pt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setVisibleCount((c) => c + 5)}
-              >
-                Load more ({users.length - visibleCount} left)
-              </Button>
-            </div>
+              )}
+            </section>
           )}
-        </CardContent>
-      </Card>
-      </section>
+
+          {activeTab === "broadcast" && (
+            <section className="space-y-3">
+              <SectionHeader
+                icon={Radio}
+                title="Broadcast"
+                description="Send a push notification to all users — or just yourself to test"
+              />
+              <Card className="border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-base">Send Notification</CardTitle>
+                  <CardDescription className="mt-0.5 text-xs">
+                    Shows in every user&rsquo;s Notifications tab. A push alert is
+                    also sent when the server&rsquo;s FCM keys are set and the device
+                    has notifications enabled.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Input
+                    placeholder="Title (optional) — e.g. New update!"
+                    value={broadcastTitle}
+                    onChange={(e) => setBroadcastTitle(e.target.value)}
+                    maxLength={100}
+                    disabled={broadcasting}
+                  />
+                  <Textarea
+                    placeholder="Message — e.g. Schedly v1.3 is out with bug fixes. Check it out!"
+                    value={broadcastMessage}
+                    onChange={(e) => setBroadcastMessage(e.target.value)}
+                    maxLength={500}
+                    disabled={broadcasting}
+                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      onClick={() => handleBroadcast()}
+                      disabled={broadcasting}
+                    >
+                      {broadcasting ? (
+                        <Spinner size={16} color="var(--primary-foreground)" className="mr-1.5" />
+                      ) : (
+                        <Megaphone className="mr-1.5 h-4 w-4" />
+                      )}
+                      Send to all users
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleBroadcast((user as { id?: string } | null)?.id)}
+                      disabled={broadcasting}
+                    >
+                      Send to myself (test)
+                    </Button>
+                  </div>
+                  {broadcastResult && (
+                    <p className="text-sm text-muted-foreground">{broadcastResult}</p>
+                  )}
+                </CardContent>
+              </Card>
+            </section>
+          )}
+
+          {activeTab === "users" && (
+            <section className="space-y-3">
+              <SectionHeader
+                icon={Users}
+                title="User Management"
+                description="Roles, devices, and account access"
+              />
+              <Card className="border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-base">Users</CardTitle>
+                </CardHeader>
+                <CardContent>
+                <div className="max-h-[560px] overflow-y-auto pr-1">
+                {/* Desktop table */}
+                <div className="hidden overflow-x-auto sm:block">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-card">
+                      <tr className="border-b border-border/40 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        <th className="pb-3 pr-4">Name</th>
+                        <th className="pb-3 pr-4">Email</th>
+                        <th className="pb-3 pr-4">Username</th>
+                        <th className="pb-3 pr-4">Device</th>
+                        <th className="pb-3 pr-4">Joined</th>
+                        <th className="pb-3 pr-4">Role</th>
+                        <th className="pb-3 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/30">
+                      {users.slice(0, visibleCount).map((user) => (
+                        <tr key={user.id} className="transition-colors hover:bg-muted/30">
+                          <td className="py-3 pr-4 font-medium text-foreground">
+                            {user.firstName} {user.lastName}
+                          </td>
+                          <td className="py-3 pr-4 text-muted-foreground">{user.email}</td>
+                          <td className="py-3 pr-4 text-muted-foreground">@{user.username}</td>
+                          <td className="py-3 pr-4">
+                            <DeviceBadge clientType={user.clientType} lastSeenAt={user.lastSeenAt} />
+                          </td>
+                          <td className="py-3 pr-4 text-muted-foreground">
+                            {new Date(user.createdAt).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </td>
+                          <td className="py-3 pr-4">
+                            <RoleBadge isAdmin={user.isAdmin} />
+                          </td>
+                          <td className="py-3 text-right">
+                            <ToggleAdminButton user={user} togglingId={togglingId} onToggle={handleToggle} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile cards */}
+                <div className="space-y-3 sm:hidden">
+                  {users.slice(0, visibleCount).map((user) => (
+                    <div key={user.id} className="rounded-xl border border-border/40 bg-muted/20 p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-foreground text-sm">
+                          {user.firstName} {user.lastName}
+                        </p>
+                        <RoleBadge isAdmin={user.isAdmin} />
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                      <p className="text-xs text-muted-foreground">@{user.username}</p>
+                      <div className="flex items-center justify-between pt-1">
+                        <DeviceBadge clientType={user.clientType} lastSeenAt={user.lastSeenAt} />
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(user.createdAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </p>
+                        <ToggleAdminButton user={user} togglingId={togglingId} onToggle={handleToggle} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                </div>
+
+                {visibleCount < users.length && (
+                  <div className="flex shrink-0 justify-center pt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setVisibleCount((c) => c + 5)}
+                    >
+                      Load more ({users.length - visibleCount} left)
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            </section>
+          )}
+        </div>
+      </div>
+      </BoneSkeleton>
 
       {confirmId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -393,7 +431,6 @@ export default function AdminPage() {
           </div>
         </div>
       )}
-      </BoneSkeleton>
     </div>
   );
 }
