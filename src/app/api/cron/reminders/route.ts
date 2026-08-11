@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dispatchDueReminders } from "@/server/services/reminder-dispatcher.service";
+import { scheduleQstashReminders } from "@/server/services/qstash-reminder.service";
 import { auditLog } from "@/server/lib/audit";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,12 @@ export async function GET(request: NextRequest) {
   try {
     const result = await dispatchDueReminders();
     auditLog("reminders.cron", result);
-    return NextResponse.json({ ok: true, ...result });
+
+    // Schedule exact-time QStash messages for the next round of occurrences.
+    const scheduled = await scheduleQstashReminders();
+    auditLog("reminders.qstash", scheduled);
+
+    return NextResponse.json({ ok: true, ...result, qstash: scheduled });
   } catch (err) {
     console.error("[CRON_REMINDERS]", err);
     return NextResponse.json({ ok: false, error: "Cron failed" }, { status: 500 });

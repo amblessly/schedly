@@ -12,7 +12,7 @@ import { useThemeConfig } from "@/features/theme";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { reportClientType, type ClientType } from "./actions";
 import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
-import { getUserReminders } from "@/app/(dashboard)/reminders/actions";
+import { getUserReminders, scheduleUpcomingReminders } from "@/app/(dashboard)/reminders/actions";
 import { programReminderAlarms } from "@/lib/notification-scheduler";
 import { cachedAction } from "@/lib/server-action-cache";
 
@@ -120,9 +120,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   // Arm local class-reminder alarms from the service worker on every app open
   // (any dashboard page), not just the Notifications page. Local alarms fire
   // at the exact minute via Notification Triggers (installed PWA) or the SW
-  // ticker while the app is open — they don't depend on the Vercel cron, which
-  // is capped at 2 runs/day on the free plan. Re-runs on navigation so edits
-  // made on the Reminders page take effect immediately.
+  // ticker while the app is open. Exact-time delivery when the app is closed
+  // comes from QStash, re-scheduled here (throttled) so edits take effect.
   useEffect(() => {
     if (!user || !("serviceWorker" in navigator)) return;
     let active = true;
@@ -139,6 +138,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         }
       })
       .catch(() => {});
+    // Refresh exact-time QStash deliveries (30s throttle, no-op until tokens
+    // are configured).
+    cachedAction("layout:qstash", () => scheduleUpcomingReminders(), 30_000).catch(() => {});
     return () => {
       active = false;
     };

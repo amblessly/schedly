@@ -13,6 +13,7 @@ type AuditAction =
   | "admin.action"
   | "reminders.update"
   | "reminders.cron"
+  | "reminders.qstash"
   | "push.subscribe"
   | "push.unsubscribe"
   | "notification.delete";
