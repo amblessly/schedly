@@ -89,14 +89,16 @@ export function InstallPrompt() {
     window.addEventListener("appinstalled", onInstalled);
 
     // Show the prompt on every visit until the user actually installs the
-    // app. "Not now" only hides it for the current session.
+    // app. "Not now" only hides it for the current session. Popped almost
+    // immediately so it's the first thing users see after escaping Facebook's
+    // in-app browser into Chrome.
     const timer = setTimeout(() => {
       if (!localStorage.getItem(DISMISS_KEY)) {
         setIos(isIOS());
         setInAppBrowser(isInAppBrowser());
         setVisible(true);
       }
-    }, 5000);
+    }, 600);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", onPrompt);
