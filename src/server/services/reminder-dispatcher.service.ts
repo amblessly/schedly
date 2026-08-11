@@ -82,6 +82,24 @@ export function lastOccurrence(
   return nearestOccurrence(startTime, days, timezone, now, false);
 }
 
+/** The occurrence (epoch ms) on the LOCAL calendar date of `now` — i.e. the
+ *  class on "today" in the user's timezone, or null when today isn't a class
+ *  day. Used by the daily cron to deliver a reliable push for every class
+ *  still ahead today. */
+function occurrenceToday(
+  startTime: Date,
+  days: DayOfWeek[],
+  timezone: string,
+  now: Date
+): number | null {
+  const tz = timezone || "Asia/Manila";
+  const weekday = localWeekday(tz, now);
+  if (!days.includes(DAYS_OF_WEEK[weekday]!)) return null;
+  const { h, m } = wallParts(startTime);
+  const lp = localParts(tz, now);
+  return Date.UTC(lp.y, lp.mo - 1, lp.d, h, m) - lp.offsetMs;
+}
+
 function nearestOccurrence(
   startTime: Date,
   days: DayOfWeek[],
@@ -247,6 +265,46 @@ export async function dispatchDueReminders(now: Date = new Date()) {
           title: "Class starting now",
           body: `${label} starts now (${startLabelTxt})`,
           scheduledAt: new Date(occPrev!),
+        },
+      });
+
+      sent++;
+      continue;
+    }
+
+    // 3) "Today's classes" heads-up: with a 1x/day cron we can't be inside
+    //    every reminder window, so once a day we reliably deliver a push for
+    //    every class still ahead today (works even when the app is closed).
+    //    Exact-time notifications still come from the client alarms while the
+    //    app is open. lastSentAt dedupes so each occurrence is reminded once.
+    const occToday = occurrenceToday(cls.startTime, cls.days as DayOfWeek[], tz, now);
+    const todayFired =
+      occToday !== null &&
+      reminder.lastSentAt !== null &&
+      reminder.lastSentAt.getTime() >= occToday - minutes * 60 * 1000;
+    if (occToday !== null && occToday > now.getTime() && !todayFired) {
+      const remaining = Math.max(0, Math.round((occToday - now.getTime()) / 60000));
+      const body =
+        remaining > 120
+          ? `${label} at ${startLabelTxt} today`
+          : remaining > 0
+            ? `${label} starts in ${remaining} min (${startLabelTxt})`
+            : `${label} starts now (${startLabelTxt})`;
+
+      staleEndpoints.push(...(await deliverPush(reminder.userId, "Upcoming class", body)));
+
+      await db.reminder.update({
+        where: { id: reminder.id },
+        data: { lastSentAt: new Date(occToday - minutes * 60 * 1000) },
+      });
+
+      await db.notification.create({
+        data: {
+          userId: reminder.userId,
+          type: "class_reminder",
+          title: "Upcoming class",
+          body: `Reminder: ${label} at ${startLabelTxt} today.`,
+          scheduledAt: new Date(occToday),
         },
       });
 

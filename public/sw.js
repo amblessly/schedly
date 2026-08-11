@@ -142,19 +142,19 @@ function startAlarmTicker() {
         remaining.push(alarm);
         continue;
       }
-      // Due. If a real trigger was armed, the browser already showed it —
-      // otherwise show it now. Either way, drop it from the cache.
-      if (!alarm.armed) {
-        try {
-          await fireAlarmNow(alarm);
-        } catch {
-          // Permission revoked or similar — skip.
-        }
+      // Due. Fire it — the tag is shared with the real trigger, so if the
+      // browser already showed the trigger notification this just replaces it
+      // (never duplicates). This also covers the case where a trigger was
+      // "armed" but never actually fired (e.g. the site isn't installed).
+      try {
+        await fireAlarmNow(alarm);
+      } catch {
+        // Permission revoked or similar — skip.
       }
       changed = true;
     }
     if (changed) await writeAlarms(remaining);
-  }, 20000);
+  }, 10000);
 }
 
 /** Re-arm programmed alarms. With Notification Triggers they fire exactly on
