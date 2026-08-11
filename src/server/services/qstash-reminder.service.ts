@@ -10,14 +10,19 @@ import type { DayOfWeek } from "@/generated/prisma/client";
  *
  * Vercel Hobby crons run at most once per day (with ±59min precision), so the
  * server can't hit every reminder window by itself. QStash delivers an HTTP
- * request at an exact time, so we schedule one message per occurrence at
- * [class start - minutesBefore]. The `/api/reminders/fire` endpoint turns it
- * into the same push + in-app notification the dispatcher sends.
+ * request at an exact time, so we schedule two messages per class occurrence:
+ *   - "pre"   at [class start - minutesBefore] → the "Upcoming class" push
+ *   - "start" at [class start]                 → the "Class starting now" push
+ * The `/api/reminders/fire` endpoint turns each into the same push + in-app
+ * notification the dispatcher sends.
  *
  * Scheduling is refreshed from three places: the daily cron (everyone, safety
  * net), the client layout after login/navigation (throttled), and the
- * reminder update action (immediately after edits). Delivery is idempotent via
- * `reminders.lastSentAt`, so re-scheduling never double-notifies.
+ * reminder update action (immediately after edits). Delivery is deduped per
+ * (user, occurrence) — both server-side (reminders.lastSentAt /
+ * lastStartSentAt) and at scheduling time (one message per occurrence even
+ * when duplicate schedules/reminders exist) — so re-scheduling and duplicate
+ * schedules never double-notify.
  */
 
 let _client: Client | null = null;
@@ -79,6 +84,12 @@ export async function scheduleQstashReminders(
   let scheduled = 0;
   let skipped = 0;
 
+  // One message per (user, occurrence) even when the same class exists in
+  // several schedules — otherwise every duplicate reminder row schedules its
+  // own push and the user gets N identical notifications.
+  const seenPre = new Set<string>();
+  const seenStart = new Set<string>();
+
   for (const reminder of reminders) {
     const cls = reminder.class;
     if (cls.days.length === 0) continue;
@@ -87,31 +98,62 @@ export async function scheduleQstashReminders(
     const occ = nextOccurrence(cls.startTime, cls.days as DayOfWeek[], tz, now);
     if (occ === null) continue;
 
-    const fireAt = occ - reminder.minutesBefore * 60 * 1000;
-    if (fireAt <= now.getTime()) continue;
-    // QStash free tier won't accept schedules further than 7 days out — the
-    // daily cron re-schedules each morning, so anything beyond the cap just
-    // waits for a later run.
-    if (fireAt > now.getTime() + MAX_DELAY_MS) continue;
+    const minutes = reminder.minutesBefore * 60 * 1000;
+    const key = `${reminder.userId}:${occ}`;
 
-    const messageId = `rem-${reminder.id}-${occ}`;
-    try {
-      await client.publishJSON({
-        url: `${baseUrl}/api/reminders/fire`,
-        method: "POST",
-        body: { reminderId: reminder.id, fireAt },
-        // The Upstash-Not-Before header expects unix SECONDS (not ms).
-        notBefore: Math.floor(fireAt / 1000),
-        messageId,
-        retries: 1,
-      });
-      scheduled++;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (/duplicate|already exists|maxDelay/i.test(msg)) {
-        skipped++;
-      } else {
-        console.error("[QSTASH_SCHEDULE]", err);
+    // "Upcoming class" push at exactly [start - minutesBefore].
+    const preAt = occ - minutes;
+    if (
+      preAt > now.getTime() &&
+      preAt <= now.getTime() + MAX_DELAY_MS &&
+      !seenPre.has(key)
+    ) {
+      seenPre.add(key);
+      try {
+        await client.publishJSON({
+          url: `${baseUrl}/api/reminders/fire`,
+          method: "POST",
+          body: { reminderId: reminder.id, occ, kind: "pre" },
+          // The Upstash-Not-Before header expects unix SECONDS (not ms).
+          notBefore: Math.floor(preAt / 1000),
+          messageId: `rem-${reminder.id}-${occ}-pre`,
+          retries: 1,
+        });
+        scheduled++;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (/duplicate|already exists|maxDelay/i.test(msg)) {
+          skipped++;
+        } else {
+          console.error("[QSTASH_SCHEDULE]", err);
+        }
+      }
+    }
+
+    // "Class starting now" push at exactly [start].
+    if (
+      occ > now.getTime() &&
+      occ <= now.getTime() + MAX_DELAY_MS &&
+      !seenStart.has(key)
+    ) {
+      seenStart.add(key);
+      try {
+        await client.publishJSON({
+          url: `${baseUrl}/api/reminders/fire`,
+          method: "POST",
+          body: { reminderId: reminder.id, occ, kind: "start" },
+          notBefore: Math.floor(occ / 1000),
+          messageId: `rem-${reminder.id}-${occ}-start`,
+          retries: 1,
+        });
+        scheduled++;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (/duplicate|already exists|maxDelay/i.test(msg)) {
+          skipped++;
+        } else {
+          console.error("[QSTASH_SCHEDULE]", err);
+        }
       }
     }
   }
@@ -156,15 +198,21 @@ async function deliverPushToUser(
 
 /**
  * Fire one class reminder (idempotent). Used by the QStash webhook at the
- * scheduled exact time. Skips when the reminder was deactivated, deleted, or
- * already delivered for this scheduled fire time.
+ * scheduled exact time.
+ *
+ * `kind: "pre"`   → "Upcoming class" at [start - minutesBefore]
+ * `kind: "start"` → "Class starting now" at [start]
+ *
+ * Duplicates (same class in several schedules, cron catch-up, QStash retries)
+ * are deduped per (reminder, occurrence): `lastSentAt` guards the upcoming
+ * push, `lastStartSentAt` guards the starting-now push.
  */
 export async function sendClassReminderPush(args: {
   reminderId: string;
-  scheduledFireAt: number;
-  now?: Date;
+  occ: number;
+  kind?: "pre" | "start";
 }): Promise<{ sent: boolean; reason?: string }> {
-  const { reminderId, scheduledFireAt } = args;
+  const { reminderId, occ, kind = "pre" } = args;
   const reminder = await db.reminder.findUnique({
     where: { id: reminderId },
     include: {
@@ -174,25 +222,58 @@ export async function sendClassReminderPush(args: {
   });
   if (!reminder || !reminder.isActive) return { sent: false, reason: "inactive" };
 
-  if (reminder.lastSentAt && reminder.lastSentAt.getTime() >= scheduledFireAt) {
-    return { sent: false, reason: "already-sent" };
-  }
-
   const cls = reminder.class;
-  const tz = reminder.user.timezone || "Asia/Manila";
-  const now = args.now ?? new Date();
-  const occ = nextOccurrence(cls.startTime, cls.days as DayOfWeek[], tz, now);
   const label = cls.shortName?.trim() || cls.code?.trim() || cls.subject;
   const startLabelTxt = startLabel(cls.startTime);
 
-  const remaining = occ !== null ? Math.max(0, Math.round((occ - now.getTime()) / 60000)) : null;
-  const isStarting = remaining !== null && remaining <= 0;
+  if (kind === "start") {
+    // "Class starting now" — deduped with lastStartSentAt so a cron
+    // catch-up or QStash retry never delivers it twice for one occurrence.
+    if (reminder.lastStartSentAt && reminder.lastStartSentAt.getTime() >= occ) {
+      return { sent: false, reason: "already-sent" };
+    }
+    const title = "Class starting now";
+    const body = `You have class today — ${label} at ${startLabelTxt}`;
+
+    const stale = await deliverPushToUser(reminder.userId, title, body);
+
+    await db.reminder.update({
+      where: { id: reminder.id },
+      data: { lastStartSentAt: new Date(occ) },
+    });
+
+    await db.notification.create({
+      data: {
+        userId: reminder.userId,
+        type: "class_reminder",
+        title,
+        body: `${label} starts now (${startLabelTxt})`,
+        scheduledAt: new Date(occ),
+      },
+    });
+
+    if (stale.length > 0) {
+      await db.pushSubscription.deleteMany({ where: { endpoint: { in: stale } } });
+    }
+
+    return { sent: true };
+  }
+
+  // "Upcoming class" at [start - minutesBefore]. The isStarting branch only
+  // triggers when the scheduled message was delivered noticeably late.
+  if (reminder.lastSentAt && reminder.lastSentAt.getTime() >= occ) {
+    return { sent: false, reason: "already-sent" };
+  }
+
+  const now = new Date();
+  const remaining = Math.max(0, Math.round((occ - now.getTime()) / 60000));
+  const isStarting = remaining <= 0;
   const title = isStarting ? "Class starting now" : "Upcoming class";
   const body = isStarting
     ? `You have class today — ${label} at ${startLabelTxt}`
-    : remaining !== null && remaining > 180
+    : remaining > 180
       ? `${label} at ${startLabelTxt}`
-      : remaining !== null && remaining > 0
+      : remaining > 0
         ? `${label} starts in ${remaining} min (${startLabelTxt})`
         : `${label} at ${startLabelTxt}`;
 
@@ -200,7 +281,7 @@ export async function sendClassReminderPush(args: {
 
   await db.reminder.update({
     where: { id: reminder.id },
-    data: { lastSentAt: new Date(scheduledFireAt) },
+    data: { lastSentAt: new Date(occ) },
   });
 
   await db.notification.create({
@@ -211,7 +292,7 @@ export async function sendClassReminderPush(args: {
       body: isStarting
         ? `${label} starts now (${startLabelTxt})`
         : `Reminder: ${label} at ${startLabelTxt}.`,
-      scheduledAt: occ !== null ? new Date(occ) : new Date(scheduledFireAt),
+      scheduledAt: new Date(occ),
     },
   });
 

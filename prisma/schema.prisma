@@ -160,13 +160,14 @@ model Class {
 }
 
 model Reminder {
-  id            String   @id @default(uuid())
-  classId       String   @map("class_id")
-  userId        String   @map("user_id")
-  minutesBefore Int      @default(15) @map("minutes_before")
-  isActive      Boolean  @default(true) @map("is_active")
-  lastSentAt    DateTime? @map("last_sent_at")
-  createdAt     DateTime @default(now()) @map("created_at")
+  id               String    @id @default(uuid())
+  classId          String    @map("class_id")
+  userId           String    @map("user_id")
+  minutesBefore    Int       @default(15) @map("minutes_before")
+  isActive         Boolean   @default(true) @map("is_active")
+  lastSentAt       DateTime? @map("last_sent_at")
+  lastStartSentAt  DateTime? @map("last_start_sent_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
 
   class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)

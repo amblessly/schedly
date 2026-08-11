@@ -183,134 +183,192 @@ export async function dispatchDueReminders(now: Date = new Date()) {
   // "starting now" push during this window instead of skipping the occurrence.
   const START_CATCHUP_MS = 90 * 60 * 1000;
 
+  // The same class often exists in several schedules (re-imports, semester
+  // copies), each with its own Reminder row. Group every reminder by
+  // (user, occurrence) so one class still produces exactly ONE "upcoming"
+  // push and ONE "starting now" push — duplicates inside the group are
+  // silenced AND marked so later runs stay quiet too.
+  interface DispatchRow {
+    reminderId: string;
+    minutes: number;
+    lastSentAt: number | null;
+    lastStartSentAt: number | null;
+    occNext: number | null;
+    occPrev: number | null;
+    occToday: number | null;
+    label: string;
+    startLabelTxt: string;
+  }
+
+  const groups = {
+    upcoming: new Map<string, DispatchRow[]>(), // key: user|occNext|minutes
+    start: new Map<string, DispatchRow[]>(),    // key: user|occPrev
+    today: new Map<string, DispatchRow[]>(),    // key: user|occToday|minutes
+  };
+
   for (const reminder of reminders) {
     const cls = reminder.class;
-    if (cls.days.length === 0) continue;
-
+    const label = cls.shortName?.trim() || cls.code?.trim() || cls.subject;
     const tz = reminder.user.timezone || "Asia/Manila";
     const occNext = nextOccurrence(cls.startTime, cls.days as DayOfWeek[], tz, now);
     const occPrev = lastOccurrence(cls.startTime, cls.days as DayOfWeek[], tz, now);
-
-    const label = cls.shortName?.trim() || cls.code?.trim() || cls.subject;
-    const startLabelTxt = startLabel(cls.startTime);
-    const minutes = reminder.minutesBefore;
-
-    // 1) "Upcoming" push: now is between [occurrence - minutesBefore] and the
-    //    class start. Catch-up semantics — a delayed cron fires this as long
-    //    as the class hasn't started yet (no fixed end-of-window).
-    const beforeFired = reminder.lastSentAt && reminder.lastSentAt.getTime() >= (occNext ?? 0) - minutes * 60 * 1000;
-    const inBeforeWindow =
-      occNext !== null &&
-      now.getTime() >= occNext - minutes * 60 * 1000 &&
-      !beforeFired;
-
-    if (inBeforeWindow) {
-      const remaining = Math.max(0, Math.round((occNext! - now.getTime()) / 60000));
-      staleEndpoints.push(
-        ...(await deliverPush(
-          reminder.userId,
-          "Upcoming class",
-          remaining > 0
-            ? `${label} starts in ${remaining} min (${startLabelTxt})`
-            : `${label} starts now (${startLabelTxt})`
-        ))
-      );
-
-      await db.reminder.update({
-        where: { id: reminder.id },
-        data: { lastSentAt: new Date(occNext! - minutes * 60 * 1000) },
-      });
-
-      // Also record in the in-app notification list.
-      await db.notification.create({
-        data: {
-          userId: reminder.userId,
-          type: "class_reminder",
-          title: "Upcoming class",
-          body: `Reminder: ${label} starts in ${remaining} min.`,
-          scheduledAt: new Date(occNext!),
-        },
-      });
-
-      sent++;
-      continue;
-    }
-
-    // 2) "Starting now" push: the most recent occurrence is current (within
-    //    the catch-up grace), so a delayed cron still reports it.
-    const inStartWindow =
-      occPrev !== null &&
-      now.getTime() <= occPrev + START_CATCHUP_MS &&
-      !(occNext !== null && now.getTime() >= occNext - minutes * 60 * 1000) &&
-      !(reminder.lastSentAt && reminder.lastSentAt.getTime() >= occPrev);
-    if (inStartWindow) {
-      staleEndpoints.push(
-        ...(await deliverPush(
-          reminder.userId,
-          "Class starting now",
-          `You have class today — ${label} at ${startLabelTxt}`
-        ))
-      );
-
-      await db.reminder.update({
-        where: { id: reminder.id },
-        data: { lastSentAt: new Date(occPrev!) },
-      });
-
-      // Also record in the in-app notification list.
-      await db.notification.create({
-        data: {
-          userId: reminder.userId,
-          type: "class_reminder",
-          title: "Class starting now",
-          body: `${label} starts now (${startLabelTxt})`,
-          scheduledAt: new Date(occPrev!),
-        },
-      });
-
-      sent++;
-      continue;
-    }
-
-    // 3) "Today's classes" heads-up: with a 1x/day cron we can't be inside
-    //    every reminder window, so once a day we reliably deliver a push for
-    //    every class still ahead today (works even when the app is closed).
-    //    Exact-time notifications still come from the client alarms while the
-    //    app is open. lastSentAt dedupes so each occurrence is reminded once.
     const occToday = occurrenceToday(cls.startTime, cls.days as DayOfWeek[], tz, now);
-    const todayFired =
-      occToday !== null &&
-      reminder.lastSentAt !== null &&
-      reminder.lastSentAt.getTime() >= occToday - minutes * 60 * 1000;
-    if (occToday !== null && occToday > now.getTime() && !todayFired) {
-      const remaining = Math.max(0, Math.round((occToday - now.getTime()) / 60000));
-      const body =
-        remaining > 120
-          ? `${label} at ${startLabelTxt} today`
-          : remaining > 0
-            ? `${label} starts in ${remaining} min (${startLabelTxt})`
-            : `${label} starts now (${startLabelTxt})`;
 
-      staleEndpoints.push(...(await deliverPush(reminder.userId, "Upcoming class", body)));
+    const row: DispatchRow = {
+      reminderId: reminder.id,
+      minutes: reminder.minutesBefore,
+      lastSentAt: reminder.lastSentAt ? reminder.lastSentAt.getTime() : null,
+      lastStartSentAt: reminder.lastStartSentAt ? reminder.lastStartSentAt.getTime() : null,
+      occNext,
+      occPrev,
+      occToday,
+      label,
+      startLabelTxt: startLabel(cls.startTime),
+    };
 
-      await db.reminder.update({
-        where: { id: reminder.id },
-        data: { lastSentAt: new Date(occToday - minutes * 60 * 1000) },
-      });
-
-      await db.notification.create({
-        data: {
-          userId: reminder.userId,
-          type: "class_reminder",
-          title: "Upcoming class",
-          body: `Reminder: ${label} at ${startLabelTxt} today.`,
-          scheduledAt: new Date(occToday),
-        },
-      });
-
-      sent++;
-      continue;
+    if (occNext !== null) {
+      const key = `${reminder.userId}|${occNext}|${reminder.minutesBefore}`;
+      const list = groups.upcoming.get(key) ?? [];
+      list.push(row);
+      groups.upcoming.set(key, list);
     }
+    if (occPrev !== null) {
+      const key = `${reminder.userId}|${occPrev}`;
+      const list = groups.start.get(key) ?? [];
+      list.push(row);
+      groups.start.set(key, list);
+    }
+    if (occToday !== null) {
+      const key = `${reminder.userId}|${occToday}|${reminder.minutesBefore}`;
+      const list = groups.today.get(key) ?? [];
+      list.push(row);
+      groups.today.set(key, list);
+    }
+  }
+
+  const alreadySent = (rows: DispatchRow[], occ: number) =>
+    rows.some((r) => r.lastSentAt !== null && r.lastSentAt >= occ);
+  const alreadyStarted = (rows: DispatchRow[], occ: number) =>
+    rows.some((r) => r.lastStartSentAt !== null && r.lastStartSentAt >= occ);
+
+  // 1) "Upcoming" push: now is between [occurrence - minutesBefore] and the
+  //    class start. Catch-up semantics — a delayed cron fires this as long
+  //    as the class hasn't started yet (no fixed end-of-window).
+  for (const [key, rows] of groups.upcoming) {
+    const occ = rows[0]!.occNext!;
+    const userId = key.split("|")[0]!;
+    const minutes = rows[0]!.minutes;
+    if (now.getTime() < occ - minutes * 60 * 1000) continue;
+    if (alreadySent(rows, occ)) continue;
+
+    const remaining = Math.max(0, Math.round((occ - now.getTime()) / 60000));
+    staleEndpoints.push(
+      ...(await deliverPush(
+        userId,
+        "Upcoming class",
+        remaining > 0
+          ? `${rows[0]!.label} starts in ${remaining} min (${rows[0]!.startLabelTxt})`
+          : `${rows[0]!.label} starts now (${rows[0]!.startLabelTxt})`
+      ))
+    );
+
+    // Mark EVERY duplicate row for this occurrence — otherwise each copy of
+    // the class in other schedules fires its own push.
+    await db.reminder.updateMany({
+      where: { id: { in: rows.map((r) => r.reminderId) } },
+      data: { lastSentAt: new Date(occ) },
+    });
+
+    // Also record in the in-app notification list.
+    await db.notification.create({
+      data: {
+        userId,
+        type: "class_reminder",
+        title: "Upcoming class",
+        body: `Reminder: ${rows[0]!.label} starts in ${remaining} min.`,
+        scheduledAt: new Date(occ),
+      },
+    });
+
+    sent++;
+  }
+
+  // 2) "Starting now" push: the most recent occurrence is current (within
+  //    the catch-up grace), so a delayed cron still reports it. Deduped per
+  //    (user, occurrence) — the exact-time "start" QStash message and local
+  //    alarms both write lastStartSentAt, so each class starts once.
+  for (const [key, rows] of groups.start) {
+    const occPrev = rows[0]!.occPrev!;
+    const userId = key.split("|")[0]!;
+    if (now.getTime() > occPrev + START_CATCHUP_MS) continue;
+    // The upcoming window is open for a duplicate row of this occurrence —
+    // that push covers it, a "starting now" push would be wrong.
+    if (rows.some((r) => r.occNext !== null && now.getTime() >= r.occNext - r.minutes * 60 * 1000)) continue;
+    if (alreadyStarted(rows, occPrev)) continue;
+
+    staleEndpoints.push(
+      ...(await deliverPush(
+        userId,
+        "Class starting now",
+        `You have class today — ${rows[0]!.label} at ${rows[0]!.startLabelTxt}`
+      ))
+    );
+
+    await db.reminder.updateMany({
+      where: { id: { in: rows.map((r) => r.reminderId) } },
+      data: { lastStartSentAt: new Date(occPrev) },
+    });
+
+    // Also record in the in-app notification list.
+    await db.notification.create({
+      data: {
+        userId,
+        type: "class_reminder",
+        title: "Class starting now",
+        body: `${rows[0]!.label} starts now (${rows[0]!.startLabelTxt})`,
+        scheduledAt: new Date(occPrev),
+      },
+    });
+
+    sent++;
+  }
+
+  // 3) "Today's classes" heads-up: with a 1x/day cron we can't be inside
+  //    every reminder window, so once a day we reliably deliver a push for
+  //    every class still ahead today (works even when the app is closed).
+  //    lastSentAt dedupes so each occurrence is reminded once.
+  for (const [key, rows] of groups.today) {
+    const occToday = rows[0]!.occToday!;
+    const userId = key.split("|")[0]!;
+    if (occToday <= now.getTime()) continue;
+    if (alreadySent(rows, occToday)) continue;
+
+    const remaining = Math.max(0, Math.round((occToday - now.getTime()) / 60000));
+    const body =
+      remaining > 120
+        ? `${rows[0]!.label} at ${rows[0]!.startLabelTxt} today`
+        : remaining > 0
+          ? `${rows[0]!.label} starts in ${remaining} min (${rows[0]!.startLabelTxt})`
+          : `${rows[0]!.label} starts now (${rows[0]!.startLabelTxt})`;
+
+    staleEndpoints.push(...(await deliverPush(userId, "Upcoming class", body)));
+
+    await db.reminder.updateMany({
+      where: { id: { in: rows.map((r) => r.reminderId) } },
+      data: { lastSentAt: new Date(occToday) },
+    });
+
+    await db.notification.create({
+      data: {
+        userId,
+        type: "class_reminder",
+        title: "Upcoming class",
+        body: `Reminder: ${rows[0]!.label} at ${rows[0]!.startLabelTxt} today.`,
+        scheduledAt: new Date(occToday),
+      },
+    });
+
+    sent++;
   }
 
   if (staleEndpoints.length > 0) {
