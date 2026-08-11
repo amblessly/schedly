@@ -21,7 +21,7 @@ export function VerifiedSuccess() {
   }, []);
 
   return (
-    <Card className="border-border/50 shadow-lg shadow-primary/5">
+    <Card className="w-full border-border/50 shadow-lg shadow-primary/5">
       <CardHeader className="space-y-1 pb-6 text-center">
         <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-2xl bg-green-100 dark:bg-green-950">
           <svg
@@ -38,15 +38,19 @@ export function VerifiedSuccess() {
             />
           </svg>
         </div>
-        <CardTitle className="text-2xl font-bold tracking-tight">Email verified!</CardTitle>
+        <CardTitle className="text-xl font-bold tracking-tight sm:text-2xl">
+          Email verified!
+        </CardTitle>
         <p className="text-sm text-muted-foreground">
           Your email has been successfully verified.
         </p>
       </CardHeader>
       <CardContent className="text-center">
-        <p className="text-sm text-muted-foreground">
-          Let&apos;s set up your profile in{" "}
-          <span className="font-semibold text-primary">{countdown}</span>...
+        <p className="flex flex-wrap items-center justify-center gap-2 text-sm text-muted-foreground">
+          Let&apos;s set up your profile
+          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold tabular-nums text-primary">
+            {countdown}
+          </span>
         </p>
       </CardContent>
     </Card>
