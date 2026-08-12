@@ -16,6 +16,10 @@ import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
 import { getUserReminders, scheduleUpcomingReminders } from "@/app/(dashboard)/reminders/actions";
 import { programReminderAlarms } from "@/lib/notification-scheduler";
 import { cachedAction } from "@/lib/server-action-cache";
+import {
+  getNotificationDetailSnapshot,
+  subscribeNotificationDetail,
+} from "@/lib/notification-detail-store";
 
 // The drawer's open state lives in a tiny external store so its initial
 // value can come from matchMedia only AFTER hydration. The server renders
@@ -48,6 +52,11 @@ function setOpen(next: boolean) {
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const { themeVars } = useThemeConfig();
   const open = useSyncExternalStore(subscribeOpen, getOpenSnapshot, () => false);
+  const detailOpen = useSyncExternalStore(
+    subscribeNotificationDetail,
+    getNotificationDetailSnapshot,
+    () => false,
+  );
   const showButton = !open;
   const pathname = usePathname();
   const router = useRouter();
@@ -263,7 +272,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           On account settings, profile, admin, feedback, and notifications pages it
           becomes a back arrow. Elsewhere it's the user's avatar; tapping it opens
           the profile page. */}
-      {!isImmersive && showButton && (
+      {!isImmersive && showButton && !detailOpen && (
         <button
           type="button"
           onClick={() =>
@@ -294,10 +303,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
       {/* Notification button — sits to the left of the sidebar menu button.
           Shows a live unread-count badge; refreshes via polling + navigation. */}
-      {!isImmersive && showButton && !isNotifications && <NotificationBell />}
+      {!isImmersive && showButton && !isNotifications && !detailOpen && <NotificationBell />}
 
       {/* Floating menu button — opens the sidebar drawer (top-right, same height as the logo) */}
-      {!isImmersive && showButton && (
+      {!isImmersive && showButton && !detailOpen && (
         <button
           onClick={() => setOpen(true)}
           className="fixed right-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center rounded-xl bg-sidebar/90 text-sidebar-foreground shadow-[0_8px_40px_rgba(0,0,0,0.12)] transition-colors hover:bg-sidebar"

@@ -12,6 +12,9 @@ import {
 import { getUserReminders, updateReminder, type UpdateReminderResult } from "@/app/(dashboard)/reminders/actions";
 import { isPushSupported, getPushState, pushUnsupportedReasons, enablePush, disablePush, sendTestPush, isIosPwa } from "@/lib/push";
 import { programReminderAlarms } from "@/lib/notification-scheduler";
+import {
+  setNotificationDetailOpen,
+} from "@/lib/notification-detail-store";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Skeleton as BoneSkeleton } from "boneyard-js/react";
@@ -206,6 +209,12 @@ export function NotificationsPage() {
     };
   }, []);
 
+  // Reset the shared detail-open state when leaving this page so the layout
+  // doesn't keep hiding the avatar/floating buttons after navigation.
+  useEffect(() => {
+    return () => setNotificationDetailOpen(false);
+  }, []);
+
   // Reminders data
   useEffect(() => {
     let active = true;
@@ -376,6 +385,7 @@ export function NotificationsPage() {
 
   function openNotification(notification: Notification) {
     setOpenId(notification.id);
+    setNotificationDetailOpen(true);
     if (!notification.read) markAsRead(notification.id);
   }
 
@@ -819,10 +829,14 @@ export function NotificationsPage() {
       {openId && (
         <NotificationDetail
           notification={notifications.find((n) => n.id === openId) ?? null}
-          onBack={() => setOpenId(null)}
+          onBack={() => {
+            setOpenId(null);
+            setNotificationDetailOpen(false);
+          }}
           onDelete={(id) => {
             deleteNotification(id);
             setOpenId(null);
+            setNotificationDetailOpen(false);
           }}
         />
       )}
@@ -843,59 +857,66 @@ function NotificationDetail({
   const Icon = typeIcons[notification.type];
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-background animate-fade-up">
-      {/* Header bar */}
-      <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/40 bg-background/90 px-4 py-3 backdrop-blur-sm">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10"
-          onClick={onBack}
-          aria-label="Back to notifications"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <span className="flex-1 truncate text-base font-semibold text-foreground">
-          {notification.title}
-        </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10 text-muted-foreground hover:text-destructive"
-          onClick={() => onDelete(notification.id)}
-          aria-label="Delete notification"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
+    <div className="fixed inset-0 z-[60] flex flex-col bg-background/70 backdrop-blur-sm animate-fade-up">
+      <div
+        className="absolute inset-0"
+        onClick={onBack}
+        aria-hidden
+      />
+      <div className="relative z-10 mt-[calc(env(safe-area-inset-top)+0.5rem)] flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-3xl border border-border/30 bg-background shadow-2xl sm:m-4 sm:mt-4 sm:rounded-3xl">
+        {/* Header bar */}
+        <div className="flex shrink-0 items-center gap-2 border-b border-border/40 bg-background/90 px-4 py-3 backdrop-blur-sm">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10"
+            onClick={onBack}
+            aria-label="Back to notifications"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <span className="flex-1 truncate text-base font-semibold text-foreground">
+            {notification.title}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 text-muted-foreground hover:text-destructive"
+            onClick={() => onDelete(notification.id)}
+            aria-label="Delete notification"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
 
-      {/* Message body — Gmail-style reading pane */}
-      <div className="flex-1 overflow-y-auto px-5 pb-10">
-        <div className="mx-auto mt-2 max-w-2xl">
-          <div className="flex items-start gap-4 rounded-2xl border border-border/30 bg-card/30 px-5 py-4">
-            <div
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${typeColors[notification.type]}`}
-            >
-              <Icon className="h-5 w-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-lg font-bold leading-snug text-foreground">
-                {notification.title}
-              </p>
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                <span className="capitalize">
-                  {notification.type.replace("_", " ")}
-                </span>
-                <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
-                <span>{new Date(notification.createdAt).toLocaleString()}</span>
-                <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
-                <span>{timeAgo(notification.createdAt)}</span>
+        {/* Message body — Gmail-style reading pane */}
+        <div className="flex-1 overflow-y-auto px-5 pb-10">
+          <div className="mx-auto mt-2 max-w-2xl">
+            <div className="flex items-start gap-4 rounded-2xl border border-border/30 bg-card/30 px-5 py-4">
+              <div
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${typeColors[notification.type]}`}
+              >
+                <Icon className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-lg font-bold leading-snug text-foreground">
+                  {notification.title}
+                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span className="capitalize">
+                    {notification.type.replace("_", " ")}
+                  </span>
+                  <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+                  <span>{new Date(notification.createdAt).toLocaleString()}</span>
+                  <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+                  <span>{timeAgo(notification.createdAt)}</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="mt-4 whitespace-pre-wrap rounded-2xl border border-border/30 bg-card/30 px-5 py-6 text-[15px] leading-relaxed text-foreground">
-            {notification.body}
+            <div className="mt-4 whitespace-pre-wrap rounded-2xl border border-border/30 bg-card/30 px-5 py-6 text-[15px] leading-relaxed text-foreground">
+              {notification.body}
+            </div>
           </div>
         </div>
       </div>
