@@ -256,35 +256,45 @@ export default function CapturePage() {
 
   return (
     <div className="mx-auto max-w-4xl pt-8 md:pt-0">
-      <div className="mb-6 flex items-center gap-3 sm:mb-8">
-        <Button variant="ghost" size="icon-sm" onClick={handleBackToCalendar} aria-label="Back to calendar">
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            <Camera className="h-6 w-6 text-primary" />
-            Capture Schedule
+      <div className="mb-6 sm:mb-8">
+        {isManualCreate ? (
+          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Add Schedule Manually
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground sm:text-base">
-            Take or choose a photo of your class schedule
-          </p>
-        </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon-sm" onClick={handleBackToCalendar} aria-label="Back to calendar">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                <Camera className="h-6 w-6 text-primary" />
+                Capture Schedule
+              </h1>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+              Take or choose a photo of your class schedule
+            </p>
+          </>
+        )}
       </div>
+
+      {/* === REVIEW === */}
+      {phase === "review" && !isManualCreate && (
+        <div className="mb-4 flex items-center gap-3">
+          <Button variant="ghost" size="icon-sm" onClick={handleBackToSelect} aria-label="Back">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h2 className="text-lg font-semibold">Review Extracted Classes</h2>
+            <p className="text-sm text-muted-foreground">Check and correct the extraction</p>
+          </div>
+        </div>
+      )}
 
       {/* === REVIEW === */}
       {phase === "review" && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon-sm" onClick={handleBackToSelect} aria-label="Back">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            {!isManualCreate && (
-              <div>
-                <h2 className="text-lg font-semibold">Review Extracted Classes</h2>
-                <p className="text-sm text-muted-foreground">Check and correct the extraction</p>
-              </div>
-            )}
-          </div>
           {previewUrl && (
             <div className="relative overflow-hidden rounded-xl bg-card ring-1 ring-border/50">
               <img
