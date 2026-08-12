@@ -258,7 +258,7 @@ export default function CapturePage() {
     <div className="mx-auto max-w-4xl pt-8 md:pt-0">
       <div className="mb-6 sm:mb-8">
         {isManualCreate ? (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 justify-center">
             <Button variant="ghost" size="icon-sm" onClick={handleBackToSelect} aria-label="Back">
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -299,7 +299,7 @@ export default function CapturePage() {
 
       {/* === REVIEW === */}
       {phase === "review" && (
-        <div className="space-y-4">
+        <div className="mx-auto max-w-2xl space-y-4">
           {previewUrl && (
             <div className="relative overflow-hidden rounded-xl bg-card ring-1 ring-border/50">
               <img

@@ -22,7 +22,7 @@ export function FloatingLabelInput({
         className="peer h-11 w-full rounded-none border-none bg-transparent px-3 pt-4 pb-1 text-base shadow-none outline-none ring-0 placeholder-transparent focus-visible:border-none focus-visible:ring-0 dark:bg-transparent"
         {...props}
       />
-      <label className="pointer-events-none absolute top-1/2 left-2.5 z-[1] -translate-y-1/2 px-1 text-base text-muted-foreground transition-all duration-200 ease-out peer-focus:top-0 peer-focus:text-xs peer-focus:text-primary peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:text-xs">
+      <label className="pointer-events-none absolute left-2.5 top-1/2 z-[1] -translate-y-1/2 bg-background px-1 text-base text-muted-foreground transition-all duration-200 ease-out peer-focus:top-0 peer-focus:text-xs peer-focus:text-primary peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:text-xs">
         {label}
       </label>
     </div>
