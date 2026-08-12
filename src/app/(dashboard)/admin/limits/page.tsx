@@ -146,6 +146,12 @@ export default function AdminLimitsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [now, setNow] = useState<Date>(() => new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const load = useCallback(
     async (background = false) => {
@@ -156,7 +162,6 @@ export default function AdminLimitsPage() {
         setStats(res.stats);
         setDate(res.date);
         setLastUpdated(new Date().toLocaleTimeString());
-        setError("");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load limits");
       } finally {
@@ -230,6 +235,9 @@ export default function AdminLimitsPage() {
             LIVE
           </span>
           {lastUpdated && <span>Last updated {lastUpdated}</span>}
+          <span className="tabular-nums">
+            · now {now.toLocaleTimeString()}
+          </span>
           {!loading && stats && (
             <span className="hidden sm:inline">
               · {stats.filter((s) => s.realtime?.remaining === 0).length} cap(s) exhausted
