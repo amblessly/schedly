@@ -15,6 +15,7 @@ export default function robots(): MetadataRoute.Robots {
         "/notifications",
         "/pomodoro",
         "/notes",
+        "/flashcards",
         "/gwa",
         "/upload",
         "/design",

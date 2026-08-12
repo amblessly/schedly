@@ -66,6 +66,7 @@ model User {
   schedules     Schedule[]
   reminders     Reminder[]
   todos         Todo[]
+  flashcardDecks FlashcardDeck[]
   uploads       Upload[]
   notifications Notification[]
   feedbacks     Feedback[]
@@ -176,6 +177,35 @@ model Reminder {
   @@index([classId])
   @@index([userId])
   @@map("reminders")
+}
+
+model FlashcardDeck {
+  id             String      @id @default(uuid())
+  userId         String      @map("user_id")
+  title          String
+  subject        String?
+  sourceType     String      @default("manual") @map("source_type")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flashcards Flashcard[]
+
+  @@index([userId])
+  @@map("flashcard_decks")
+}
+
+model Flashcard {
+  id        String   @id @default(uuid())
+  deckId    String   @map("deck_id")
+  front     String
+  back      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  deck FlashcardDeck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+
+  @@index([deckId])
+  @@map("flashcards")
 }
 
 model Todo {

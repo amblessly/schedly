@@ -20,6 +20,7 @@ const PAGE_OPTIONS = [
   { value: "Schedule Upload", label: "Schedule Upload" },
   { value: "To-Do", label: "To-Do List" },
   { value: "Reminders", label: "Reminders" },
+  { value: "Flashcards", label: "Flashcards" },
   { value: "GWA Calculator", label: "GWA Calculator" },
   { value: "Notifications", label: "Notifications" },
 ];
