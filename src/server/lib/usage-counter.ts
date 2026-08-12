@@ -26,8 +26,24 @@ export const USAGE_SERVICES = {
 
 export type UsageService = (typeof USAGE_SERVICES)[keyof typeof USAGE_SERVICES];
 
+/** Philippines timezone (UTC+8) — used so the daily cap boundary matches
+ *  local midnight, not UTC midnight (which is 8 AM PH time). */
+const PH_TIMEZONE = "Asia/Manila";
+
+/**
+ * Local date key in Asia/Manila (e.g. "2026-08-13"). `toISOString()` would
+ * return UTC, so before 8 AM PH the daily counters would roll over a day late.
+ */
 export function todayKey(date = new Date()): string {
-  return date.toISOString().slice(0, 10);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: PH_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 /** Increment today's counter for a service (1 unit by default). */

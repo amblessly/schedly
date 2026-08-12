@@ -32,7 +32,7 @@ const OPENROUTER_DEFAULT_LIMIT_PER_KEY = 50;
 const CAPS: Record<LimitsService, Cap> = {
   openrouter: {
     name: "OpenRouter (All Keys)",
-    description: "AI extraction + flashcard generation — combined across every configured key",
+    description: "AI extraction — combined across every configured key",
     limit: OPENROUTER_DEFAULT_LIMIT_PER_KEY,
     unit: "requests",
   },

@@ -113,6 +113,10 @@ export default function CapturePage() {
   // Keep the in-progress review in localStorage so it survives remounts.
   const reviewReady = phase === "review" && extractedClasses.length > 0;
 
+  // Manual creation: path taken via "Create manually instead" — no image, no
+  // upload, no AI confidence. Used to specialize the review UI.
+  const isManualCreate = phase === "review" && !previewUrl && !upload?.id && !upload?.fileUrl;
+
   useEffect(() => {
     if (!reviewReady) return;
     saveReviewState(userId, {
@@ -274,10 +278,12 @@ export default function CapturePage() {
             <Button variant="ghost" size="icon-sm" onClick={handleBackToSelect} aria-label="Back">
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <div>
-              <h2 className="text-lg font-semibold">Review Extracted Classes</h2>
-              <p className="text-sm text-muted-foreground">Check and correct the extraction</p>
-            </div>
+            {!isManualCreate && (
+              <div>
+                <h2 className="text-lg font-semibold">Review Extracted Classes</h2>
+                <p className="text-sm text-muted-foreground">Check and correct the extraction</p>
+              </div>
+            )}
           </div>
           {previewUrl && (
             <div className="relative overflow-hidden rounded-xl bg-card ring-1 ring-border/50">

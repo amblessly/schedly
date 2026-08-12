@@ -121,7 +121,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           reg.active?.postMessage({
             type: "PRECACHE",
             urls: [
-              "/dashboard", "/schedule", "/capture", "/notes", "/flashcards", "/notifications", "/pomodoro", "/gwa",
+              "/dashboard", "/schedule", "/capture", "/notes", "/notifications", "/pomodoro", "/gwa",
               ...(avatar ? [avatar] : []),
             ],
           });
