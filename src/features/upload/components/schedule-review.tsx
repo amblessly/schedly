@@ -10,7 +10,7 @@ import { generateShortName } from "@/lib/abbreviations";
 import { saveDesignState } from "@/features/upload/lib/design-state";
 import { PALETTE } from "@/features/upload/lib/palette";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Plus, Trash2, Save, AlertCircle, ChevronDown, ChevronUp, AlertTriangle, XCircle, Paintbrush } from "lucide-react";
@@ -145,35 +145,26 @@ export function ScheduleReview({
         </div>
       )}
 
-      <div className="space-y-2">
-        <Label htmlFor="schedule-title">Schedule Title *</Label>
-        <Input
-          id="schedule-title"
-          placeholder="e.g., Fall 2026 Semester"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-      </div>
+      <FloatingLabelInput
+        id="schedule-title"
+        label="Schedule Title *"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+      />
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label htmlFor="semester">Semester</Label>
-          <Input
-            id="semester"
-            placeholder="e.g., Fall"
-            value={semester}
-            onChange={(e) => setSemester(e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="year">Academic Year</Label>
-          <Input
-            id="year"
-            placeholder="e.g., 2026-2027"
-            value={academicYear}
-            onChange={(e) => setAcademicYear(e.target.value)}
-          />
-        </div>
+        <FloatingLabelInput
+          id="semester"
+          label="Semester"
+          value={semester}
+          onChange={(e) => setSemester(e.target.value)}
+        />
+        <FloatingLabelInput
+          id="year"
+          label="Academic Year"
+          value={academicYear}
+          onChange={(e) => setAcademicYear(e.target.value)}
+        />
       </div>
 
       <div className="space-y-3">
@@ -292,98 +283,74 @@ export function ScheduleReview({
                       </div>
                     )}
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Subject *</Label>
-                        <Input
-                          value={cls.subject}
-                          onChange={(e) => onUpdate(i, { ...cls, subject: e.target.value })}
-                          placeholder="e.g., Calculus I"
+                      <FloatingLabelInput
+                        label="Subject *"
+                        value={cls.subject}
+                        onChange={(e) => onUpdate(i, { ...cls, subject: e.target.value })}
+                      />
+                      <FloatingLabelInput
+                        label="Course Code"
+                        value={cls.code ?? ""}
+                        onChange={(e) => onUpdate(i, { ...cls, code: e.target.value || null })}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex gap-1.5">
+                        <FloatingLabelInput
+                          label="Short Name"
+                          className="min-w-0 flex-1"
+                          value={cls.shortName ?? ""}
+                          onChange={(e) => onUpdate(i, { ...cls, shortName: e.target.value || null })}
                         />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Course Code</Label>
-                        <Input
-                          value={cls.code ?? ""}
-                          onChange={(e) => onUpdate(i, { ...cls, code: e.target.value || null })}
-                          placeholder="e.g., MATH 201"
-                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-sm"
+                          className="h-11 shrink-0"
+                          title="Auto-generate"
+                          onClick={() => onUpdate(i, { ...cls, shortName: generateShortName(cls.subject) || null })}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Short Name (timetable label)</Label>
-                        <div className="flex gap-1.5">
-                          <Input
-                            value={cls.shortName ?? ""}
-                            onChange={(e) => onUpdate(i, { ...cls, shortName: e.target.value || null })}
-                            placeholder={generateShortName(cls.subject) || "e.g., Calc I"}
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon-sm"
-                            className="shrink-0"
-                            title="Auto-generate"
-                            onClick={() => onUpdate(i, { ...cls, shortName: generateShortName(cls.subject) || null })}
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
+                      <FloatingLabelInput
+                        label="Instructor"
+                        value={cls.instructor ?? ""}
+                        onChange={(e) => onUpdate(i, { ...cls, instructor: e.target.value || null })}
+                      />
+                      <FloatingLabelInput
+                        label="Room"
+                        value={cls.room ?? ""}
+                        onChange={(e) => onUpdate(i, { ...cls, room: e.target.value || null })}
+                      />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Instructor</Label>
-                        <Input
-                          value={cls.instructor ?? ""}
-                          onChange={(e) => onUpdate(i, { ...cls, instructor: e.target.value || null })}
-                          placeholder="e.g., Dr. Smith"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Room</Label>
-                        <Input
-                          value={cls.room ?? ""}
-                          onChange={(e) => onUpdate(i, { ...cls, room: e.target.value || null })}
-                          placeholder="e.g., Room 301"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Section</Label>
-                        <Input
-                          value={cls.section ?? ""}
-                          onChange={(e) => onUpdate(i, { ...cls, section: e.target.value || null })}
-                          placeholder="e.g., A"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Block</Label>
-                        <Input
-                          value={cls.block ?? ""}
-                          onChange={(e) => onUpdate(i, { ...cls, block: e.target.value || null })}
-                          placeholder="e.g., BSCS-1A"
-                        />
-                      </div>
+                      <FloatingLabelInput
+                        label="Section"
+                        value={cls.section ?? ""}
+                        onChange={(e) => onUpdate(i, { ...cls, section: e.target.value || null })}
+                      />
+                      <FloatingLabelInput
+                        label="Block"
+                        value={cls.block ?? ""}
+                        onChange={(e) => onUpdate(i, { ...cls, block: e.target.value || null })}
+                      />
                     </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Start Time *</Label>
-                      <Input
-                        type="time"
-                        value={cls.startTime}
-                        onChange={(e) => onUpdate(i, { ...cls, startTime: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">End Time *</Label>
-                      <Input
-                        type="time"
-                        value={cls.endTime}
-                        onChange={(e) => onUpdate(i, { ...cls, endTime: e.target.value })}
-                      />
-                    </div>
+                    <FloatingLabelInput
+                      type="time"
+                      label="Start Time *"
+                      value={cls.startTime}
+                      onChange={(e) => onUpdate(i, { ...cls, startTime: e.target.value })}
+                    />
+                    <FloatingLabelInput
+                      type="time"
+                      label="End Time *"
+                      value={cls.endTime}
+                      onChange={(e) => onUpdate(i, { ...cls, endTime: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Days *</Label>
