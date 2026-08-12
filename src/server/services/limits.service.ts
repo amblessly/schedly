@@ -1,4 +1,4 @@
-import { getUsage, todayKey } from "@/server/lib/usage-counter";
+import { getUsage, getLimitSnapshots, todayKey } from "@/server/lib/usage-counter";
 
 export type LimitsService = "openrouter_1" | "openrouter_2" | "gemini" | "qstash" | "b2_upload" | "b2_download";
 
@@ -82,23 +82,61 @@ export async function getLimitsStats() {
   const usage = await getUsage(todayKey());
   const byService = new Map(usage.map((u) => [u.service, u]));
 
-  const [or1, or2] = await Promise.all([
+  const [or1, or2, snapshots] = await Promise.all([
     fetchOpenRouterInfo(process.env.OPENROUTER_API_KEY ?? ""),
     fetchOpenRouterInfo(process.env.OPENROUTER_API_KEY_2 ?? ""),
+    getLimitSnapshots(),
   ]);
 
   const stats: LimitsStat[] = Object.entries(CAPS).map(([id, cap]) => {
     const row = byService.get(id);
     const count = row?.count ?? 0;
+
+    const keyInfo = id === "openrouter_1" ? or1 : id === "openrouter_2" ? or2 : undefined;
+    const snap =
+      id === "openrouter_1"
+        ? snapshots.openrouter_1
+        : id === "openrouter_2"
+          ? snapshots.openrouter_2
+          : undefined;
+
+    // For OpenRouter keys the provider-side x-ratelimit snapshot is the
+    // authoritative real-time number (it also reflects failed attempts, which
+    // consume the daily cap); the local request counter is only a fallback
+    // until the first provider response has been captured.
+    const usage =
+      snap?.limit != null ? Math.max(0, snap.limit - (snap.remaining ?? snap.limit)) : count;
+    const limit = snap?.limit ?? cap.limit;
+
+    const realtime: LimitsStat["realtime"] = snap
+      ? {
+          usage,
+          limit: snap.limit,
+          reset: snap.resetAt ? snap.resetAt.toISOString() : (keyInfo?.reset ?? null),
+          remaining: snap.remaining,
+          isFreeTier: keyInfo?.isFreeTier ?? true,
+          label: keyInfo?.label ?? "",
+        }
+      : keyInfo
+        ? {
+            usage: keyInfo.usage,
+            limit: keyInfo.limit,
+            reset: keyInfo.reset,
+            remaining: keyInfo.remaining,
+            isFreeTier: keyInfo.isFreeTier,
+            label: keyInfo.label,
+          }
+        : undefined;
+
     return {
       id,
       name: cap.name,
       description: cap.description,
-      usage: count,
-      limit: cap.limit,
+      usage,
+      limit,
       unit: cap.unit,
-      color: colorFor(count, cap.limit),
-      realtime: id === "openrouter_1" ? or1 : id === "openrouter_2" ? or2 : undefined,
+      color: colorFor(usage, limit),
+      realtime,
     };
   });
 

@@ -1,6 +1,11 @@
 import { preprocessImage } from "./image-processing";
 import { PipelineLogger } from "./structured-logger";
-import { incrementUsage, USAGE_SERVICES } from "./usage-counter";
+import {
+  incrementUsage,
+  saveLimitSnapshot,
+  USAGE_SERVICES,
+  type UsageService,
+} from "./usage-counter";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -83,6 +88,13 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Parse a header value into a finite integer, or null if absent/invalid. */
+function toFiniteInt(value: string | null): number | null {
+  if (!value) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 async function fetchAndPreprocessImage(imageUrl: string) {
   const stage = "preprocess";
   PipelineLogger.info(stage, "Fetching image", { imageUrl });
@@ -140,6 +152,18 @@ async function callOpenRouter(
     }),
   });
 
+  // Persist the provider-side rate-limit snapshot (free-model daily cap) so the
+  // admin Limits dashboard shows the real number even for failed attempts.
+  const whichService: UsageService =
+    apiKey === process.env.OPENROUTER_API_KEY
+      ? USAGE_SERVICES.OPENROUTER_1
+      : USAGE_SERVICES.OPENROUTER_2;
+  void saveLimitSnapshot(whichService, {
+    remaining: toFiniteInt(response.headers.get("x-ratelimit-remaining")),
+    limit: toFiniteInt(response.headers.get("x-ratelimit-limit")),
+    resetAt: response.headers.get("x-ratelimit-reset"),
+  });
+
   // Read the body as text first so a non-JSON response (HTML error page,
   // gateway failure, truncated payload) doesn't throw a raw SyntaxError that
   // escapes as "Unexpected token ... is not valid JSON".
@@ -168,9 +192,7 @@ async function callOpenRouter(
   }
 
   // Track which OpenRouter key served this call (cap dashboard).
-  const which =
-    apiKey === process.env.OPENROUTER_API_KEY ? "OPENROUTER_1" : "OPENROUTER_2";
-  void incrementUsage(USAGE_SERVICES[which]);
+  void incrementUsage(whichService);
 
   return data;
 }
@@ -223,6 +245,10 @@ async function callGemini(
     }),
   });
 
+  // Track Gemini daily usage (cap dashboard). Counted on ANY provider response
+  // because Google charges quota for failed requests too (429/503).
+  void incrementUsage(USAGE_SERVICES.GEMINI);
+
   const bodyText = await response.text();
   let data: unknown;
   try {
@@ -244,9 +270,6 @@ async function callGemini(
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error(`No JSON in Gemini response. Snippet: ${text.slice(0, 200)}`);
-
-  // Track Gemini daily usage (cap dashboard).
-  void incrementUsage(USAGE_SERVICES.GEMINI);
 
   try {
     return JSON.parse(jsonMatch[0]) as Record<string, unknown>;

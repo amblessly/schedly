@@ -347,3 +347,16 @@ model UsageCounter {
   @@index([service])
   @@map("usage_counters")
 }
+
+// Latest provider-side rate-limit snapshot per service, captured from response
+// headers (OpenRouter x-ratelimit-*). Authoritative for "how close is the cap"
+// even when local request counters miss failed attempts.
+model LimitSnapshot {
+  service   String   @id
+  remaining Int?
+  limit     Int?
+  resetAt   DateTime? @map("reset_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("limit_snapshots")
+}

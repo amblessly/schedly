@@ -64,3 +64,53 @@ export async function getUsage(date = todayKey()): Promise<UsageSnapshot[]> {
     bytes: Number(r.bytes),
   }));
 }
+
+export type LimitSnapshotValue = {
+  remaining: number | null;
+  limit: number | null;
+  resetAt: Date | null;
+};
+
+/**
+ * Persist the provider-side rate-limit snapshot from response headers
+ * (e.g. OpenRouter `x-ratelimit-remaining/limit/reset`). Fire-and-forget:
+ * snapshot failures never fail the underlying operation.
+ */
+export async function saveLimitSnapshot(
+  service: UsageService,
+  snapshot: { remaining: number | null; limit: number | null; resetAt: string | null },
+): Promise<void> {
+  try {
+    const toInt = (v: number | null): number | null =>
+      v == null ? null : Number.isFinite(Number(v)) ? Number(v) : null;
+    const remaining = toInt(snapshot.remaining);
+    const limit = toInt(snapshot.limit);
+    const resetAt =
+      snapshot.resetAt && !Number.isNaN(Number(snapshot.resetAt))
+        ? new Date(Number(snapshot.resetAt))
+        : null;
+    if (limit == null && remaining == null && resetAt == null) return;
+    await db.limitSnapshot.upsert({
+      where: { service },
+      create: { service, remaining, limit, resetAt },
+      update: { remaining, limit, resetAt },
+    });
+  } catch (err) {
+    console.error(`[USAGE] failed to save limit snapshot for ${service}:`, err);
+  }
+}
+
+/** Latest persisted limit snapshot per service. */
+export async function getLimitSnapshots(): Promise<Record<string, LimitSnapshotValue>> {
+  try {
+    const rows = await db.limitSnapshot.findMany();
+    const map: Record<string, LimitSnapshotValue> = {};
+    for (const r of rows) {
+      map[r.service] = { remaining: r.remaining, limit: r.limit, resetAt: r.resetAt };
+    }
+    return map;
+  } catch (err) {
+    console.error("[USAGE] failed to read limit snapshots:", err);
+    return {};
+  }
+}

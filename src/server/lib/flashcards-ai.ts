@@ -146,6 +146,10 @@ async function callGemini(
     }),
   });
 
+  // Track Gemini daily usage (cap dashboard). Counted on ANY provider response
+  // because Google charges quota for failed requests too (429/503).
+  void incrementUsage(USAGE_SERVICES.GEMINI);
+
   const bodyText = await response.text();
   let data: unknown;
   try {
@@ -163,9 +167,6 @@ async function callGemini(
 
   const text = (data as { candidates?: { content?: { parts?: { text?: string }[] } }[] })
     .candidates?.[0]?.content?.parts?.[0]?.text;
-
-  // Track Gemini daily usage (cap dashboard).
-  void incrementUsage(USAGE_SERVICES.GEMINI);
 
   return text ?? null;
 }

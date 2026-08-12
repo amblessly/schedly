@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { getLimitsStatsAction } from "../actions";
 import {
@@ -10,8 +10,9 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Activity, Gauge, AlertTriangle, CheckCircle } from "lucide-react";
+import { Activity, Gauge, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type LimitsStat = {
@@ -120,9 +121,14 @@ function StatBar({ stat }: { stat: LimitsStat }) {
           )}
           {stat.realtime.limit != null && (
             <span>
-              Provider limit: {formatNumber(stat.realtime.usage)}/
+              Provider: {formatNumber(stat.realtime.usage)}/
               {formatNumber(stat.realtime.limit)}
-              {stat.realtime.reset ? ` (resets ${new Date(stat.realtime.reset).toLocaleTimeString()})` : ""}
+              {stat.realtime.reset
+                ? ` · resets ${new Date(stat.realtime.reset).toLocaleTimeString()}`
+                : ""}
+              {stat.realtime.remaining === 0 && (
+                <span className="font-semibold text-red-600"> · EXHAUSTED</span>
+              )}
             </span>
           )}
         </div>
@@ -138,26 +144,52 @@ export default function AdminLimitsPage() {
   const [date, setDate] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  const load = useCallback(
+    async (background = false) => {
+      if (!isAdmin) return;
+      if (!background) setRefreshing(true);
+      try {
+        const res = await getLimitsStatsAction();
+        setStats(res.stats);
+        setDate(res.date);
+        setLastUpdated(new Date().toLocaleTimeString());
+        setError("");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load limits");
+      } finally {
+        setRefreshing(false);
+        setLoading(false);
+      }
+    },
+    [isAdmin],
+  );
 
   useEffect(() => {
     if (!isAdmin) return;
     let cancelled = false;
     (async () => {
+      if (cancelled) return;
       try {
         const res = await getLimitsStatsAction();
         if (cancelled) return;
         setStats(res.stats);
         setDate(res.date);
+        setLastUpdated(new Date().toLocaleTimeString());
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load limits");
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
+    const interval = setInterval(() => void load(true), 30_000);
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
-  }, [isAdmin]);
+  }, [isAdmin, load]);
 
   if (!isAdmin) {
     return (
@@ -170,10 +202,40 @@ export default function AdminLimitsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
       <div>
-        <h1 className="text-xl font-bold text-foreground">Service Limits</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Daily usage caps for {date || "today"}. These reset every 24 hours.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Service Limits</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Daily usage caps for {date || "today"} — auto-refreshes every 30s · resets at midnight.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void load(false)}
+            disabled={refreshing}
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </Button>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+              "border-emerald-500/30 bg-emerald-500/10 text-emerald-600",
+            )}
+          >
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+            LIVE
+          </span>
+          {lastUpdated && <span>Last updated {lastUpdated}</span>}
+          {!loading && stats && (
+            <span className="hidden sm:inline">
+              · {stats.filter((s) => s.realtime?.remaining === 0).length} cap(s) exhausted
+            </span>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -219,9 +281,10 @@ export default function AdminLimitsPage() {
         <p className="font-semibold text-foreground">Tips</p>
         <ul className="mt-1 list-inside list-disc space-y-0.5">
           <li>
-            OpenRouter free keys share a ~50 req/day limit — the dashboard uses both keys so calls
-            alternate automatically.
+            OpenRouter cards read the provider&apos;s live rate-limit headers — the numbers update on
+            every AI call, even failed ones.
           </li>
+          <li>Gemini, QStash, and B2 counts come from local request counters (updates as requests are made).</li>
           <li>B2 free tier: 1 GB/day download bandwidth + 2,500 Class B &amp; C transactions/day.</li>
           <li>When a cap is at 90%+ it turns red — consider slowing down or adding a payment method.</li>
         </ul>
