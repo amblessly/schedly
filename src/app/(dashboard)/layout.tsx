@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, ArrowLeft, Bell } from "lucide-react";
+import { Menu, ArrowLeft } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { Sidebar } from "@/components/sidebar";
 import { BottomNav } from "@/components/bottom-nav";
 import { OfflineBanner } from "@/components/offline-banner";
+import { NotificationBell } from "@/components/notification-bell";
 import { useThemeConfig } from "@/features/theme";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { reportClientType, type ClientType } from "./actions";
@@ -291,16 +292,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </button>
       )}
 
-      {/* Notification button — sits to the left of the sidebar menu button */}
-      {!isImmersive && showButton && !isNotifications && (
-        <button
-          onClick={() => router.push("/notifications")}
-          className="fixed right-[4.75rem] top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center rounded-xl bg-sidebar/90 text-sidebar-foreground shadow-[0_8px_40px_rgba(0,0,0,0.12)] transition-colors hover:bg-sidebar"
-          aria-label="Notifications"
-        >
-          <Bell className="h-5 w-5" />
-        </button>
-      )}
+      {/* Notification button — sits to the left of the sidebar menu button.
+          Shows a live unread-count badge; refreshes via polling + navigation. */}
+      {!isImmersive && showButton && !isNotifications && <NotificationBell />}
 
       {/* Floating menu button — opens the sidebar drawer (top-right, same height as the logo) */}
       {!isImmersive && showButton && (

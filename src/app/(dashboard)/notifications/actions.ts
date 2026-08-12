@@ -11,6 +11,12 @@ export async function getUserNotifications() {
   return notificationService.getByUser(session.user.id);
 }
 
+export async function getUnreadNotificationCount(): Promise<number> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return 0;
+  return notificationService.countUnread(session.user.id);
+}
+
 export async function markNotificationRead(id: string): Promise<{ success: boolean }> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return { success: false };

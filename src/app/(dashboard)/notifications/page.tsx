@@ -29,6 +29,7 @@ import {
   MapPin,
   Camera,
   Loader2,
+  ArrowLeft,
 } from "lucide-react";
 
 type Notification = {
@@ -164,6 +165,7 @@ export function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [openId, setOpenId] = useState<string | null>(null);
 
   // Reminders state
   const [schedules, setSchedules] = useState<null | Awaited<ReturnType<typeof getUserSchedules>>>(null);
@@ -372,6 +374,11 @@ export function NotificationsPage() {
     markNotificationRead(id).catch(() => {});
   }
 
+  function openNotification(notification: Notification) {
+    setOpenId(notification.id);
+    if (!notification.read) markAsRead(notification.id);
+  }
+
   function markAllRead() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     markAllNotificationsRead().catch(() => {});
@@ -529,7 +536,8 @@ export function NotificationsPage() {
                 return (
                   <div
                     key={notification.id}
-                    className={`group flex items-start gap-3 rounded-2xl border px-4 py-4 transition-[background-color,box-shadow] hover:shadow-sm sm:gap-4 ${
+                    onClick={() => openNotification(notification)}
+                    className={`group flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-4 transition-[background-color,box-shadow] hover:shadow-sm sm:gap-4 ${
                       unread
                         ? "border-primary/25 bg-primary/[0.04]"
                         : "border-border/30 bg-card/30"
@@ -564,7 +572,10 @@ export function NotificationsPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-primary"
-                          onClick={() => markAsRead(notification.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markAsRead(notification.id);
+                          }}
                           aria-label="Mark as read"
                         >
                           <Check className="h-4 w-4" />
@@ -576,7 +587,10 @@ export function NotificationsPage() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={() => deleteNotification(notification.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNotification(notification.id);
+                        }}
                         aria-label="Delete notification"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -800,6 +814,91 @@ export function NotificationsPage() {
           </BoneSkeleton>
         </>
       )}
+
+      {/* Gmail-style full view of a single notification */}
+      {openId && (
+        <NotificationDetail
+          notification={notifications.find((n) => n.id === openId) ?? null}
+          onBack={() => setOpenId(null)}
+          onDelete={(id) => {
+            deleteNotification(id);
+            setOpenId(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function NotificationDetail({
+  notification,
+  onBack,
+  onDelete,
+}: {
+  notification: Notification | null;
+  onBack: () => void;
+  onDelete: (id: string) => void;
+}) {
+  if (!notification) return null;
+  const Icon = typeIcons[notification.type];
+
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col bg-background animate-fade-up">
+      {/* Header bar */}
+      <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/40 bg-background/90 px-4 py-3 backdrop-blur-sm">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10"
+          onClick={onBack}
+          aria-label="Back to notifications"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <span className="flex-1 truncate text-base font-semibold text-foreground">
+          {notification.title}
+        </span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10 text-muted-foreground hover:text-destructive"
+          onClick={() => onDelete(notification.id)}
+          aria-label="Delete notification"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Message body — Gmail-style reading pane */}
+      <div className="flex-1 overflow-y-auto px-5 pb-10">
+        <div className="mx-auto mt-2 max-w-2xl">
+          <div className="flex items-start gap-4 rounded-2xl border border-border/30 bg-card/30 px-5 py-4">
+            <div
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${typeColors[notification.type]}`}
+            >
+              <Icon className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-bold leading-snug text-foreground">
+                {notification.title}
+              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <span className="capitalize">
+                  {notification.type.replace("_", " ")}
+                </span>
+                <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+                <span>{new Date(notification.createdAt).toLocaleString()}</span>
+                <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+                <span>{timeAgo(notification.createdAt)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 whitespace-pre-wrap rounded-2xl border border-border/30 bg-card/30 px-5 py-6 text-[15px] leading-relaxed text-foreground">
+            {notification.body}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
