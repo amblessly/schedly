@@ -1,6 +1,7 @@
 import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { db } from "@/server/db/client";
 import { b2Client, B2_BUCKET } from "@/server/lib/b2-client";
+import { incrementUsage, USAGE_SERVICES } from "@/server/lib/usage-counter";
 
 export type StoredFile = {
   url: string;
@@ -74,6 +75,8 @@ export async function storeImage(
     });
     const url = `/api/upload/${upload.id}/file`;
     await db.upload.update({ where: { id: upload.id }, data: { fileUrl: url } });
+    // Track B2 upload (Class C transaction) — cap dashboard.
+    void incrementUsage(USAGE_SERVICES.B2_UPLOAD, { bytes: data.byteLength });
     return { url, uploadId: upload.id, storedIn: "blob" };
   } catch (err) {
     console.error("[file-store] Backblaze B2 upload failed:", err);

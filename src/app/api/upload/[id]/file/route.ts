@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { db } from "@/server/db/client";
 import { b2Client, B2_BUCKET } from "@/server/lib/b2-client";
+import { incrementUsage, USAGE_SERVICES } from "@/server/lib/usage-counter";
 
 /**
  * Serves uploaded images WITHOUT touching Neon:
@@ -38,6 +39,8 @@ export async function GET(
       );
       if (!object.Body) throw new Error("empty body");
       const bytes = await object.Body.transformToByteArray();
+      // Track B2 download (Class B transaction + bandwidth) — cap dashboard.
+      void incrementUsage(USAGE_SERVICES.B2_DOWNLOAD, { bytes: bytes.byteLength });
       return new NextResponse(Buffer.from(bytes), {
         headers: {
           "content-type": object.ContentType ?? upload.mimeType ?? "application/octet-stream",

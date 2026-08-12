@@ -9,6 +9,7 @@ import { PipelineLogger } from "@/server/lib/structured-logger";
 import { extractionCache, computeImageHash } from "@/server/lib/image-cache";
 import { preprocessImage } from "@/server/lib/image-processing";
 import { b2Client, B2_BUCKET } from "@/server/lib/b2-client";
+import { incrementUsage, USAGE_SERVICES } from "@/server/lib/usage-counter";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { db } from "@/server/db/client";
 import {
@@ -37,7 +38,9 @@ async function fetchImageBytes(imageUrl: string): Promise<Buffer> {
         new GetObjectCommand({ Bucket: B2_BUCKET, Key: upload.objectKey })
       );
       if (object.Body) {
-        return Buffer.from(await object.Body.transformToByteArray());
+        const bytes = await object.Body.transformToByteArray();
+        void incrementUsage(USAGE_SERVICES.B2_DOWNLOAD, { bytes: bytes.byteLength });
+        return Buffer.from(bytes);
       }
     }
     if (upload?.fileData) {

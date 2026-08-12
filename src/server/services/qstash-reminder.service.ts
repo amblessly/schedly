@@ -4,6 +4,7 @@ import { db } from "@/server/db/client";
 import { sendPush, isVapidConfigured } from "@/server/lib/web-push";
 import { sendFCMPush, isFcmConfigured } from "@/server/lib/firebase-admin";
 import { nextOccurrence } from "@/server/services/reminder-dispatcher.service";
+import { incrementUsage, USAGE_SERVICES } from "@/server/lib/usage-counter";
 import type { DayOfWeek } from "@/generated/prisma/client";
 
 /*
@@ -128,6 +129,7 @@ export async function scheduleQstashReminders(
           retries: 1,
         });
         scheduled++;
+        void incrementUsage(USAGE_SERVICES.QSTASH);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         if (/duplicate|already exists|maxDelay/i.test(msg)) {
@@ -155,6 +157,7 @@ export async function scheduleQstashReminders(
           retries: 1,
         });
         scheduled++;
+        void incrementUsage(USAGE_SERVICES.QSTASH);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         if (/duplicate|already exists|maxDelay/i.test(msg)) {

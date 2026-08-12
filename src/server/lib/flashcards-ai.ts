@@ -1,4 +1,5 @@
 import { PipelineLogger } from "@/server/lib/structured-logger";
+import { incrementUsage, USAGE_SERVICES } from "@/server/lib/usage-counter";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -77,6 +78,12 @@ async function callOpenRouter(
       }`
     );
   }
+
+  // Track which OpenRouter key served this call (cap dashboard).
+  const which =
+    apiKey === process.env.OPENROUTER_API_KEY ? "OPENROUTER_1" : "OPENROUTER_2";
+  void incrementUsage(USAGE_SERVICES[which]);
+
   return data;
 }
 
@@ -156,6 +163,10 @@ async function callGemini(
 
   const text = (data as { candidates?: { content?: { parts?: { text?: string }[] } }[] })
     .candidates?.[0]?.content?.parts?.[0]?.text;
+
+  // Track Gemini daily usage (cap dashboard).
+  void incrementUsage(USAGE_SERVICES.GEMINI);
+
   return text ?? null;
 }
 

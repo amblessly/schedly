@@ -330,3 +330,20 @@ model RateLimitHit {
   @@index([key])
   @@map("rate_limit_hits")
 }
+
+// Daily usage counters for the external-service caps that gate uploads and
+// reminders (OpenRouter keys, Gemini, QStash, Backblaze B2). One row per
+// service per calendar day. Powers the admin Limits dashboard so the
+// "is the cap almost full?" question is always answerable.
+model UsageCounter {
+  id        String   @id @default(uuid())
+  service   String
+  date      String // "YYYY-MM-DD"
+  count     Int      @default(0)
+  bytes     BigInt   @default(0)
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@unique([service, date])
+  @@index([service])
+  @@map("usage_counters")
+}

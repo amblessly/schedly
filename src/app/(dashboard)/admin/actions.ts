@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { adminService } from "@/server/services/admin.service";
 import { auditLog } from "@/server/lib/audit";
 import { db } from "@/server/db/client";
+import { getLimitsStats } from "@/server/services/limits.service";
 
 async function requireAdmin() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -29,6 +30,11 @@ async function verifyPassword(userId: string, password: string): Promise<boolean
 export async function getAdminStats() {
   await requireAdmin();
   return adminService.getStats();
+}
+
+export async function getLimitsStatsAction() {
+  await requireAdmin();
+  return getLimitsStats();
 }
 
 export async function getUsers() {

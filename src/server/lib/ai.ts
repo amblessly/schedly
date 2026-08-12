@@ -1,5 +1,6 @@
 import { preprocessImage } from "./image-processing";
 import { PipelineLogger } from "./structured-logger";
+import { incrementUsage, USAGE_SERVICES } from "./usage-counter";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -166,6 +167,11 @@ async function callOpenRouter(
     throw new Error(`AI API error: ${status} - ${msg}`);
   }
 
+  // Track which OpenRouter key served this call (cap dashboard).
+  const which =
+    apiKey === process.env.OPENROUTER_API_KEY ? "OPENROUTER_1" : "OPENROUTER_2";
+  void incrementUsage(USAGE_SERVICES[which]);
+
   return data;
 }
 
@@ -238,6 +244,9 @@ async function callGemini(
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error(`No JSON in Gemini response. Snippet: ${text.slice(0, 200)}`);
+
+  // Track Gemini daily usage (cap dashboard).
+  void incrementUsage(USAGE_SERVICES.GEMINI);
 
   try {
     return JSON.parse(jsonMatch[0]) as Record<string, unknown>;
