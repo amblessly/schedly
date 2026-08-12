@@ -258,9 +258,14 @@ export default function CapturePage() {
     <div className="mx-auto max-w-4xl pt-8 md:pt-0">
       <div className="mb-6 sm:mb-8">
         {isManualCreate ? (
-          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Add Schedule Manually
-          </h1>
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon-sm" onClick={handleBackToSelect} aria-label="Back">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              Add Schedule Manually
+            </h1>
+          </div>
         ) : (
           <>
             <div className="flex items-center gap-3">
