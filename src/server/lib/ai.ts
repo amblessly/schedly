@@ -200,7 +200,7 @@ async function callGemini(
       contents: [{ role: "user", parts }],
       generationConfig: {
         temperature: opts.temperature ?? 0.1,
-        maxOutputTokens: opts.maxOutputTokens ?? 2048,
+        maxOutputTokens: opts.maxOutputTokens ?? 8192,
         responseMimeType: "application/json",
       },
     }),
@@ -316,22 +316,27 @@ export async function extractScheduleFromImage(
 
   // Gemini primary (free tier, vision included) — mitigates the OpenRouter
   // free-model daily cap that would otherwise hard-block every upload.
+  // Retried once: Gemini free tier sometimes returns transient 503 (high demand).
   if (process.env.GEMINI_API_KEY) {
-    try {
-      const data = await callGemini(
-        [
-          { inline_data: { mime_type: contentType, data: base64 } },
-          { text: "Extract the classes from this image exactly as the system instructions describe. Return ONLY valid JSON." },
-        ],
-        { prompt: SCHEDULE_EXTRACTION_PROMPT },
-      );
-      PipelineLogger.info("extract", "Vision extraction complete (Gemini)", {
-        model: "gemini-flash-latest",
-      });
-      return { data, model: "gemini-flash-latest" };
-    } catch (err) {
-      PipelineLogger.error("extract", "Gemini failed, falling back to OpenRouter", {}, err);
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const data = await callGemini(
+          [
+            { inline_data: { mime_type: contentType, data: base64 } },
+            { text: "Extract the classes from this image exactly as the system instructions describe. Return ONLY valid JSON." },
+          ],
+          { prompt: SCHEDULE_EXTRACTION_PROMPT },
+        );
+        PipelineLogger.info("extract", "Vision extraction complete (Gemini)", {
+          model: "gemini-flash-latest",
+        });
+        return { data, model: "gemini-flash-latest" };
+      } catch (err) {
+        PipelineLogger.error("extract", `Gemini attempt ${attempt} failed`, {}, err);
+        if (attempt < 2) await sleep(1500);
+      }
     }
+    PipelineLogger.error("extract", "Gemini failed, falling back to OpenRouter");
   }
 
   let usedModel = models[0]!;
@@ -368,17 +373,21 @@ export async function validateExtractedData(extractedJson: Record<string, unknow
 
   // Gemini primary (text-only task) — same free-tier mitigation as extraction.
   if (process.env.GEMINI_API_KEY) {
-    try {
-      const prompt = `Re-validate this extracted schedule JSON. Merge duplicates by (subject+room+startTime+endTime), normalize day tokens, fix impossible times, and return the same JSON schema with an "overallConfidence" field.\n\n` +
-        JSON.stringify(extractedJson, null, 2);
-      const data = await callGemini([{ text: prompt }], { prompt });
-      PipelineLogger.info("validate", "Re-validation complete (Gemini)", {
-        model: "gemini-flash-latest",
-      });
-      return data;
-    } catch (err) {
-      PipelineLogger.error("validate", "Gemini failed, falling back to OpenRouter", {}, err);
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const prompt = `Re-validate this extracted schedule JSON. Merge duplicates by (subject+room+startTime+endTime), normalize day tokens, fix impossible times, and return the same JSON schema with an "overallConfidence" field.\n\n` +
+          JSON.stringify(extractedJson, null, 2);
+        const data = await callGemini([{ text: prompt }], { prompt });
+        PipelineLogger.info("validate", "Re-validation complete (Gemini)", {
+          model: "gemini-flash-latest",
+        });
+        return data;
+      } catch (err) {
+        PipelineLogger.error("validate", `Gemini attempt ${attempt} failed`, {}, err);
+        if (attempt < 2) await sleep(1500);
+      }
     }
+    PipelineLogger.error("validate", "Gemini failed, falling back to OpenRouter");
   }
 
   let usedModel = models[0]!;
