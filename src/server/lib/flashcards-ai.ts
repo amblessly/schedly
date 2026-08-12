@@ -196,6 +196,19 @@ async function generateWithProviders(parts: {
   text: string;
   image?: { data: string; mimeType: string };
 }): Promise<FlashcardGenerationResult> {
+  // Gemini primary (free tier ~1,500 requests/day, vision included) so the
+  // OpenRouter free-model daily cap can never hard-block generation.
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const text = await callGemini(parts);
+      const cards = parseGeminiFlashcards(text);
+      PipelineLogger.info("flashcards", "Generated via Gemini", { cards: cards.length });
+      return { cards, model: "gemini-flash-latest" };
+    } catch (err) {
+      PipelineLogger.warn("flashcards", "Gemini failed, falling back to OpenRouter", {}, err);
+    }
+  }
+
   if (OPENROUTER_KEYS.length === 0) {
     throw new Error("No OpenRouter API key configured");
   }
@@ -230,7 +243,6 @@ async function generateWithProviders(parts: {
   // Try each OpenRouter key in order (primary → backup).
   for (let keyIndex = 0; keyIndex < OPENROUTER_KEYS.length; keyIndex++) {
     const apiKey = OPENROUTER_KEYS[keyIndex]!;
-    let lastError: unknown;
     for (const model of GENERATION_MODELS) {
       try {
         const data = await callOpenRouter(model, openRouterMessages, apiKey);
@@ -242,24 +254,10 @@ async function generateWithProviders(parts: {
         });
         return { cards, model };
       } catch (err) {
-        lastError = err;
         PipelineLogger.warn("flashcards", `Model ${model} (key ${keyIndex + 1}) failed`, {}, err);
       }
     }
     PipelineLogger.warn("flashcards", `OpenRouter key ${keyIndex + 1} exhausted, trying next key`);
-  }
-
-  // Gemini as the last resort (free tier ~1,500 requests/day).
-  if (process.env.GEMINI_API_KEY) {
-    try {
-      const text = await callGemini(parts);
-      const cards = parseGeminiFlashcards(text);
-      PipelineLogger.info("flashcards", "Generated via Gemini", { cards: cards.length });
-      return { cards, model: "gemini-flash-latest" };
-    } catch (err) {
-      PipelineLogger.error("flashcards", "Gemini fallback failed", {}, err);
-      throw err;
-    }
   }
 
   throw new Error("Flashcard generation failed (all OpenRouter keys and Gemini)");

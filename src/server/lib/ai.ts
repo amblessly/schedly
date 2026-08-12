@@ -362,7 +362,31 @@ export async function extractScheduleFromImage(
 
   const { base64, contentType } = preloaded ?? (await fetchAndPreprocessImage(imageUrl));
 
-  // OpenRouter keys first (primary → backup), then Gemini as the final fallback.
+  // Gemini primary (free tier ~1,500 requests/day, vision included) so the
+  // OpenRouter free-model daily cap (~50/day) can never hard-block uploads.
+  // Retried once: Gemini free tier sometimes returns transient 503 (high demand).
+  if (process.env.GEMINI_API_KEY) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const data = await callGemini(
+          [
+            { inline_data: { mime_type: contentType, data: base64 } },
+            { text: "Extract the classes from this image exactly as the system instructions describe. Return ONLY valid JSON." },
+          ],
+          { prompt: SCHEDULE_EXTRACTION_PROMPT },
+        );
+        PipelineLogger.info("extract", "Vision extraction complete (Gemini)", {
+          model: "gemini-flash-latest",
+        });
+        return { data, model: "gemini-flash-latest" };
+      } catch (err) {
+        PipelineLogger.error("extract", `Gemini attempt ${attempt} failed`, {}, err);
+        if (attempt < 2) await sleep(1500);
+      }
+    }
+  }
+
+  // OpenRouter keys first (primary → backup), then escalate to the next key.
   let usedModel = models[0]!;
   try {
     const data = await runWithOpenRouterKeys(
@@ -389,36 +413,13 @@ export async function extractScheduleFromImage(
       models,
     );
 
-    PipelineLogger.info("extract", "Vision extraction complete", { model: usedModel });
+    PipelineLogger.info("extract", "Vision extraction complete (OpenRouter)", { model: usedModel });
     return { data, model: usedModel };
   } catch (err) {
-    PipelineLogger.error("extract", "All OpenRouter keys failed, falling back to Gemini", {}, err);
+    PipelineLogger.error("extract", "All OpenRouter keys failed", {}, err);
   }
 
-  // Gemini as the last resort (free tier ~1,500 requests/day, vision included).
-  // Retried once: Gemini free tier sometimes returns transient 503 (high demand).
-  if (process.env.GEMINI_API_KEY) {
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        const data = await callGemini(
-          [
-            { inline_data: { mime_type: contentType, data: base64 } },
-            { text: "Extract the classes from this image exactly as the system instructions describe. Return ONLY valid JSON." },
-          ],
-          { prompt: SCHEDULE_EXTRACTION_PROMPT },
-        );
-        PipelineLogger.info("extract", "Vision extraction complete (Gemini)", {
-          model: "gemini-flash-latest",
-        });
-        return { data, model: "gemini-flash-latest" };
-      } catch (err) {
-        PipelineLogger.error("extract", `Gemini attempt ${attempt} failed`, {}, err);
-        if (attempt < 2) await sleep(1500);
-      }
-    }
-  }
-
-  throw new Error("All AI providers failed (OpenRouter 1, OpenRouter 2, Gemini)");
+  throw new Error("All AI providers failed (Gemini, OpenRouter 1, OpenRouter 2)");
 }
 
 export async function validateExtractedData(extractedJson: Record<string, unknown>) {
@@ -434,7 +435,24 @@ export async function validateExtractedData(extractedJson: Record<string, unknow
     `normalize day tokens, fix impossible times, and return the same JSON schema with an "overallConfidence" field.\n\n` +
     JSON.stringify(extractedJson, null, 2);
 
-  // OpenRouter keys first (primary → backup), then Gemini as the final fallback.
+  // Gemini primary (free tier ~1,500 requests/day, text-only task) so the
+  // OpenRouter free-model daily cap can never hard-block uploads.
+  if (process.env.GEMINI_API_KEY) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const data = await callGemini([{ text: prompt }], { prompt });
+        PipelineLogger.info("validate", "Re-validation complete (Gemini)", {
+          model: "gemini-flash-latest",
+        });
+        return data;
+      } catch (err) {
+        PipelineLogger.error("validate", `Gemini attempt ${attempt} failed`, {}, err);
+        if (attempt < 2) await sleep(1500);
+      }
+    }
+  }
+
+  // OpenRouter keys first (primary → backup), then escalate to the next key.
   let usedModel = models[0]!;
   try {
     const data = await runWithOpenRouterKeys(
@@ -452,26 +470,10 @@ export async function validateExtractedData(extractedJson: Record<string, unknow
     PipelineLogger.info("validate", "Hy3 re-validation complete", { model: usedModel });
     return data;
   } catch (err) {
-    PipelineLogger.error("validate", "All OpenRouter keys failed, falling back to Gemini", {}, err);
+    PipelineLogger.error("validate", "All OpenRouter keys failed", {}, err);
   }
 
-  // Gemini as the last resort (free tier ~1,500 requests/day, text-only task).
-  if (process.env.GEMINI_API_KEY) {
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        const data = await callGemini([{ text: prompt }], { prompt });
-        PipelineLogger.info("validate", "Re-validation complete (Gemini)", {
-          model: "gemini-flash-latest",
-        });
-        return data;
-      } catch (err) {
-        PipelineLogger.error("validate", `Gemini attempt ${attempt} failed`, {}, err);
-        if (attempt < 2) await sleep(1500);
-      }
-    }
-  }
-
-  throw new Error("All AI providers failed (OpenRouter 1, OpenRouter 2, Gemini)");
+  throw new Error("All AI providers failed (Gemini, OpenRouter 1, OpenRouter 2)");
 }
 
 /* ----------------------------------------------------------------------
