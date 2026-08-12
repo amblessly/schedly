@@ -14,6 +14,7 @@ type AuditAction =
   | "reminders.update"
   | "reminders.cron"
   | "reminders.qstash"
+  | "todo.clear_completed"
   | "push.subscribe"
   | "push.unsubscribe"
   | "notification.delete";

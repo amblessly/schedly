@@ -65,6 +65,7 @@ model User {
   accounts      Account[]
   schedules     Schedule[]
   reminders     Reminder[]
+  todos         Todo[]
   uploads       Upload[]
   notifications Notification[]
   feedbacks     Feedback[]
@@ -175,6 +176,22 @@ model Reminder {
   @@index([classId])
   @@index([userId])
   @@map("reminders")
+}
+
+model Todo {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  text        String
+  completed   Boolean   @default(false)
+  priority    String    @default("medium")
+  dueDate     String?   @map("due_date")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("todos")
 }
 
 model PushSubscription {

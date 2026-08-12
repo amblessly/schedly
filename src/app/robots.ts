@@ -15,7 +15,7 @@ export default function robots(): MetadataRoute.Robots {
         "/notifications",
         "/pomodoro",
         "/notes",
-        "/gpa",
+        "/gwa",
         "/upload",
         "/design",
         "/settings",

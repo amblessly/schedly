@@ -14,36 +14,40 @@ type Course = {
   grade: string;
 };
 
+// Philippine grading scale: 1.00 (highest) to 5.00 (failing).
+// Lower GWA = better. INC/DRP/FA don't carry grade points.
 const GRADE_POINTS: Record<string, number> = {
-  "4.0": 4.0,
-  "3.5": 3.5,
-  "3.0": 3.0,
-  "2.5": 2.5,
-  "2.0": 2.0,
-  "1.5": 1.5,
-  "1.0": 1.0,
-  "5.0": 0,
+  "1.00": 1.0,
+  "1.25": 1.25,
+  "1.50": 1.5,
+  "1.75": 1.75,
+  "2.00": 2.0,
+  "2.25": 2.25,
+  "2.50": 2.5,
+  "2.75": 2.75,
+  "3.00": 3.0,
+  "5.00": 5.0,
   "INC": 0,
   "DRP": 0,
   "FA": 0,
 };
 
-const GRADE_OPTIONS = ["4.0", "3.5", "3.0", "2.5", "2.0", "1.5", "1.0", "INC", "DRP", "FA"];
+const GRADE_OPTIONS = ["1.00", "1.25", "1.50", "1.75", "2.00", "2.25", "2.50", "2.75", "3.00", "5.00", "INC", "DRP", "FA"];
 
 let nextId = 1;
 
-export default function GPACalculatorPage() {
+export default function GWACalculatorPage() {
   const [courses, setCourses] = useState<Course[]>([
-    { id: nextId++, name: "", units: "3", grade: "4.0" },
-    { id: nextId++, name: "", units: "3", grade: "4.0" },
-    { id: nextId++, name: "", units: "3", grade: "4.0" },
+    { id: nextId++, name: "", units: "3", grade: "2.00" },
+    { id: nextId++, name: "", units: "3", grade: "2.00" },
+    { id: nextId++, name: "", units: "3", grade: "2.00" },
   ]);
-  const [targetGPA, setTargetGPA] = useState("");
-  const [currentGPA, setCurrentGPA] = useState("");
+  const [targetGWA, setTargetGWA] = useState("");
+  const [currentGWA, setCurrentGWA] = useState("");
   const [currentUnits, setCurrentUnits] = useState("");
 
   function addCourse() {
-    setCourses((prev) => [...prev, { id: nextId++, name: "", units: "3", grade: "4.0" }]);
+    setCourses((prev) => [...prev, { id: nextId++, name: "", units: "3", grade: "2.00" }]);
   }
 
   function removeCourse(id: number) {
@@ -57,12 +61,12 @@ export default function GPACalculatorPage() {
   function resetAll() {
     nextId = 1;
     setCourses([
-      { id: nextId++, name: "", units: "3", grade: "4.0" },
-      { id: nextId++, name: "", units: "3", grade: "4.0" },
-      { id: nextId++, name: "", units: "3", grade: "4.0" },
+      { id: nextId++, name: "", units: "3", grade: "2.00" },
+      { id: nextId++, name: "", units: "3", grade: "2.00" },
+      { id: nextId++, name: "", units: "3", grade: "2.00" },
     ]);
-    setTargetGPA("");
-    setCurrentGPA("");
+    setTargetGWA("");
+    setCurrentGWA("");
     setCurrentUnits("");
   }
 
@@ -71,26 +75,26 @@ export default function GPACalculatorPage() {
     (sum, c) => sum + (parseFloat(c.units) || 0) * (GRADE_POINTS[c.grade] ?? 0),
     0
   );
-  const gpa = totalUnits > 0 ? (totalGradePoints / totalUnits).toFixed(2) : "0.00";
+  const gwa = totalUnits > 0 ? (totalGradePoints / totalUnits).toFixed(2) : "0.00";
 
-  // Cumulative GPA
+  // Cumulative GWA
   const cumUnits = (parseFloat(currentUnits) || 0) + totalUnits;
   const cumGradePoints =
-    (parseFloat(currentGPA) || 0) * (parseFloat(currentUnits) || 0) + totalGradePoints;
-  const cumulativeGPA = cumUnits > 0 ? (cumGradePoints / cumUnits).toFixed(2) : "0.00";
+    (parseFloat(currentGWA) || 0) * (parseFloat(currentUnits) || 0) + totalGradePoints;
+  const cumulativeGWA = cumUnits > 0 ? (cumGradePoints / cumUnits).toFixed(2) : "0.00";
 
-  // Required grade calculation
-  const target = parseFloat(targetGPA) || 0;
+  // Required grade calculation (lower is better — target must be >= 1.00)
+  const target = parseFloat(targetGWA) || 0;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 pt-8 md:pt-0">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            GPA Calculator
+            GWA Calculator
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Compute your semester and cumulative GPA.
+            Compute your semester and cumulative GWA (General Weighted Average).
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={resetAll}>
@@ -99,7 +103,7 @@ export default function GPACalculatorPage() {
         </Button>
       </div>
 
-      {/* Previous GPA */}
+      {/* Previous GWA */}
       <Card className="border-border/50">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -109,16 +113,16 @@ export default function GPACalculatorPage() {
         <CardContent>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="prev-gpa" className="text-xs">Previous GPA</Label>
+              <Label htmlFor="prev-gwa" className="text-xs">Previous GWA</Label>
               <Input
-                id="prev-gpa"
+                id="prev-gwa"
                 type="number"
                 step="0.01"
-                min="0"
-                max="4"
-                placeholder="e.g. 3.5"
-                value={currentGPA}
-                onChange={(e) => setCurrentGPA(e.target.value)}
+                min="1"
+                max="5"
+                placeholder="e.g. 2.50"
+                value={currentGWA}
+                onChange={(e) => setCurrentGWA(e.target.value)}
                 className="h-9"
               />
             </div>
@@ -216,8 +220,8 @@ export default function GPACalculatorPage() {
         <Card className="border-border/50 bg-primary/5">
           <CardContent className="flex flex-col items-center pt-6 pb-4">
             <Calculator className="mb-2 h-5 w-5 text-primary" />
-            <p className="text-xs text-muted-foreground">Semester GPA</p>
-            <p className="text-3xl font-bold text-primary">{gpa}</p>
+            <p className="text-xs text-muted-foreground">Semester GWA</p>
+            <p className="text-3xl font-bold text-primary">{gwa}</p>
             <p className="text-xs text-muted-foreground">{totalUnits} units</p>
           </CardContent>
         </Card>
@@ -225,32 +229,32 @@ export default function GPACalculatorPage() {
         <Card className="border-border/50">
           <CardContent className="flex flex-col items-center pt-6 pb-4">
             <Calculator className="mb-2 h-5 w-5 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground">Cumulative GPA</p>
-            <p className="text-3xl font-bold text-foreground">{cumulativeGPA}</p>
+            <p className="text-xs text-muted-foreground">Cumulative GWA</p>
+            <p className="text-3xl font-bold text-foreground">{cumulativeGWA}</p>
             <p className="text-xs text-muted-foreground">{cumUnits} total units</p>
           </CardContent>
         </Card>
 
         <Card className="border-border/50">
           <CardContent className="space-y-3 pt-6 pb-4">
-            <p className="text-xs text-muted-foreground text-center">Target GPA</p>
+            <p className="text-xs text-muted-foreground text-center">Target GWA</p>
             <Input
               type="number"
               step="0.01"
-              min="0"
-              max="4"
-              placeholder="e.g. 3.5"
-              value={targetGPA}
-              onChange={(e) => setTargetGPA(e.target.value)}
+              min="1"
+              max="5"
+              placeholder="e.g. 2.00"
+              value={targetGWA}
+              onChange={(e) => setTargetGWA(e.target.value)}
               className="h-9 text-center text-lg font-bold"
             />
-            {target > 0 && parseFloat(currentGPA) > 0 && (
+            {target > 0 && parseFloat(currentGWA) > 0 && (
               <div className="text-center">
-                <p className="text-xs text-muted-foreground">Needed GPA this sem:</p>
+                <p className="text-xs text-muted-foreground">Needed GWA this sem:</p>
                 <p className="text-lg font-bold text-foreground">
                   {(() => {
                     const needed = (target * cumUnits - cumGradePoints + totalGradePoints) / totalUnits;
-                    return needed > 4 ? "Not possible" : needed < 0 ? "Already achieved!" : needed.toFixed(2);
+                    return needed < 1 ? "Not possible" : needed > 5 ? "Already achieved!" : needed.toFixed(2);
                   })()}
                 </p>
               </div>

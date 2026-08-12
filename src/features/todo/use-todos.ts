@@ -1,12 +1,21 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
+import {
+  getTodos,
+  addTodoAction,
+  toggleTodoAction,
+  deleteTodoAction,
+  clearCompletedAction,
+  type TodoPriority,
+} from "@/app/(dashboard)/todo/actions";
+import { isNetworkError } from "@/lib/offline-cache";
 
 export type TodoItem = {
   id: string;
   text: string;
   completed: boolean;
-  priority: "low" | "medium" | "high";
+  priority: TodoPriority;
   dueDate?: string;
   createdAt: number;
   completedAt?: number;
@@ -58,44 +67,103 @@ function persist(next: TodoItem[]) {
   listeners.forEach((l) => l());
 }
 
+function rowToItem(row: {
+  id: string;
+  text: string;
+  completed: boolean;
+  priority: string;
+  dueDate: string | null;
+  createdAt: Date | string;
+  completedAt: Date | string | null;
+}): TodoItem {
+  return {
+    id: row.id,
+    text: row.text,
+    completed: row.completed,
+    priority: (row.priority as TodoPriority) || "medium",
+    dueDate: row.dueDate ?? undefined,
+    createdAt: new Date(row.createdAt).getTime(),
+    completedAt: row.completedAt ? new Date(row.completedAt).getTime() : undefined,
+  };
+}
+
 export function useTodos() {
   const todos = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
+  // Sync from the database on first load; fall back to the local cache when
+  // the network is down so tasks keep showing while offline.
+  useEffect(() => {
+    let active = true;
+    getTodos()
+      .then((rows) => {
+        if (!active) return;
+        persist(rows.map(rowToItem));
+      })
+      .catch((err) => {
+        if (!active) return;
+        if (!isNetworkError(err)) console.error("[TODOS_LOAD]", err);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const addTodo = useCallback(
-    (text: string, priority: TodoItem["priority"], dueDate?: string) => {
+    async (text: string, priority: TodoPriority, dueDate?: string) => {
+      const id = crypto.randomUUID();
       const todo: TodoItem = {
-        id: crypto.randomUUID(),
+        id,
         text: text.trim(),
         completed: false,
         priority,
         dueDate: dueDate || undefined,
         createdAt: Date.now(),
       };
+      const prev = cached;
       persist([todo, ...cached]);
+      const result = await addTodoAction(todo.text, priority, dueDate);
+      if (!result.success) {
+        persist(prev);
+        console.error("[ADD_TODO]", result.error);
+      }
     },
     []
   );
 
-  const toggleTodo = useCallback((id: string) => {
-    persist(
-      cached.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              completed: !t.completed,
-              completedAt: !t.completed ? Date.now() : undefined,
-            }
-          : t
-      )
+  const toggleTodo = useCallback(async (id: string) => {
+    const prev = cached;
+    const next = cached.map((t) =>
+      t.id === id
+        ? {
+            ...t,
+            completed: !t.completed,
+            completedAt: !t.completed ? Date.now() : undefined,
+          }
+        : t
     );
+    persist(next);
+    const result = await toggleTodoAction(id);
+    if (!result.success) {
+      persist(prev);
+    }
   }, []);
 
-  const deleteTodo = useCallback((id: string) => {
+  const deleteTodo = useCallback(async (id: string) => {
+    const prev = cached;
     persist(cached.filter((t) => t.id !== id));
+    const result = await deleteTodoAction(id);
+    if (!result.success) {
+      persist(prev);
+    }
   }, []);
 
-  const clearCompleted = useCallback(() => {
+  const clearCompleted = useCallback(async () => {
+    const prev = cached;
     persist(cached.filter((t) => !t.completed));
+    const result = await clearCompletedAction();
+    if (!result.success) {
+      persist(prev);
+    }
   }, []);
 
   return { todos, addTodo, toggleTodo, deleteTodo, clearCompleted };
