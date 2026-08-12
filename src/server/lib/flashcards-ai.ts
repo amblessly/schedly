@@ -2,6 +2,9 @@ import { PipelineLogger } from "@/server/lib/structured-logger";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
+const GEMINI_API_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+
 const GENERATION_MODELS = [
   "google/gemma-4-26b-a4b-it:free",                        // Primary (fast, accurate)
   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",    // Fallback (only on errors)
@@ -94,29 +97,127 @@ function parseFlashcardJson(data: unknown): GeneratedFlashcard[] {
   return cleaned;
 }
 
-/** Generate Q&A flashcards from plain text (PDF text or pasted notes). */
-export async function generateFlashcardsFromText(
-  text: string,
-  title: string
-): Promise<FlashcardGenerationResult> {
-  const material = text.slice(0, 120_000).trim();
-  if (!material) throw new Error("No text to generate from");
+/**
+ * Google Gemini (free tier: ~1,500 requests/day, vision included).
+ * Used FIRST when GEMINI_API_KEY is set — OpenRouter stays as fallback so
+ * the 50 free-requests/day OpenRouter cap can never hard-block generation.
+ */
+async function callGemini(
+  parts: { text: string; image?: { data: string; mimeType: string } }
+): Promise<string | null> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
 
-  const messages = [
-    {
-      role: "system",
-      content: FLASHCARD_PROMPT,
-    },
-    {
-      role: "user",
-      content: `Study material (${title}):\n\n${material}`,
-    },
-  ];
+  const contentParts: Record<string, unknown>[] = [];
+  if (parts.image) {
+    contentParts.push({
+      inline_data: { mime_type: parts.image.mimeType, data: parts.image.data },
+    });
+  }
+  contentParts.push({ text: parts.text });
+
+  const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: FLASHCARD_PROMPT }] },
+      contents: [{ role: "user", parts: contentParts }],
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 4096,
+        responseMimeType: "application/json",
+      },
+    }),
+  });
+
+  const bodyText = await response.text();
+  let data: unknown;
+  try {
+    data = bodyText ? JSON.parse(bodyText) : null;
+  } catch {
+    throw new Error(`Gemini returned a non-JSON response (status ${response.status})`);
+  }
+  if (!response.ok) {
+    throw new Error(
+      `Gemini API error: ${response.status} - ${
+        (data as { error?: { message?: string } })?.error?.message || "Unknown"
+      }`
+    );
+  }
+
+  const text = (data as { candidates?: { content?: { parts?: { text?: string }[] } }[] })
+    .candidates?.[0]?.content?.parts?.[0]?.text;
+  return text ?? null;
+}
+
+function parseGeminiFlashcards(text: string | null): GeneratedFlashcard[] {
+  if (!text) throw new Error("No response from Gemini");
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("No JSON in Gemini response");
+  const parsed = JSON.parse(jsonMatch[0]) as { flashcards?: unknown };
+  const cards = Array.isArray(parsed.flashcards) ? parsed.flashcards : null;
+  if (!cards) throw new Error("Gemini response missing flashcards array");
+
+  const cleaned = cards
+    .map((c) => {
+      const card = c as { front?: unknown; back?: unknown };
+      return {
+        front: typeof card.front === "string" ? card.front.trim().slice(0, 500) : "",
+        back: typeof card.back === "string" ? card.back.trim().slice(0, 2000) : "",
+      };
+    })
+    .filter((c) => c.front && c.back);
+
+  if (cleaned.length === 0) throw new Error("Gemini returned no usable flashcards");
+  return cleaned;
+}
+
+async function generateWithProviders(parts: {
+  text: string;
+  image?: { data: string; mimeType: string };
+}): Promise<FlashcardGenerationResult> {
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const text = await callGemini(parts);
+      const cards = parseGeminiFlashcards(text);
+      PipelineLogger.info("flashcards", "Generated via Gemini", { cards: cards.length });
+      return { cards, model: "gemini-2.5-flash" };
+    } catch (err) {
+      PipelineLogger.warn("flashcards", "Gemini failed, falling back to OpenRouter", {}, err);
+    }
+  }
+
+  const openRouterMessages = parts.image
+    ? [
+        {
+          role: "system",
+          content: FLASHCARD_PROMPT,
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${parts.image.mimeType};base64,${parts.image.data}`,
+              },
+            },
+            { type: "text", text: parts.text },
+          ],
+        },
+      ]
+    : [
+        {
+          role: "system",
+          content: FLASHCARD_PROMPT,
+        },
+        { role: "user", content: parts.text },
+      ];
 
   let lastError: unknown;
   for (const model of GENERATION_MODELS) {
     try {
-      const data = await callOpenRouter(model, messages);
+      const data = await callOpenRouter(model, openRouterMessages);
       const cards = parseFlashcardJson(data);
       PipelineLogger.info("flashcards", "Generated", {
         model,
@@ -131,46 +232,27 @@ export async function generateFlashcardsFromText(
   throw lastError instanceof Error ? lastError : new Error("Flashcard generation failed");
 }
 
+/** Generate Q&A flashcards from plain text (PDF text or pasted notes). */
+export async function generateFlashcardsFromText(
+  text: string,
+  title: string
+): Promise<FlashcardGenerationResult> {
+  const material = text.slice(0, 120_000).trim();
+  if (!material) throw new Error("No text to generate from");
+
+  return generateWithProviders({
+    text: `Study material (${title}):\n\n${material}`,
+  });
+}
+
 /** Generate Q&A flashcards from an image (notes / handout photo). */
 export async function generateFlashcardsFromImage(
   base64: string,
   contentType: string,
   title: string
 ): Promise<FlashcardGenerationResult> {
-  const messages = [
-    {
-      role: "system",
-      content: FLASHCARD_PROMPT,
-    },
-    {
-      role: "user",
-      content: [
-        {
-          type: "image_url",
-          image_url: { url: `data:${contentType};base64,${base64}` },
-        },
-        {
-          type: "text",
-          text: `This image is study material titled "${title}". Create flashcards from its content.`,
-        },
-      ],
-    },
-  ];
-
-  let lastError: unknown;
-  for (const model of GENERATION_MODELS) {
-    try {
-      const data = await callOpenRouter(model, messages);
-      const cards = parseFlashcardJson(data);
-      PipelineLogger.info("flashcards", "Generated from image", {
-        model,
-        cards: cards.length,
-      });
-      return { cards, model };
-    } catch (err) {
-      lastError = err;
-      PipelineLogger.warn("flashcards", `Model ${model} failed (image)`, {}, err);
-    }
-  }
-  throw lastError instanceof Error ? lastError : new Error("Flashcard generation failed");
+  return generateWithProviders({
+    text: `This image is study material titled "${title}". Create flashcards from its content.`,
+    image: { data: base64, mimeType: contentType },
+  });
 }
