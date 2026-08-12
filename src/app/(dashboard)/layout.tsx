@@ -60,6 +60,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const showButton = !open;
   const pathname = usePathname();
   const router = useRouter();
+  const [avatarError, setAvatarError] = useState(false);
 
   // First-time users are pushed through the setup flow before using the app.
   const { user, isLoading } = useAuth();
@@ -86,7 +87,18 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const lastName = u?.lastName || "";
   const displayName = lastName ? `${firstName} ${lastName}` : firstName;
   const initials = firstName.charAt(0).toUpperCase();
-  const userAvatar = u?.image || u?.avatarUrl || null;
+  const rawAvatar = u?.image || u?.avatarUrl || null;
+  // Ensure avatar URL is absolute for Capacitor/PWA origins.
+  const resolvedAvatar =
+    rawAvatar && !rawAvatar.startsWith("data:") && !rawAvatar.startsWith("http") && rawAvatar.startsWith("/")
+      ? `${typeof window !== "undefined" ? window.location.origin : ""}${rawAvatar}`
+      : rawAvatar;
+  const userAvatar = avatarError ? null : resolvedAvatar;
+
+  // Reset the broken-avatar flag when the session's avatar actually changes.
+  useEffect(() => {
+    setAvatarError(false);
+  }, [resolvedAvatar]);
 
   // Auto-download offline support: once signed in, warm the cache with the
   // main tab pages so they're instantly available (and work) offline. The
@@ -292,7 +304,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           {isSettings || isProfile || isAdmin || isFeedback || isNotifications ? (
             <ArrowLeft className="h-6 w-6 text-foreground" />
           ) : userAvatar ? (
-            <img src={userAvatar} alt={displayName} className="h-11 w-11 rounded-full object-cover ring-2 ring-border/40" />
+            <img src={userAvatar} alt={displayName} onError={() => setAvatarError(true)} className="h-11 w-11 rounded-full object-cover ring-2 ring-border/40" />
           ) : (
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary ring-2 ring-border/40">
               {initials}

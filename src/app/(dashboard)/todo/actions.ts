@@ -74,6 +74,37 @@ export async function toggleTodoAction(todoId: string): Promise<{ success: boole
   }
 }
 
+export type EditTodoResult = { success: true } | { success: false; error: string };
+
+export async function editTodoAction(
+  todoId: string,
+  text: string,
+  priority: string,
+  dueDate?: string
+): Promise<EditTodoResult> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return { success: false, error: "Unauthorized" };
+
+  const clean = text.trim();
+  if (!clean) return { success: false, error: "Task text is required" };
+  if (clean.length > 500) return { success: false, error: "Task is too long (max 500 characters)" };
+  if (!isPriority(priority)) return { success: false, error: "Invalid priority" };
+  if (dueDate && !DUE_DATE_RE.test(dueDate)) return { success: false, error: "Invalid due date" };
+
+  try {
+    const existing = await db.todo.findFirst({ where: { id: todoId, userId: session.user.id } });
+    if (!existing) return { success: false, error: "Task not found" };
+    await db.todo.update({
+      where: { id: todoId },
+      data: { text: clean, priority, dueDate: dueDate || null },
+    });
+    return { success: true };
+  } catch (err) {
+    console.error("[EDIT_TODO]", err);
+    return { success: false, error: "Failed to update task" };
+  }
+}
+
 export async function deleteTodoAction(todoId: string): Promise<{ success: boolean }> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return { success: false };

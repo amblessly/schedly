@@ -1,19 +1,9 @@
 import { preprocessImage } from "./image-processing";
 import { PipelineLogger } from "./structured-logger";
-import {
-  incrementUsage,
-  saveLimitSnapshot,
-  USAGE_SERVICES,
-  type UsageService,
-} from "./usage-counter";
+import { incrementUsage, saveLimitSnapshot, USAGE_SERVICES } from "./usage-counter";
+import { OPENROUTER_KEYS, openRouterServiceFor } from "./openrouter-keys";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-
-/** Ordered list of OpenRouter API keys tried on failure (primary → backup). */
-const OPENROUTER_KEYS = [
-  process.env.OPENROUTER_API_KEY,
-  process.env.OPENROUTER_API_KEY_2,
-].filter((k): k is string => !!k && k.trim().length > 0);
 
 const GEMINI_GENERATE_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
@@ -154,10 +144,7 @@ async function callOpenRouter(
 
   // Persist the provider-side rate-limit snapshot (free-model daily cap) so the
   // admin Limits dashboard shows the real number even for failed attempts.
-  const whichService: UsageService =
-    apiKey === process.env.OPENROUTER_API_KEY
-      ? USAGE_SERVICES.OPENROUTER_1
-      : USAGE_SERVICES.OPENROUTER_2;
+  const whichService = openRouterServiceFor(apiKey);
   void saveLimitSnapshot(whichService, {
     remaining: toFiniteInt(response.headers.get("x-ratelimit-remaining")),
     limit: toFiniteInt(response.headers.get("x-ratelimit-limit")),

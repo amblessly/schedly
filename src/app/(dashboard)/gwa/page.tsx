@@ -14,40 +14,94 @@ type Course = {
   grade: string;
 };
 
-// Philippine grading scale: 1.00 (highest) to 5.00 (failing).
-// Lower GWA = better. INC/DRP/FA don't carry grade points.
-const GRADE_POINTS: Record<string, number> = {
-  "1.00": 1.0,
-  "1.25": 1.25,
-  "1.50": 1.5,
-  "1.75": 1.75,
-  "2.00": 2.0,
-  "2.25": 2.25,
-  "2.50": 2.5,
-  "2.75": 2.75,
-  "3.00": 3.0,
-  "5.00": 5.0,
-  "INC": 0,
-  "DRP": 0,
-  "FA": 0,
+// Grading systems. Each scale maps a grade label to a numeric point value.
+// - Philippine: 1.00 (highest) to 5.00 (failing). Lower GWA = better.
+// - US 4.0: A+ (4.0) highest to F (0). Higher GWA = better.
+// INC/DRP/FA don't carry grade points.
+type GradingScale = {
+  id: string;
+  label: string;
+  defaultGrade: string;
+  lowerIsBetter: boolean;
+  minPoint: number;
+  maxPoint: number;
+  points: Record<string, number>;
 };
 
-const GRADE_OPTIONS = ["1.00", "1.25", "1.50", "1.75", "2.00", "2.25", "2.50", "2.75", "3.00", "5.00", "INC", "DRP", "FA"];
+const GRADING_SCALES: Record<string, GradingScale> = {
+  philippine: {
+    id: "philippine",
+    label: "Philippine 1.00–5.00",
+    defaultGrade: "2.00",
+    lowerIsBetter: true,
+    minPoint: 1,
+    maxPoint: 5,
+    points: {
+      "1.00": 1.0,
+      "1.25": 1.25,
+      "1.50": 1.5,
+      "1.75": 1.75,
+      "2.00": 2.0,
+      "2.25": 2.25,
+      "2.50": 2.5,
+      "2.75": 2.75,
+      "3.00": 3.0,
+      "5.00": 5.0,
+      "INC": 0,
+      "DRP": 0,
+      "FA": 0,
+    },
+  },
+  us4: {
+    id: "us4",
+    label: "US 4.0 (A–F)",
+    defaultGrade: "B",
+    lowerIsBetter: false,
+    minPoint: 0,
+    maxPoint: 4,
+    points: {
+      "A+": 4.0,
+      "A": 4.0,
+      "A-": 3.7,
+      "B+": 3.3,
+      "B": 3.0,
+      "B-": 2.7,
+      "C+": 2.3,
+      "C": 2.0,
+      "C-": 1.7,
+      "D+": 1.3,
+      "D": 1.0,
+      "D-": 0.7,
+      "F": 0,
+      "INC": 0,
+      "DRP": 0,
+    },
+  },
+};
 
 let nextId = 1;
 
 export default function GWACalculatorPage() {
-  const [courses, setCourses] = useState<Course[]>([
-    { id: nextId++, name: "", units: "3", grade: "2.00" },
-    { id: nextId++, name: "", units: "3", grade: "2.00" },
-    { id: nextId++, name: "", units: "3", grade: "2.00" },
-  ]);
+  const [scaleId, setScaleId] = useState<string>("philippine");
+  const scale = GRADING_SCALES[scaleId]!;
+  const GRADE_POINTS = scale.points;
+  const GRADE_OPTIONS: string[] = Object.keys(scale.points);
+
+  const [courses, setCourses] = useState<Course[]>(() => defaultCourses());
+
+  function defaultCourses(): Course[] {
+    return [
+      { id: nextId++, name: "", units: "3", grade: scale.defaultGrade },
+      { id: nextId++, name: "", units: "3", grade: scale.defaultGrade },
+      { id: nextId++, name: "", units: "3", grade: scale.defaultGrade },
+    ];
+  }
   const [targetGWA, setTargetGWA] = useState("");
   const [currentGWA, setCurrentGWA] = useState("");
   const [currentUnits, setCurrentUnits] = useState("");
 
   function addCourse() {
-    setCourses((prev) => [...prev, { id: nextId++, name: "", units: "3", grade: "2.00" }]);
+    setCourses((prev) => [...prev, { id: nextId++, name: "", units: "3", grade: scale.defaultGrade }]);
   }
 
   function removeCourse(id: number) {
@@ -60,14 +114,24 @@ export default function GWACalculatorPage() {
 
   function resetAll() {
     nextId = 1;
-    setCourses([
-      { id: nextId++, name: "", units: "3", grade: "2.00" },
-      { id: nextId++, name: "", units: "3", grade: "2.00" },
-      { id: nextId++, name: "", units: "3", grade: "2.00" },
-    ]);
+    setCourses(defaultCourses());
     setTargetGWA("");
     setCurrentGWA("");
     setCurrentUnits("");
+  }
+
+  function handleScaleChange(nextIdVal: string) {
+    const next = GRADING_SCALES[nextIdVal]!;
+    setScaleId(nextIdVal);
+    // Remap any grade that doesn't exist in the new scale to its default.
+    setCourses((prev) =>
+      prev.map((c) => ({
+        ...c,
+        grade: next.points[c.grade] !== undefined ? c.grade : next.defaultGrade,
+      }))
+    );
+    setTargetGWA("");
+    setCurrentGWA("");
   }
 
   const totalUnits = courses.reduce((sum, c) => sum + (parseFloat(c.units) || 0), 0);
@@ -97,10 +161,22 @@ export default function GWACalculatorPage() {
             Compute your semester and cumulative GWA (General Weighted Average).
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={resetAll}>
-          <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-          Reset
-        </Button>
+        <div className="flex items-center gap-2">
+          <select
+            value={scaleId}
+            onChange={(e) => handleScaleChange(e.target.value)}
+            className="h-9 rounded-lg border border-input bg-card px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+            aria-label="Grading system"
+          >
+            {Object.values(GRADING_SCALES).map((s) => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
+          <Button variant="outline" size="sm" onClick={resetAll}>
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+            Reset
+          </Button>
+        </div>
       </div>
 
       {/* Previous GWA */}
@@ -118,9 +194,9 @@ export default function GWACalculatorPage() {
                 id="prev-gwa"
                 type="number"
                 step="0.01"
-                min="1"
-                max="5"
-                placeholder="e.g. 2.50"
+                min={scale.minPoint}
+                max={scale.maxPoint}
+                placeholder={scale.lowerIsBetter ? "e.g. 2.50" : "e.g. 3.00"}
                 value={currentGWA}
                 onChange={(e) => setCurrentGWA(e.target.value)}
                 className="h-9"
@@ -241,9 +317,9 @@ export default function GWACalculatorPage() {
             <Input
               type="number"
               step="0.01"
-              min="1"
-              max="5"
-              placeholder="e.g. 2.00"
+              min={scale.minPoint}
+              max={scale.maxPoint}
+              placeholder={scale.lowerIsBetter ? "e.g. 2.00" : "e.g. 3.50"}
               value={targetGWA}
               onChange={(e) => setTargetGWA(e.target.value)}
               className="h-9 text-center text-lg font-bold"
@@ -254,7 +330,10 @@ export default function GWACalculatorPage() {
                 <p className="text-lg font-bold text-foreground">
                   {(() => {
                     const needed = (target * cumUnits - cumGradePoints + totalGradePoints) / totalUnits;
-                    return needed < 1 ? "Not possible" : needed > 5 ? "Already achieved!" : needed.toFixed(2);
+                    if (scale.lowerIsBetter) {
+                      return needed < scale.minPoint ? "Not possible" : needed > scale.maxPoint ? "Already achieved!" : needed.toFixed(2);
+                    }
+                    return needed > scale.maxPoint ? "Not possible" : needed < scale.minPoint ? "Already achieved!" : needed.toFixed(2);
                   })()}
                 </p>
               </div>

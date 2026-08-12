@@ -7,6 +7,7 @@ import {
   toggleTodoAction,
   deleteTodoAction,
   clearCompletedAction,
+  editTodoAction,
   type TodoPriority,
 } from "@/app/(dashboard)/todo/actions";
 import { isNetworkError } from "@/lib/offline-cache";
@@ -166,7 +167,20 @@ export function useTodos() {
     }
   }, []);
 
-  return { todos, addTodo, toggleTodo, deleteTodo, clearCompleted };
+  const editTodo = useCallback(async (id: string, text: string, priority: TodoPriority, dueDate?: string) => {
+    const prev = cached;
+    const next = cached.map((t) =>
+      t.id === id ? { ...t, text: text.trim(), priority, dueDate: dueDate || undefined } : t
+    );
+    persist(next);
+    const result = await editTodoAction(id, text, priority, dueDate);
+    if (!result.success) {
+      persist(prev);
+      console.error("[EDIT_TODO]", result.error);
+    }
+  }, []);
+
+  return { todos, addTodo, toggleTodo, deleteTodo, clearCompleted, editTodo };
 }
 
 export function isToday(ts: number): boolean {

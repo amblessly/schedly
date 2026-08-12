@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Camera, Image, AlertCircle, CheckCircle, ArrowLeft,
-  Calendar, Upload, X,
+  Calendar, Upload, X, Plus,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { validateExtractedClasses, type ValidationIssue } from "@/server/services/validation.service";
@@ -196,6 +196,16 @@ export default function CapturePage() {
     setPhase("upload-select");
   };
 
+  const handleCreateManually = () => {
+    // Skip upload, go straight to review with empty classes
+    setValidationIssues([]);
+    clearReviewState(userId);
+    clearUploadState(userId);
+    resetUpload();
+    restoreExtractedClasses([]);
+    setPhase("review");
+  };
+
   const handleBackToCalendar = () => {
     removeFile();
     setValidationIssues([]);
@@ -316,6 +326,13 @@ export default function CapturePage() {
                 <input id="upload-file" type="file" accept="image/*" className="hidden"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); }} />
               </div>
+              <Button
+                variant="ghost"
+                className="mt-3 w-full max-w-sm text-sm text-muted-foreground hover:text-primary"
+                onClick={handleCreateManually}
+              >
+                <Plus className="mr-2 h-4 w-4" /> Create manually instead
+              </Button>
             </>
           ) : (
             <div className="w-full max-w-md space-y-4">

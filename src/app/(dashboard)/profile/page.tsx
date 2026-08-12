@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Check, Save } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -81,7 +81,19 @@ export default function ProfilePage() {
     ? new Date(u.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })
     : "Unknown";
 
-  const avatarUrl = pendingUrl || u?.image || u?.avatarUrl || null;
+  const [imgError, setImgError] = useState(false);
+  const rawAvatar = pendingUrl || u?.image || u?.avatarUrl || null;
+  // Ensure avatar URL is absolute for Capacitor/PWA origins.
+  const resolvedAvatar =
+    rawAvatar && !rawAvatar.startsWith("data:") && !rawAvatar.startsWith("http") && rawAvatar.startsWith("/")
+      ? `${typeof window !== "undefined" ? window.location.origin : ""}${rawAvatar}`
+      : rawAvatar;
+  const avatarUrl = imgError ? null : resolvedAvatar;
+
+  // Reset the error flag when the user uploads/previews a new photo.
+  useEffect(() => {
+    if (pendingUrl) setImgError(false);
+  }, [pendingUrl]);
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -155,6 +167,7 @@ export default function ProfilePage() {
                     <img
                       src={avatarUrl}
                       alt={displayName}
+                      onError={() => setImgError(true)}
                       className="h-20 w-20 rounded-full object-cover ring-2 ring-border/40 transition-shadow group-hover:ring-primary/40"
                     />
                   ) : (
@@ -175,7 +188,7 @@ export default function ProfilePage() {
                   </DialogHeader>
                   <div className="flex items-center justify-center p-4">
                     {avatarUrl ? (
-                      <img src={avatarUrl} alt={displayName} className="max-h-[70vh] max-w-full rounded-xl object-contain" />
+                      <img src={avatarUrl} alt={displayName} onError={() => setImgError(true)} className="max-h-[70vh] max-w-full rounded-xl object-contain" />
                     ) : (
                       <div className="flex h-40 w-40 items-center justify-center rounded-full bg-primary/10 text-5xl font-semibold text-primary">
                         {initials}

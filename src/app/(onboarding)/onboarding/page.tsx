@@ -38,6 +38,8 @@ export default function OnboardingPage() {
 
   const [step, setStep] = useState<1 | 2>(1);
   const [avatarUrl, setAvatarUrl] = useState<string | null>((u?.image as string) || (u?.avatarUrl as string) || null);
+  const [avatarError, setAvatarError] = useState(false);
+  const displayAvatar = avatarError ? null : avatarUrl;
   const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
@@ -214,8 +216,8 @@ export default function OnboardingPage() {
                   disabled={uploading}
                   className="group relative h-24 w-24 overflow-hidden rounded-full ring-2 ring-border/40 transition-shadow hover:ring-primary/40"
                 >
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt="Profile avatar" className="h-full w-full object-cover" />
+                  {displayAvatar ? (
+                    <img src={displayAvatar} alt="Profile avatar" onError={() => setAvatarError(true)} className="h-full w-full object-cover" />
                   ) : (
                     <span className="flex h-full w-full items-center justify-center bg-primary/10 text-3xl font-semibold text-primary">
                       {initials}

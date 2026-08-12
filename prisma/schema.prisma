@@ -303,6 +303,7 @@ enum FeedbackType {
 model Feedback {
   id        String       @id @default(uuid())
   userId    String       @map("user_id")
+  email     String?      @map("email")
   type      FeedbackType @default(feedback)
   subject   String?
   message   String

@@ -117,7 +117,7 @@ function StatBar({ stat }: { stat: LimitsStat }) {
       {stat.realtime && (
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
           {stat.realtime.isFreeTier && (
-            <span>Free tier key — 50 req/day soft limit</span>
+            <span>Free tier — ~50 req/day per key</span>
           )}
           {stat.realtime.limit != null && (
             <span>
@@ -281,8 +281,8 @@ export default function AdminLimitsPage() {
         <p className="font-semibold text-foreground">Tips</p>
         <ul className="mt-1 list-inside list-disc space-y-0.5">
           <li>
-            OpenRouter cards read the provider&apos;s live rate-limit headers — the numbers update on
-            every AI call, even failed ones.
+            The OpenRouter card aggregates every configured key — it reads the provider&apos;s live
+            rate-limit headers and sums them, so the numbers update on every AI call, even failed ones.
           </li>
           <li>Gemini, QStash, and B2 counts come from local request counters (updates as requests are made).</li>
           <li>B2 free tier: 1 GB/day download bandwidth + 2,500 Class B &amp; C transactions/day.</li>

@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
     const feedback = await db.feedback.create({
       data: {
         userId: session.user.id,
+        email: session.user.email ?? null,
         type,
         subject: subject ?? null,
         message,

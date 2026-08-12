@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, ListTodo, CircleDot, CalendarDays, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, ListTodo, CircleDot, CalendarDays, CheckCircle2, Pencil, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTodos } from "@/features/todo/use-todos";
 
@@ -38,17 +38,38 @@ function isOverdue(dateStr: string): boolean {
 }
 
 export default function TodoPage() {
-  const { todos, addTodo, toggleTodo, deleteTodo, clearCompleted } = useTodos();
+  const { todos, addTodo, toggleTodo, deleteTodo, clearCompleted, editTodo } = useTodos();
   const [filter, setFilter] = useState<FilterType>("all");
   const [newText, setNewText] = useState("");
   const [newPriority, setNewPriority] = useState<Priority>("medium");
   const [newDueDate, setNewDueDate] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [editPriority, setEditPriority] = useState<Priority>("medium");
+  const [editDueDate, setEditDueDate] = useState("");
 
   function handleAdd() {
     if (!newText.trim()) return;
     addTodo(newText, newPriority, newDueDate || undefined);
     setNewText("");
     setNewDueDate("");
+  }
+
+  function startEdit(id: string, text: string, priority: Priority, dueDate?: string) {
+    setEditingId(id);
+    setEditText(text);
+    setEditPriority(priority);
+    setEditDueDate(dueDate || "");
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function saveEdit(id: string) {
+    if (!editText.trim()) return;
+    await editTodo(id, editText, editPriority, editDueDate || undefined);
+    setEditingId(null);
   }
 
   const filtered = todos.filter((t) => {
@@ -199,11 +220,12 @@ export default function TodoPage() {
           {filtered.map((todo) => {
             const overdue = todo.dueDate ? isOverdue(todo.dueDate) : false;
             const due = todo.dueDate ? dueDateLabel(todo.dueDate) : null;
+            const isEditing = editingId === todo.id;
             return (
               <div
                 key={todo.id}
                 className={cn(
-                  "group flex items-center gap-3 rounded-xl border bg-card px-4 py-3 transition-colors",
+                  "group rounded-xl border bg-card px-4 py-3 transition-colors",
                   todo.completed
                     ? "border-border/40 opacity-60"
                     : overdue
@@ -211,52 +233,115 @@ export default function TodoPage() {
                       : "border-border/60"
                 )}
               >
-                <Checkbox
-                  checked={todo.completed}
-                  onCheckedChange={() => toggleTodo(todo.id)}
-                  aria-label={`Mark ${todo.text} as ${todo.completed ? "active" : "completed"}`}
-                />
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={cn(
-                      "text-sm font-medium",
-                      todo.completed
-                        ? "text-muted-foreground line-through"
-                        : "text-foreground"
-                    )}
-                  >
-                    {todo.text}
-                  </p>
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <span className="flex items-center gap-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-                      <span className={cn("h-1.5 w-1.5 rounded-full", PRIORITY_DOTS[todo.priority])} />
-                      {todo.priority}
-                    </span>
-                    {due && (
-                      <span
+                {isEditing ? (
+                  <div className="space-y-3">
+                    <Input
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && saveEdit(todo.id)}
+                      className="h-10 text-sm"
+                      autoFocus
+                    />
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs font-medium text-muted-foreground">Priority</Label>
+                        <div className="flex gap-1.5">
+                          {(["low", "medium", "high"] as const).map((p) => (
+                            <button
+                              key={p}
+                              onClick={() => setEditPriority(p)}
+                              className={cn(
+                                "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition-colors",
+                                editPriority === p
+                                  ? "border-primary/40 bg-primary/10 text-foreground"
+                                  : "border-border/50 bg-card text-muted-foreground hover:text-foreground"
+                              )}
+                            >
+                              <span className={cn("h-1.5 w-1.5 rounded-full", PRIORITY_DOTS[p])} />
+                              {p}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                        <Input
+                          type="date"
+                          value={editDueDate}
+                          onChange={(e) => setEditDueDate(e.target.value)}
+                          className="h-8 w-36 text-xs"
+                          aria-label="Due date"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="sm" onClick={cancelEdit} className="h-8 text-xs">
+                        <X className="mr-1 h-3.5 w-3.5" /> Cancel
+                      </Button>
+                      <Button size="sm" onClick={() => saveEdit(todo.id)} className="h-8 text-xs">
+                        <Check className="mr-1 h-3.5 w-3.5" /> Save
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={todo.completed}
+                      onCheckedChange={() => toggleTodo(todo.id)}
+                      aria-label={`Mark ${todo.text} as ${todo.completed ? "active" : "completed"}`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p
                         className={cn(
-                          "flex items-center gap-1 text-[11px] font-medium",
-                          overdue && !todo.completed
-                            ? "text-destructive"
-                            : "text-muted-foreground"
+                          "text-sm font-medium",
+                          todo.completed
+                            ? "text-muted-foreground line-through"
+                            : "text-foreground"
                         )}
                       >
-                        <CalendarDays className="h-3 w-3" />
-                        {overdue && !todo.completed ? "Overdue · " : ""}
-                        {due}
-                      </span>
-                    )}
+                        {todo.text}
+                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <span className="flex items-center gap-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                          <span className={cn("h-1.5 w-1.5 rounded-full", PRIORITY_DOTS[todo.priority])} />
+                          {todo.priority}
+                        </span>
+                        {due && (
+                          <span
+                            className={cn(
+                              "flex items-center gap-1 text-[11px] font-medium",
+                              overdue && !todo.completed
+                                ? "text-destructive"
+                                : "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarDays className="h-3 w-3" />
+                            {overdue && !todo.completed ? "Overdue · " : ""}
+                            {due}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 text-muted-foreground/50 md:opacity-0 md:group-hover:opacity-100 hover:text-foreground"
+                      onClick={() => startEdit(todo.id, todo.text, todo.priority, todo.dueDate)}
+                      aria-label={`Edit ${todo.text}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 text-muted-foreground/50 md:opacity-0 md:group-hover:opacity-100 hover:text-destructive"
+                      onClick={() => deleteTodo(todo.id)}
+                      aria-label={`Delete ${todo.text}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 text-muted-foreground/50 md:opacity-0 md:group-hover:opacity-100 hover:text-destructive"
-                  onClick={() => deleteTodo(todo.id)}
-                  aria-label={`Delete ${todo.text}`}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                )}
               </div>
             );
           })}

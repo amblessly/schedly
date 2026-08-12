@@ -1,6 +1,7 @@
 import { getUsage, getLimitSnapshots, todayKey } from "@/server/lib/usage-counter";
+import { OPENROUTER_KEYS, OPENROUTER_SERVICES } from "@/server/lib/openrouter-keys";
 
-export type LimitsService = "openrouter_1" | "openrouter_2" | "gemini" | "qstash" | "b2_upload" | "b2_download";
+export type LimitsService = "openrouter" | "gemini" | "qstash" | "b2_upload" | "b2_download";
 
 export type LimitsStat = {
   id: string;
@@ -22,12 +23,21 @@ export type LimitsStat = {
   };
 };
 
+type Cap = { name: string; description: string; limit: number; unit: "requests" | "transactions" };
+
+/** OpenRouter free-model cap per key (~50 req/day). Combined across all keys. */
+const OPENROUTER_DEFAULT_LIMIT_PER_KEY = 50;
+
 /** Request/day caps for each external service (free tier unless noted). */
-const CAPS: Record<LimitsService, { name: string; description: string; limit: number; unit: "requests" | "transactions" }> = {
-  openrouter_1: { name: "OpenRouter Key 1", description: "AI extraction + flashcard generation", limit: 50, unit: "requests" },
-  openrouter_2: { name: "OpenRouter Key 2", description: "AI extraction + flashcard generation (backup key)", limit: 50, unit: "requests" },
+const CAPS: Record<LimitsService, Cap> = {
+  openrouter: {
+    name: "OpenRouter (All Keys)",
+    description: "AI extraction + flashcard generation — combined across every configured key",
+    limit: OPENROUTER_DEFAULT_LIMIT_PER_KEY,
+    unit: "requests",
+  },
   gemini: { name: "Gemini Flash", description: "Fallback AI model for extraction", limit: 1500, unit: "requests" },
-  qstash: { name: "QStash Messages", description: "Scheduled class reminders + push delivery", limit: 1000, unit: "transactions" },
+  qstash: { name: "QStash Messages", description: "Scheduled class reminders + push delivery", limit: 10000, unit: "transactions" },
   b2_upload: { name: "B2 Uploads (Class C)", description: "Image uploads to Backblaze", limit: 2500, unit: "transactions" },
   b2_download: { name: "B2 Downloads (Class B)", description: "Image downloads / previews", limit: 2500, unit: "transactions" },
 };
@@ -82,63 +92,77 @@ export async function getLimitsStats() {
   const usage = await getUsage(todayKey());
   const byService = new Map(usage.map((u) => [u.service, u]));
 
-  const [or1, or2, snapshots] = await Promise.all([
-    fetchOpenRouterInfo(process.env.OPENROUTER_API_KEY ?? ""),
-    fetchOpenRouterInfo(process.env.OPENROUTER_API_KEY_2 ?? ""),
+  const [orInfo, snapshots] = await Promise.all([
+    Promise.all(OPENROUTER_KEYS.map((key) => fetchOpenRouterInfo(key))),
     getLimitSnapshots(),
   ]);
 
-  const stats: LimitsStat[] = Object.entries(CAPS).map(([id, cap]) => {
-    const row = byService.get(id);
-    const count = row?.count ?? 0;
-
-    const keyInfo = id === "openrouter_1" ? or1 : id === "openrouter_2" ? or2 : undefined;
-    const snap =
-      id === "openrouter_1"
-        ? snapshots.openrouter_1
-        : id === "openrouter_2"
-          ? snapshots.openrouter_2
-          : undefined;
-
-    // For OpenRouter keys the provider-side x-ratelimit snapshot is the
-    // authoritative real-time number (it also reflects failed attempts, which
-    // consume the daily cap); the local request counter is only a fallback
-    // until the first provider response has been captured.
-    const usage =
-      snap?.limit != null ? Math.max(0, snap.limit - (snap.remaining ?? snap.limit)) : count;
-    const limit = snap?.limit ?? cap.limit;
-
-    const realtime: LimitsStat["realtime"] = snap
-      ? {
-          usage,
-          limit: snap.limit,
-          reset: snap.resetAt ? snap.resetAt.toISOString() : (keyInfo?.reset ?? null),
-          remaining: snap.remaining,
-          isFreeTier: keyInfo?.isFreeTier ?? true,
-          label: keyInfo?.label ?? "",
-        }
-      : keyInfo
-        ? {
-            usage: keyInfo.usage,
-            limit: keyInfo.limit,
-            reset: keyInfo.reset,
-            remaining: keyInfo.remaining,
-            isFreeTier: keyInfo.isFreeTier,
-            label: keyInfo.label,
-          }
-        : undefined;
-
+  // Per-key real-time usage, preferring the provider x-ratelimit snapshot
+  // (authoritative — it also reflects failed attempts, which consume the daily
+  // cap), then the /key endpoint, then the local request counter.
+  const perKey = OPENROUTER_SERVICES.map((service, i) => {
+    const snap = snapshots[service];
+    const info = orInfo[i];
+    const counted = byService.get(service)?.count ?? 0;
     return {
-      id,
-      name: cap.name,
-      description: cap.description,
-      usage,
-      limit,
-      unit: cap.unit,
-      color: colorFor(usage, limit),
-      realtime,
+      usage:
+        snap?.limit != null ? Math.max(0, snap.limit - (snap.remaining ?? snap.limit)) : (info?.usage ?? counted),
+      limit: snap?.limit ?? info?.limit ?? OPENROUTER_DEFAULT_LIMIT_PER_KEY,
+      remaining: snap?.remaining ?? info?.remaining ?? null,
+      reset: snap?.resetAt ? snap.resetAt.toISOString() : (info?.reset ?? null),
+      isFreeTier: info?.isFreeTier ?? true,
+      label: info?.label ?? `Key ${i + 1}`,
     };
   });
+
+  const orUsage = perKey.reduce((sum, k) => sum + k.usage, 0);
+  const orLimit = perKey.reduce((sum, k) => sum + k.limit, 0);
+  const knownRemaining = perKey.filter((k) => k.remaining != null);
+  const orRemaining =
+    knownRemaining.length === 0 ? null : knownRemaining.reduce((sum, k) => sum + (k.remaining ?? 0), 0);
+  const orReset =
+    perKey
+      .map((k) => k.reset)
+      .filter((r): r is string => !!r)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] ?? null;
+  const orFree = perKey.every((k) => k.isFreeTier);
+  const orLabel = perKey.map((k) => k.label).filter(Boolean).join(", ");
+
+  const stats: LimitsStat[] = (Object.entries(CAPS) as [LimitsService, Cap][])
+    .filter(([id]) => id !== "openrouter")
+    .map(([id, cap]) => {
+      const row = byService.get(id);
+      const count = row?.count ?? 0;
+      return {
+        id,
+        name: cap.name,
+        description: cap.description,
+        usage: count,
+        limit: cap.limit,
+        unit: cap.unit,
+        color: colorFor(count, cap.limit),
+      };
+    });
+
+  if (perKey.length > 0) {
+    stats.unshift({
+      id: "openrouter",
+      name: CAPS.openrouter.name,
+      description: `${CAPS.openrouter.description} (${perKey.length} key${perKey.length === 1 ? "" : "s"})`,
+      usage: orUsage,
+      limit: orLimit,
+      unit: "requests",
+      color: colorFor(orUsage, orLimit),
+      realtime: {
+        usage: orUsage,
+        limit: orLimit,
+        reset: orReset,
+        remaining: orRemaining,
+        isFreeTier: orFree,
+        label: orLabel,
+      },
+    });
+  }
 
   // B2 download bandwidth (1 GB/day free tier).
   const b2DownBytes = byService.get("b2_download")?.bytes ?? 0;

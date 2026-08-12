@@ -1,16 +1,11 @@
 import { PipelineLogger } from "@/server/lib/structured-logger";
 import { incrementUsage, USAGE_SERVICES } from "@/server/lib/usage-counter";
+import { OPENROUTER_KEYS, openRouterServiceFor } from "@/server/lib/openrouter-keys";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const GEMINI_API_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
-
-/** Ordered list of OpenRouter API keys tried on failure (primary → backup). */
-const OPENROUTER_KEYS = [
-  process.env.OPENROUTER_API_KEY,
-  process.env.OPENROUTER_API_KEY_2,
-].filter((k): k is string => !!k && k.trim().length > 0);
 
 const GENERATION_MODELS = [
   "google/gemma-4-26b-a4b-it:free",                        // Primary (fast, accurate)
@@ -80,9 +75,7 @@ async function callOpenRouter(
   }
 
   // Track which OpenRouter key served this call (cap dashboard).
-  const which =
-    apiKey === process.env.OPENROUTER_API_KEY ? "OPENROUTER_1" : "OPENROUTER_2";
-  void incrementUsage(USAGE_SERVICES[which]);
+  void incrementUsage(openRouterServiceFor(apiKey));
 
   return data;
 }

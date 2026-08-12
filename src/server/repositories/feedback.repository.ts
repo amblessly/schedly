@@ -3,6 +3,7 @@ import type { FeedbackType } from "@/generated/prisma/client";
 
 export interface CreateFeedbackData {
   userId: string;
+  email?: string | null;
   type: FeedbackType;
   message: string;
   subject?: string | null;
