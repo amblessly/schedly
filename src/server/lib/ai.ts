@@ -4,7 +4,7 @@ import { PipelineLogger } from "./structured-logger";
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const GEMINI_GENERATE_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
 /**
  * Confidence below this threshold triggers a single fallback vision-model
@@ -326,9 +326,9 @@ export async function extractScheduleFromImage(
         { prompt: SCHEDULE_EXTRACTION_PROMPT },
       );
       PipelineLogger.info("extract", "Vision extraction complete (Gemini)", {
-        model: "gemini-2.5-flash",
+        model: "gemini-flash-latest",
       });
-      return { data, model: "gemini-2.5-flash" };
+      return { data, model: "gemini-flash-latest" };
     } catch (err) {
       PipelineLogger.error("extract", "Gemini failed, falling back to OpenRouter", {}, err);
     }
@@ -373,7 +373,7 @@ export async function validateExtractedData(extractedJson: Record<string, unknow
         JSON.stringify(extractedJson, null, 2);
       const data = await callGemini([{ text: prompt }], { prompt });
       PipelineLogger.info("validate", "Re-validation complete (Gemini)", {
-        model: "gemini-2.5-flash",
+        model: "gemini-flash-latest",
       });
       return data;
     } catch (err) {

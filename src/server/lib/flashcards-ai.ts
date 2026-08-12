@@ -3,7 +3,7 @@ import { PipelineLogger } from "@/server/lib/structured-logger";
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
 const GENERATION_MODELS = [
   "google/gemma-4-26b-a4b-it:free",                        // Primary (fast, accurate)
@@ -181,7 +181,7 @@ async function generateWithProviders(parts: {
       const text = await callGemini(parts);
       const cards = parseGeminiFlashcards(text);
       PipelineLogger.info("flashcards", "Generated via Gemini", { cards: cards.length });
-      return { cards, model: "gemini-2.5-flash" };
+      return { cards, model: "gemini-flash-latest" };
     } catch (err) {
       PipelineLogger.warn("flashcards", "Gemini failed, falling back to OpenRouter", {}, err);
     }
