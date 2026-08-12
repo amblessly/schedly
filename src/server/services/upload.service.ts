@@ -20,10 +20,14 @@ export const uploadService = {
     return uploadRepository.updateStatus(id, status, errorMessage);
   },
 
-  async processWithAi(uploadId: string, imageUrl: string) {
+  async processWithAi(
+    uploadId: string,
+    imageUrl: string,
+    preloaded?: { data: Uint8Array | Buffer; mimeType: string },
+  ) {
     try {
       await uploadRepository.updateStatus(uploadId, "processing");
-      const result = await aiService.processImage(imageUrl);
+      const result = await aiService.processImage(imageUrl, preloaded);
 
       if (!result.success) {
         await uploadRepository.updateStatus(uploadId, "failed", result.error.message);

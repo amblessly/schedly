@@ -62,7 +62,10 @@ export const aiService = {
    * Identical/near-identical uploads are served from cache, skipping all AI
    * calls. The Hy3 reasoning model runs ONLY on low-confidence/failed results.
    */
-  async processImage(imageUrl: string): Promise<Result<ExtractionResult>> {
+  async processImage(
+    imageUrl: string,
+    preloaded?: { data: Uint8Array | Buffer; mimeType: string },
+  ): Promise<Result<ExtractionResult>> {
     const runId = crypto.randomUUID();
     const t0 = performance.now();
     PipelineLogger.info("pipeline", "Pipeline start", { runId, imageUrl });
@@ -70,8 +73,13 @@ export const aiService = {
     try {
       // 0. Fetch the bytes once — used for the cache hash AND reprocessed
       // before the model call, so the image is never downloaded twice.
+      // When the caller already has the raw bytes in memory (upload flow) the
+      // bytes are passed straight through, skipping the Backblaze GetObject
+      // entirely — that download is a Class B transaction + bandwidth usage.
       const ct0 = performance.now();
-      const imageBuffer = await fetchImageBytes(imageUrl);
+      const imageBuffer = preloaded
+        ? Buffer.from(preloaded.data)
+        : await fetchImageBytes(imageUrl);
 
       // 1. Cache lookup by perceptual image hash (skips all AI work on repeats).
       let hash: string | null = null;

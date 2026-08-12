@@ -93,7 +93,10 @@ export async function POST(request: NextRequest) {
       : `${origin}${stored.url}`;
 
     if (process.env.OPENROUTER_API_KEY) {
-      const task = uploadService.processWithAi(stored.uploadId, absoluteUrl);
+      const task = uploadService.processWithAi(stored.uploadId, absoluteUrl, {
+        data: buffer,
+        mimeType: detectedMime,
+      });
       void waitUntil(task);
       void task.catch((err) => {
         console.error("[UPLOAD_API] Background AI extraction failed:", err);
