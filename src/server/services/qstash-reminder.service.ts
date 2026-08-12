@@ -1,4 +1,5 @@
 import { Client, Receiver } from "@upstash/qstash";
+import { createHash } from "node:crypto";
 import { db } from "@/server/db/client";
 import { sendPush, isVapidConfigured } from "@/server/lib/web-push";
 import { sendFCMPush, isFcmConfigured } from "@/server/lib/firebase-admin";
@@ -84,9 +85,10 @@ export async function scheduleQstashReminders(
   let scheduled = 0;
   let skipped = 0;
 
-  // One message per (user, occurrence) even when the same class exists in
-  // several schedules — otherwise every duplicate reminder row schedules its
-  // own push and the user gets N identical notifications.
+  // One message per (user, class occurrence) even when the same class exists
+  // in several schedules — otherwise every duplicate reminder row schedules
+  // its own push and the user gets N identical notifications. The class key
+  // keeps genuinely different subjects that share a time slot separate.
   const seenPre = new Set<string>();
   const seenStart = new Set<string>();
 
@@ -99,7 +101,13 @@ export async function scheduleQstashReminders(
     if (occ === null) continue;
 
     const minutes = reminder.minutesBefore * 60 * 1000;
-    const key = `${reminder.userId}:${occ}`;
+    const classKey =
+      `${cls.startTime.getTime()}|${cls.endTime.getTime()}|${cls.subject}|${cls.room ?? ""}`;
+    const key = `${reminder.userId}:${occ}:${classKey}`;
+    // Stable messageId per (user, occurrence, class) — duplicate schedules
+    // (re-imports) re-publish the same id across runs, and QStash rejects the
+    // duplicate, so one class occurrence always yields exactly one message.
+    const msgSuffix = createHash("sha1").update(classKey).digest("hex").slice(0, 8);
 
     // "Upcoming class" push at exactly [start - minutesBefore].
     const preAt = occ - minutes;
@@ -116,7 +124,7 @@ export async function scheduleQstashReminders(
           body: { reminderId: reminder.id, occ, kind: "pre" },
           // The Upstash-Not-Before header expects unix SECONDS (not ms).
           notBefore: Math.floor(preAt / 1000),
-          messageId: `rem-${reminder.id}-${occ}-pre`,
+          messageId: `rem-${reminder.userId}-${occ}-pre-${msgSuffix}`,
           retries: 1,
         });
         scheduled++;
@@ -143,7 +151,7 @@ export async function scheduleQstashReminders(
           method: "POST",
           body: { reminderId: reminder.id, occ, kind: "start" },
           notBefore: Math.floor(occ / 1000),
-          messageId: `rem-${reminder.id}-${occ}-start`,
+          messageId: `rem-${reminder.userId}-${occ}-start-${msgSuffix}`,
           retries: 1,
         });
         scheduled++;
@@ -227,20 +235,31 @@ export async function sendClassReminderPush(args: {
   const startLabelTxt = startLabel(cls.startTime);
 
   if (kind === "start") {
-    // "Class starting now" — deduped with lastStartSentAt so a cron
-    // catch-up or QStash retry never delivers it twice for one occurrence.
-    if (reminder.lastStartSentAt && reminder.lastStartSentAt.getTime() >= occ) {
+    // "Class starting now" — atomic claim on the occurrence BEFORE delivering.
+    // Duplicate schedules re-import the same class as separate Reminder rows,
+    // each with its own QStash message; claim every matching row at once so
+    // only the first delivery to reach the DB wins and the rest drop out.
+    const claimed = await db.reminder.updateMany({
+      where: {
+        userId: reminder.userId,
+        class: {
+          startTime: cls.startTime,
+          endTime: cls.endTime,
+          subject: cls.subject,
+          room: cls.room,
+        },
+        OR: [{ lastStartSentAt: null }, { lastStartSentAt: { lt: new Date(occ) } }],
+      },
+      data: { lastStartSentAt: new Date(occ) },
+    });
+    if (claimed.count === 0) {
       return { sent: false, reason: "already-sent" };
     }
+
     const title = "Class starting now";
     const body = `You have class today — ${label} at ${startLabelTxt}`;
 
     const stale = await deliverPushToUser(reminder.userId, title, body);
-
-    await db.reminder.update({
-      where: { id: reminder.id },
-      data: { lastStartSentAt: new Date(occ) },
-    });
 
     await db.notification.create({
       data: {
@@ -259,39 +278,55 @@ export async function sendClassReminderPush(args: {
     return { sent: true };
   }
 
-  // "Upcoming class" at [start - minutesBefore]. The isStarting branch only
-  // triggers when the scheduled message was delivered noticeably late.
+  // "Upcoming class" at [start - minutesBefore]. The "start" QStash message
+  // (and the cron catch-up) own the "Class starting now" push — if this pre
+  // message was delivered after the class already started, skip it entirely
+  // so it can never turn into a second "starting now".
   if (reminder.lastSentAt && reminder.lastSentAt.getTime() >= occ) {
     return { sent: false, reason: "already-sent" };
   }
 
   const now = new Date();
   const remaining = Math.max(0, Math.round((occ - now.getTime()) / 60000));
-  const isStarting = remaining <= 0;
-  const title = isStarting ? "Class starting now" : "Upcoming class";
-  const body = isStarting
-    ? `You have class today — ${label} at ${startLabelTxt}`
-    : remaining > 180
-      ? `${label} at ${startLabelTxt}`
-      : remaining > 0
-        ? `${label} starts in ${remaining} min (${startLabelTxt})`
-        : `${label} at ${startLabelTxt}`;
+  if (remaining <= 0) {
+    return { sent: false, reason: "late-pre-skipped" };
+  }
 
-  const stale = await deliverPushToUser(reminder.userId, title, body);
-
-  await db.reminder.update({
-    where: { id: reminder.id },
+  // Atomic claim on the occurrence before delivering — concurrent deliveries
+  // (duplicate schedules, QStash retries) can't both get through. Claims every
+  // matching row for this class so duplicate schedules share one "upcoming"
+  // push instead of N identical ones.
+  const claimedPre = await db.reminder.updateMany({
+    where: {
+      userId: reminder.userId,
+      class: {
+        startTime: cls.startTime,
+        endTime: cls.endTime,
+        subject: cls.subject,
+        room: cls.room,
+      },
+      OR: [{ lastSentAt: null }, { lastSentAt: { lt: new Date(occ) } }],
+    },
     data: { lastSentAt: new Date(occ) },
   });
+  if (claimedPre.count === 0) {
+    return { sent: false, reason: "already-sent" };
+  }
+
+  const title = "Upcoming class";
+  const body =
+    remaining > 180
+      ? `${label} at ${startLabelTxt}`
+      : `${label} starts in ${remaining} min (${startLabelTxt})`;
+
+  const stale = await deliverPushToUser(reminder.userId, title, body);
 
   await db.notification.create({
     data: {
       userId: reminder.userId,
       type: "class_reminder",
       title,
-      body: isStarting
-        ? `${label} starts now (${startLabelTxt})`
-        : `Reminder: ${label} at ${startLabelTxt}.`,
+      body: `Reminder: ${label} at ${startLabelTxt}.`,
       scheduledAt: new Date(occ),
     },
   });
