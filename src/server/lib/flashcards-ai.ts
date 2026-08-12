@@ -190,19 +190,8 @@ async function generateWithProviders(parts: {
   text: string;
   image?: { data: string; mimeType: string };
 }): Promise<FlashcardGenerationResult> {
-  // Gemini primary (free tier ~1,500 requests/day, vision included) so the
-  // OpenRouter free-model daily cap can never hard-block generation.
-  if (process.env.GEMINI_API_KEY) {
-    try {
-      const text = await callGemini(parts);
-      const cards = parseGeminiFlashcards(text);
-      PipelineLogger.info("flashcards", "Generated via Gemini", { cards: cards.length });
-      return { cards, model: "gemini-flash-latest" };
-    } catch (err) {
-      PipelineLogger.warn("flashcards", "Gemini failed, falling back to OpenRouter", {}, err);
-    }
-  }
-
+  // OpenRouter keys first (key 1 -> ... -> key N), Gemini as the very last
+  // resort — same order as vision extraction. Tries each model per key.
   if (OPENROUTER_KEYS.length === 0) {
     throw new Error("No OpenRouter API key configured");
   }
@@ -252,6 +241,18 @@ async function generateWithProviders(parts: {
       }
     }
     PipelineLogger.warn("flashcards", `OpenRouter key ${keyIndex + 1} exhausted, trying next key`);
+  }
+
+  // Last resort: Gemini (free tier ~1,500 requests/day, vision included).
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const text = await callGemini(parts);
+      const cards = parseGeminiFlashcards(text);
+      PipelineLogger.info("flashcards", "Generated via Gemini", { cards: cards.length });
+      return { cards, model: "gemini-flash-latest" };
+    } catch (err) {
+      PipelineLogger.warn("flashcards", "Gemini failed", {}, err);
+    }
   }
 
   throw new Error("Flashcard generation failed (all OpenRouter keys and Gemini)");

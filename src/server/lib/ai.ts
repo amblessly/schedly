@@ -27,12 +27,13 @@ const VISION_MODELS = [
   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",    // Fallback (only on errors)
 ];
 
-/* ===== Reasoning & Validation Models (Hy3) =====
+/* ===== Validation/Reasoning Models =====
  * Used only as a last resort when the vision model fails to produce a usable
- * result (no classes at all). */
+ * result (no classes at all). Primary is a reasoning model, Gemma as fallback.
+ * (Note: `tencent/hy3:free` no longer exists on OpenRouter and was removed.) */
 const VALIDATION_MODELS = [
-  "tencent/hy3:free",                            // Primary
-  "google/gemma-4-26b-a4b-it:free",              // Fallback
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", // Primary (reasoning)
+  "google/gemma-4-26b-a4b-it:free",                      // Fallback
 ];
 
 const RETRY_DELAYS = [1000];
@@ -372,8 +373,45 @@ export async function extractScheduleFromImage(
 
   const { base64, contentType } = preloaded ?? (await fetchAndPreprocessImage(imageUrl));
 
-  // Gemini primary (free tier ~1,500 requests/day, vision included) so the
-  // OpenRouter free-model daily cap (~50/day) can never hard-block uploads.
+  // OpenRouter keys first (key 1 -> key 2 -> ... -> key N). For each key the
+  // vision models are tried in order; we only escalate to the next key after
+  // the previous one is exhausted (rate-limit / outage). Gemini stays as the
+  // VERY last resort so all free OpenRouter keys are burned first.
+  let usedModel = models[0]!;
+  if (OPENROUTER_KEYS.length > 0) {
+    try {
+      const data = await runWithOpenRouterKeys(
+        (model, apiKey) => {
+          usedModel = model;
+          return callOpenRouter(
+            model,
+            [
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: SCHEDULE_EXTRACTION_PROMPT },
+                  {
+                    type: "image_url",
+                    image_url: { url: `data:${contentType};base64,${base64}` },
+                  },
+                ],
+              },
+            ],
+            0.1,
+            apiKey,
+          ).then(parseAiResponse);
+        },
+        models,
+      );
+
+      PipelineLogger.info("extract", "Vision extraction complete (OpenRouter)", { model: usedModel });
+      return { data, model: usedModel };
+    } catch (err) {
+      PipelineLogger.error("extract", "All OpenRouter keys failed", {}, err);
+    }
+  }
+
+  // Last resort: Gemini (free tier ~1,500 requests/day, vision included).
   // Retried once: Gemini free tier sometimes returns transient 503 (high demand).
   if (process.env.GEMINI_API_KEY) {
     for (let attempt = 1; attempt <= 2; attempt++) {
@@ -396,40 +434,7 @@ export async function extractScheduleFromImage(
     }
   }
 
-  // OpenRouter keys first (primary → backup), then escalate to the next key.
-  let usedModel = models[0]!;
-  try {
-    const data = await runWithOpenRouterKeys(
-      (model, apiKey) => {
-        usedModel = model;
-        return callOpenRouter(
-          model,
-          [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: SCHEDULE_EXTRACTION_PROMPT },
-                {
-                  type: "image_url",
-                  image_url: { url: `data:${contentType};base64,${base64}` },
-                },
-              ],
-            },
-          ],
-          0.1,
-          apiKey,
-        ).then(parseAiResponse);
-      },
-      models,
-    );
-
-    PipelineLogger.info("extract", "Vision extraction complete (OpenRouter)", { model: usedModel });
-    return { data, model: usedModel };
-  } catch (err) {
-    PipelineLogger.error("extract", "All OpenRouter keys failed", {}, err);
-  }
-
-  throw new Error("All AI providers failed (Gemini, OpenRouter 1, OpenRouter 2)");
+  throw new Error("All AI providers failed (OpenRouter 1-N, Gemini)");
 }
 
 export async function validateExtractedData(extractedJson: Record<string, unknown>) {
@@ -445,8 +450,30 @@ export async function validateExtractedData(extractedJson: Record<string, unknow
     `normalize day tokens, fix impossible times, and return the same JSON schema with an "overallConfidence" field.\n\n` +
     JSON.stringify(extractedJson, null, 2);
 
-  // Gemini primary (free tier ~1,500 requests/day, text-only task) so the
-  // OpenRouter free-model daily cap can never hard-block uploads.
+  // OpenRouter keys first (key 1 -> ... -> key N), Gemini as the very last
+  // resort — same order as vision extraction.
+  let usedModel = models[0]!;
+  if (OPENROUTER_KEYS.length > 0) {
+    try {
+      const data = await runWithOpenRouterKeys(
+        (model, apiKey) => {
+          usedModel = model;
+          return callOpenRouter(
+            model,
+            [{ role: "user", content: prompt }],
+            0.1,
+            apiKey,
+          ).then(parseAiResponse);
+        },
+        models,
+      );
+      PipelineLogger.info("validate", "Hy3 re-validation complete", { model: usedModel });
+      return data;
+    } catch (err) {
+      PipelineLogger.error("validate", "All OpenRouter keys failed", {}, err);
+    }
+  }
+
   if (process.env.GEMINI_API_KEY) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
@@ -462,28 +489,7 @@ export async function validateExtractedData(extractedJson: Record<string, unknow
     }
   }
 
-  // OpenRouter keys first (primary → backup), then escalate to the next key.
-  let usedModel = models[0]!;
-  try {
-    const data = await runWithOpenRouterKeys(
-      (model, apiKey) => {
-        usedModel = model;
-        return callOpenRouter(
-          model,
-          [{ role: "user", content: prompt }],
-          0.1,
-          apiKey,
-        ).then(parseAiResponse);
-      },
-      models,
-    );
-    PipelineLogger.info("validate", "Hy3 re-validation complete", { model: usedModel });
-    return data;
-  } catch (err) {
-    PipelineLogger.error("validate", "All OpenRouter keys failed", {}, err);
-  }
-
-  throw new Error("All AI providers failed (Gemini, OpenRouter 1, OpenRouter 2)");
+  throw new Error("All AI providers failed (OpenRouter 1-N, Gemini)");
 }
 
 /* ----------------------------------------------------------------------
