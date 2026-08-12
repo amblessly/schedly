@@ -19,6 +19,9 @@ export async function POST(request: NextRequest) {
   if (!sessionCookie) return jsonError("Unauthorized", 401);
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session?.user?.id) return jsonError("Unauthorized", 401);
+  if (!session.user.isAdmin) {
+    return jsonError("Flashcards are in internal testing.", 403);
+  }
 
   if (!validateCsrf(request)) return jsonError("Invalid CSRF token", 403);
 

@@ -12,6 +12,7 @@ async function requireUser() {
     headers: await headers(),
   });
   if (!session?.user?.id) redirect("/login");
+  if (!(session.user as { isAdmin?: boolean }).isAdmin) redirect("/dashboard");
   return session.user.id;
 }
 
