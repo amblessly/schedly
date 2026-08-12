@@ -3,6 +3,9 @@ import { PipelineLogger } from "./structured-logger";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
+const GEMINI_GENERATE_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+
 /**
  * Confidence below this threshold triggers a single fallback vision-model
  * re-extraction. High-confidence results skip the fallback entirely, keeping
@@ -177,6 +180,61 @@ function parseAiResponse(data: unknown) {
   }
 }
 
+/**
+ * Google Gemini (free tier: ~1,500 requests/day, vision included) — used as
+ * the PRIMARY extraction provider so the OpenRouter 50 free-requests/day cap
+ * can never hard-block user uploads. OpenRouter stays as the fallback chain.
+ */
+async function callGemini(
+  parts: Record<string, unknown>[],
+  opts: { prompt: string; temperature?: number; maxOutputTokens?: number },
+): Promise<Record<string, unknown>> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
+
+  const response = await fetch(`${GEMINI_GENERATE_URL}?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: opts.prompt }] },
+      contents: [{ role: "user", parts }],
+      generationConfig: {
+        temperature: opts.temperature ?? 0.1,
+        maxOutputTokens: opts.maxOutputTokens ?? 2048,
+        responseMimeType: "application/json",
+      },
+    }),
+  });
+
+  const bodyText = await response.text();
+  let data: unknown;
+  try {
+    data = bodyText ? JSON.parse(bodyText) : null;
+  } catch {
+    throw new Error(`Gemini returned a non-JSON response (status ${response.status})`);
+  }
+
+  if (!response.ok) {
+    const status = response.status;
+    const msg = (data as { error?: { message?: string } })?.error?.message || "Unknown";
+    console.error(`[AI] Gemini API error: ${status}:`, msg);
+    throw new Error(`Gemini API error: ${status} - ${msg}`);
+  }
+
+  const text = (data as { candidates?: { content?: { parts?: { text?: string }[] } }[] })
+    .candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("No response from Gemini");
+
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error(`No JSON in Gemini response. Snippet: ${text.slice(0, 200)}`);
+
+  try {
+    return JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+  } catch {
+    throw new Error(`Gemini response contained malformed JSON. Snippet: ${jsonMatch[0].slice(0, 200)}`);
+  }
+}
+
 // Test-only re-exports (used by ai-response.test.ts to assert error handling).
 export const callOpenRouterTest = callOpenRouter;
 export const parseAiResponseTest = parseAiResponse;
@@ -256,6 +314,26 @@ export async function extractScheduleFromImage(
 
   const { base64, contentType } = preloaded ?? (await fetchAndPreprocessImage(imageUrl));
 
+  // Gemini primary (free tier, vision included) — mitigates the OpenRouter
+  // free-model daily cap that would otherwise hard-block every upload.
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const data = await callGemini(
+        [
+          { inline_data: { mime_type: contentType, data: base64 } },
+          { text: "Extract the classes from this image exactly as the system instructions describe. Return ONLY valid JSON." },
+        ],
+        { prompt: SCHEDULE_EXTRACTION_PROMPT },
+      );
+      PipelineLogger.info("extract", "Vision extraction complete (Gemini)", {
+        model: "gemini-2.5-flash",
+      });
+      return { data, model: "gemini-2.5-flash" };
+    } catch (err) {
+      PipelineLogger.error("extract", "Gemini failed, falling back to OpenRouter", {}, err);
+    }
+  }
+
   let usedModel = models[0]!;
   const data = await runWithModelFallback(
     (model) => {
@@ -287,6 +365,21 @@ export async function validateExtractedData(extractedJson: Record<string, unknow
     : VALIDATION_MODELS;
 
   PipelineLogger.info("validate", "Starting Hy3 re-validation", { models });
+
+  // Gemini primary (text-only task) — same free-tier mitigation as extraction.
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const prompt = `Re-validate this extracted schedule JSON. Merge duplicates by (subject+room+startTime+endTime), normalize day tokens, fix impossible times, and return the same JSON schema with an "overallConfidence" field.\n\n` +
+        JSON.stringify(extractedJson, null, 2);
+      const data = await callGemini([{ text: prompt }], { prompt });
+      PipelineLogger.info("validate", "Re-validation complete (Gemini)", {
+        model: "gemini-2.5-flash",
+      });
+      return data;
+    } catch (err) {
+      PipelineLogger.error("validate", "Gemini failed, falling back to OpenRouter", {}, err);
+    }
+  }
 
   let usedModel = models[0]!;
   const data = await runWithModelFallback(
