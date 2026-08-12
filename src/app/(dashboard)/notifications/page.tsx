@@ -865,8 +865,8 @@ function NotificationDetail({
   const Icon = typeIcons[notification.type];
 
   return (
-    <div className="fixed inset-0 z-[60] p-2 sm:p-4 animate-fade-up">
-      <div className="relative z-10 flex h-full max-h-full w-full flex-col overflow-hidden rounded-3xl border border-border/40 bg-background shadow-2xl">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 animate-fade-up">
+      <div className="relative z-10 flex h-full max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border/40 bg-background shadow-2xl">
         {/* Header bar */}
         <div className="flex shrink-0 items-center gap-2 border-b border-border/40 bg-background/90 px-4 py-3 backdrop-blur-sm">
           <Button
@@ -892,7 +892,7 @@ function NotificationDetail({
           </Button>
         </div>
 
-        {/* Message body — tall floating card reading pane */}
+        {/* Message body — centered tall floating card reading pane */}
         <div className="flex-1 overflow-y-auto px-5 pb-10">
           <div className="mx-auto mt-2 max-w-2xl">
             <div className="flex items-start gap-4 rounded-2xl border border-border/30 bg-card/30 px-5 py-4">
