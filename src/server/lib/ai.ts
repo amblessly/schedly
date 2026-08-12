@@ -3,6 +3,12 @@ import { PipelineLogger } from "./structured-logger";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
+/** Ordered list of OpenRouter API keys tried on failure (primary → backup). */
+const OPENROUTER_KEYS = [
+  process.env.OPENROUTER_API_KEY,
+  process.env.OPENROUTER_API_KEY_2,
+].filter((k): k is string => !!k && k.trim().length > 0);
+
 const GEMINI_GENERATE_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
@@ -109,8 +115,13 @@ async function fetchAndPreprocessImage(imageUrl: string) {
   return { base64, contentType: "image/jpeg" };
 }
 
-async function callOpenRouter(model: string, messages: unknown[], temperature = 0.1) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+async function callOpenRouter(
+  model: string,
+  messages: unknown[],
+  temperature = 0.1,
+  apiKey = process.env.OPENROUTER_API_KEY,
+) {
+  if (!apiKey) throw new Error("No OpenRouter API key configured");
 
   const response = await fetch(OPENROUTER_API_URL, {
     method: "POST",
@@ -294,6 +305,34 @@ async function runWithModelFallback<T>(
   throw new Error(message);
 }
 
+/**
+ * Runs `call(model, apiKey)` across every configured OpenRouter key (in order),
+ * escalating to the next key only after the previous key is exhausted across
+ * all models. Returns the first successful result, or throws the last error.
+ */
+async function runWithOpenRouterKeys<T>(
+  call: (model: string, apiKey: string) => Promise<T>,
+  models: string[],
+): Promise<T> {
+  if (OPENROUTER_KEYS.length === 0) throw new Error("No OpenRouter API key configured");
+
+  let lastError: unknown;
+  for (let i = 0; i < OPENROUTER_KEYS.length; i++) {
+    const apiKey = OPENROUTER_KEYS[i]!;
+    PipelineLogger.info("extract", `Trying OpenRouter key ${i + 1}/${OPENROUTER_KEYS.length}`);
+    try {
+      return await runWithModelFallback((model) => call(model, apiKey), models);
+    } catch (err) {
+      lastError = err;
+      console.log(`[AI] OpenRouter key ${i + 1} exhausted, trying next key`);
+    }
+  }
+
+  const message =
+    lastError instanceof Error ? lastError.message : "All OpenRouter keys failed";
+  throw new Error(message);
+}
+
 export interface ExtractResult {
   data: Record<string, unknown>;
   model: string;
@@ -314,8 +353,40 @@ export async function extractScheduleFromImage(
 
   const { base64, contentType } = preloaded ?? (await fetchAndPreprocessImage(imageUrl));
 
-  // Gemini primary (free tier, vision included) — mitigates the OpenRouter
-  // free-model daily cap that would otherwise hard-block every upload.
+  // OpenRouter keys first (primary → backup), then Gemini as the final fallback.
+  let usedModel = models[0]!;
+  try {
+    const data = await runWithOpenRouterKeys(
+      (model, apiKey) => {
+        usedModel = model;
+        return callOpenRouter(
+          model,
+          [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: SCHEDULE_EXTRACTION_PROMPT },
+                {
+                  type: "image_url",
+                  image_url: { url: `data:${contentType};base64,${base64}` },
+                },
+              ],
+            },
+          ],
+          0.1,
+          apiKey,
+        ).then(parseAiResponse);
+      },
+      models,
+    );
+
+    PipelineLogger.info("extract", "Vision extraction complete", { model: usedModel });
+    return { data, model: usedModel };
+  } catch (err) {
+    PipelineLogger.error("extract", "All OpenRouter keys failed, falling back to Gemini", {}, err);
+  }
+
+  // Gemini as the last resort (free tier ~1,500 requests/day, vision included).
   // Retried once: Gemini free tier sometimes returns transient 503 (high demand).
   if (process.env.GEMINI_API_KEY) {
     for (let attempt = 1; attempt <= 2; attempt++) {
@@ -336,31 +407,9 @@ export async function extractScheduleFromImage(
         if (attempt < 2) await sleep(1500);
       }
     }
-    PipelineLogger.error("extract", "Gemini failed, falling back to OpenRouter");
   }
 
-  let usedModel = models[0]!;
-  const data = await runWithModelFallback(
-    (model) => {
-      usedModel = model;
-      return callOpenRouter(model, [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: SCHEDULE_EXTRACTION_PROMPT },
-            {
-              type: "image_url",
-              image_url: { url: `data:${contentType};base64,${base64}` },
-            },
-          ],
-        },
-      ]).then(parseAiResponse);
-    },
-    models,
-  );
-
-  PipelineLogger.info("extract", "Vision extraction complete", { model: usedModel });
-  return { data, model: usedModel };
+  throw new Error("All AI providers failed (OpenRouter 1, OpenRouter 2, Gemini)");
 }
 
 export async function validateExtractedData(extractedJson: Record<string, unknown>) {
@@ -371,12 +420,36 @@ export async function validateExtractedData(extractedJson: Record<string, unknow
 
   PipelineLogger.info("validate", "Starting Hy3 re-validation", { models });
 
-  // Gemini primary (text-only task) — same free-tier mitigation as extraction.
+  const prompt =
+    `Re-validate this extracted schedule JSON. Merge duplicates by (subject+room+startTime+endTime), ` +
+    `normalize day tokens, fix impossible times, and return the same JSON schema with an "overallConfidence" field.\n\n` +
+    JSON.stringify(extractedJson, null, 2);
+
+  // OpenRouter keys first (primary → backup), then Gemini as the final fallback.
+  let usedModel = models[0]!;
+  try {
+    const data = await runWithOpenRouterKeys(
+      (model, apiKey) => {
+        usedModel = model;
+        return callOpenRouter(
+          model,
+          [{ role: "user", content: prompt }],
+          0.1,
+          apiKey,
+        ).then(parseAiResponse);
+      },
+      models,
+    );
+    PipelineLogger.info("validate", "Hy3 re-validation complete", { model: usedModel });
+    return data;
+  } catch (err) {
+    PipelineLogger.error("validate", "All OpenRouter keys failed, falling back to Gemini", {}, err);
+  }
+
+  // Gemini as the last resort (free tier ~1,500 requests/day, text-only task).
   if (process.env.GEMINI_API_KEY) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        const prompt = `Re-validate this extracted schedule JSON. Merge duplicates by (subject+room+startTime+endTime), normalize day tokens, fix impossible times, and return the same JSON schema with an "overallConfidence" field.\n\n` +
-          JSON.stringify(extractedJson, null, 2);
         const data = await callGemini([{ text: prompt }], { prompt });
         PipelineLogger.info("validate", "Re-validation complete (Gemini)", {
           model: "gemini-flash-latest",
@@ -387,27 +460,9 @@ export async function validateExtractedData(extractedJson: Record<string, unknow
         if (attempt < 2) await sleep(1500);
       }
     }
-    PipelineLogger.error("validate", "Gemini failed, falling back to OpenRouter");
   }
 
-  let usedModel = models[0]!;
-  const data = await runWithModelFallback(
-    (model) => {
-      usedModel = model;
-      return callOpenRouter(model, [
-        {
-          role: "user",
-          content:
-            `Re-validate this extracted schedule JSON. Merge duplicates by (subject+room+startTime+endTime), ` +
-            `normalize day tokens, fix impossible times, and return the same JSON schema with an "overallConfidence" field.\n\n` +
-            JSON.stringify(extractedJson, null, 2),
-        },
-      ]).then(parseAiResponse);
-    },
-    models,
-  );
-  PipelineLogger.info("validate", "Hy3 re-validation complete", { model: usedModel });
-  return data;
+  throw new Error("All AI providers failed (OpenRouter 1, OpenRouter 2, Gemini)");
 }
 
 /* ----------------------------------------------------------------------
@@ -447,15 +502,20 @@ export async function generateScheduleSuggestions(
   classes: ScheduleSuggestionInput[],
 ): Promise<string[]> {
   const models = VISION_MODELS;
-  const data = await runWithModelFallback(
-    (model) =>
-      callOpenRouter(model, [
-        {
-          role: "user",
-          content:
-            `${SUGGESTIONS_PROMPT}\n\nWeekly schedule:\n${JSON.stringify(classes, null, 2)}`,
-        },
-      ], 0.9).then(parseAiResponse),
+  const data = await runWithOpenRouterKeys(
+    (model, apiKey) =>
+      callOpenRouter(
+        model,
+        [
+          {
+            role: "user",
+            content:
+              `${SUGGESTIONS_PROMPT}\n\nWeekly schedule:\n${JSON.stringify(classes, null, 2)}`,
+          },
+        ],
+        0.9,
+        apiKey,
+      ).then(parseAiResponse),
     models,
   );
 

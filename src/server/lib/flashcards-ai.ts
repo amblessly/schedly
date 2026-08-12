@@ -5,6 +5,12 @@ const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const GEMINI_API_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
+/** Ordered list of OpenRouter API keys tried on failure (primary → backup). */
+const OPENROUTER_KEYS = [
+  process.env.OPENROUTER_API_KEY,
+  process.env.OPENROUTER_API_KEY_2,
+].filter((k): k is string => !!k && k.trim().length > 0);
+
 const GENERATION_MODELS = [
   "google/gemma-4-26b-a4b-it:free",                        // Primary (fast, accurate)
   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",    // Fallback (only on errors)
@@ -30,9 +36,12 @@ Rules:
 - Return ONLY valid JSON, no extra text:
 {"flashcards":[{"front":"...","back":"..."}]}`;
 
-async function callOpenRouter(model: string, messages: unknown[]): Promise<unknown> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY is not configured");
+async function callOpenRouter(
+  model: string,
+  messages: unknown[],
+  apiKey = process.env.OPENROUTER_API_KEY,
+): Promise<unknown> {
+  if (!apiKey) throw new Error("No OpenRouter API key configured");
 
   const response = await fetch(OPENROUTER_API_URL, {
     method: "POST",
@@ -176,15 +185,8 @@ async function generateWithProviders(parts: {
   text: string;
   image?: { data: string; mimeType: string };
 }): Promise<FlashcardGenerationResult> {
-  if (process.env.GEMINI_API_KEY) {
-    try {
-      const text = await callGemini(parts);
-      const cards = parseGeminiFlashcards(text);
-      PipelineLogger.info("flashcards", "Generated via Gemini", { cards: cards.length });
-      return { cards, model: "gemini-flash-latest" };
-    } catch (err) {
-      PipelineLogger.warn("flashcards", "Gemini failed, falling back to OpenRouter", {}, err);
-    }
+  if (OPENROUTER_KEYS.length === 0) {
+    throw new Error("No OpenRouter API key configured");
   }
 
   const openRouterMessages = parts.image
@@ -214,22 +216,42 @@ async function generateWithProviders(parts: {
         { role: "user", content: parts.text },
       ];
 
-  let lastError: unknown;
-  for (const model of GENERATION_MODELS) {
+  // Try each OpenRouter key in order (primary → backup).
+  for (let keyIndex = 0; keyIndex < OPENROUTER_KEYS.length; keyIndex++) {
+    const apiKey = OPENROUTER_KEYS[keyIndex]!;
+    let lastError: unknown;
+    for (const model of GENERATION_MODELS) {
+      try {
+        const data = await callOpenRouter(model, openRouterMessages, apiKey);
+        const cards = parseFlashcardJson(data);
+        PipelineLogger.info("flashcards", "Generated", {
+          model,
+          key: keyIndex + 1,
+          cards: cards.length,
+        });
+        return { cards, model };
+      } catch (err) {
+        lastError = err;
+        PipelineLogger.warn("flashcards", `Model ${model} (key ${keyIndex + 1}) failed`, {}, err);
+      }
+    }
+    PipelineLogger.warn("flashcards", `OpenRouter key ${keyIndex + 1} exhausted, trying next key`);
+  }
+
+  // Gemini as the last resort (free tier ~1,500 requests/day).
+  if (process.env.GEMINI_API_KEY) {
     try {
-      const data = await callOpenRouter(model, openRouterMessages);
-      const cards = parseFlashcardJson(data);
-      PipelineLogger.info("flashcards", "Generated", {
-        model,
-        cards: cards.length,
-      });
-      return { cards, model };
+      const text = await callGemini(parts);
+      const cards = parseGeminiFlashcards(text);
+      PipelineLogger.info("flashcards", "Generated via Gemini", { cards: cards.length });
+      return { cards, model: "gemini-flash-latest" };
     } catch (err) {
-      lastError = err;
-      PipelineLogger.warn("flashcards", `Model ${model} failed`, {}, err);
+      PipelineLogger.error("flashcards", "Gemini fallback failed", {}, err);
+      throw err;
     }
   }
-  throw lastError instanceof Error ? lastError : new Error("Flashcard generation failed");
+
+  throw new Error("Flashcard generation failed (all OpenRouter keys and Gemini)");
 }
 
 /** Generate Q&A flashcards from plain text (PDF text or pasted notes). */
