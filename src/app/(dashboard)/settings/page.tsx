@@ -15,6 +15,7 @@ import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Skeleton as BoneSkeleton } from "boneyard-js/react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { SupportSchedly } from "@/features/support/components/support-schedly";
 
 type UserWithExtras = {
   firstName?: string;
@@ -135,6 +136,7 @@ export default function SettingsPage() {
                 </div>
               )}
               <SettingsLinkCard href="/feedback" icon={<LifeBuoy className="h-4 w-4 text-primary" />} title="Help & Feedback" description="Report issues or share your thoughts." />
+              <SupportSchedly />
             </div>
           )}
         </div>
