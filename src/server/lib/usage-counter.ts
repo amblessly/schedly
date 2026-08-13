@@ -18,7 +18,16 @@ export const USAGE_SERVICES = {
   OPENROUTER_8: "openrouter_8",
   OPENROUTER_9: "openrouter_9",
   OPENROUTER_10: "openrouter_10",
-  GEMINI: "gemini",
+  GEMINI_1: "gemini_1",
+  GEMINI_2: "gemini_2",
+  GEMINI_3: "gemini_3",
+  GEMINI_4: "gemini_4",
+  GEMINI_5: "gemini_5",
+  GEMINI_6: "gemini_6",
+  GEMINI_7: "gemini_7",
+  GEMINI_8: "gemini_8",
+  GEMINI_9: "gemini_9",
+  GEMINI_10: "gemini_10",
   QSTASH: "qstash",
   B2_UPLOAD: "b2_upload",
   B2_DOWNLOAD: "b2_download",
@@ -109,9 +118,16 @@ export async function saveLimitSnapshot(
       v == null ? null : Number.isFinite(Number(v)) ? Number(v) : null;
     const remaining = toInt(snapshot.remaining);
     const limit = toInt(snapshot.limit);
+    // OpenRouter `x-ratelimit-reset` is SECONDS until the limit resets (e.g.
+    // "3101"), not an epoch timestamp. Small durations are converted to an
+    // absolute date; already-absolute epoch-ms values pass through unchanged.
     const resetAt =
       snapshot.resetAt && !Number.isNaN(Number(snapshot.resetAt))
-        ? new Date(Number(snapshot.resetAt))
+        ? (() => {
+            const raw = Number(snapshot.resetAt);
+            if (raw > 0 && raw < 365 * 24 * 3600) return new Date(Date.now() + raw * 1000);
+            return new Date(raw);
+          })()
         : null;
     if (limit == null && remaining == null && resetAt == null) return;
     await db.limitSnapshot.upsert({

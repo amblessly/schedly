@@ -1,7 +1,8 @@
 import { preprocessImage } from "./image-processing";
 import { PipelineLogger } from "./structured-logger";
-import { incrementUsage, saveLimitSnapshot, USAGE_SERVICES } from "./usage-counter";
-import { OPENROUTER_KEYS, openRouterServiceFor } from "./openrouter-keys";
+import { incrementUsage, saveLimitSnapshot } from "./usage-counter";
+import { OPENROUTER_KEYS, openRouterServiceFor, isOpenRouterEnabled } from "./openrouter-keys";
+import { GEMINI_KEYS, geminiServiceFor } from "./gemini-keys";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -215,8 +216,8 @@ function parseAiResponse(data: unknown) {
 async function callGemini(
   parts: Record<string, unknown>[],
   opts: { prompt: string; temperature?: number; maxOutputTokens?: number },
+  apiKey: string,
 ): Promise<Record<string, unknown>> {
-  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
 
   const response = await fetch(`${GEMINI_GENERATE_URL}?key=${apiKey}`, {
@@ -233,9 +234,9 @@ async function callGemini(
     }),
   });
 
-  // Track Gemini daily usage (cap dashboard). Counted on ANY provider response
-  // because Google charges quota for failed requests too (429/503).
-  void incrementUsage(USAGE_SERVICES.GEMINI);
+  // Track Gemini daily usage per key (cap dashboard). Counted on ANY provider
+  // response because Google charges quota for failed requests too (429/503).
+  void incrementUsage(geminiServiceFor(apiKey));
 
   const bodyText = await response.text();
   let data: unknown;
@@ -353,6 +354,38 @@ async function runWithOpenRouterKeys<T>(
   throw new Error(message);
 }
 
+/**
+ * Runs `call(apiKey)` across every configured Gemini key (in order), retrying
+ * each key once on a transient failure before escalating to the next key.
+ * Returns the first successful result, or throws the last error.
+ */
+async function runWithGeminiKeys<T>(
+  call: (apiKey: string) => Promise<T>,
+): Promise<T> {
+  if (GEMINI_KEYS.length === 0) throw new Error("No Gemini API key configured");
+
+  let lastError: unknown;
+  for (let i = 0; i < GEMINI_KEYS.length; i++) {
+    const apiKey = GEMINI_KEYS[i]!;
+    PipelineLogger.info("extract", `Trying Gemini key ${i + 1}/${GEMINI_KEYS.length}`);
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        return await call(apiKey);
+      } catch (err) {
+        lastError = err;
+        console.log(
+          `[AI] Gemini key ${i + 1} attempt ${attempt} failed:`,
+          err instanceof Error ? err.message : err,
+        );
+        if (attempt < 2) await sleep(1500);
+      }
+    }
+  }
+
+  const message = lastError instanceof Error ? lastError.message : "All Gemini keys failed";
+  throw new Error(message);
+}
+
 export interface ExtractResult {
   data: Record<string, unknown>;
   model: string;
@@ -375,10 +408,11 @@ export async function extractScheduleFromImage(
 
   // OpenRouter keys first (key 1 -> key 2 -> ... -> key N). For each key the
   // vision models are tried in order; we only escalate to the next key after
-  // the previous one is exhausted (rate-limit / outage). Gemini stays as the
-  // VERY last resort so all free OpenRouter keys are burned first.
+  // the previous one is exhausted (rate-limit / outage). When
+  // OPENROUTER_DISABLED is set, OpenRouter is skipped until its daily reset,
+  // letting its free quota rest — Gemini handles everything in between.
   let usedModel = models[0]!;
-  if (OPENROUTER_KEYS.length > 0) {
+  if ((await isOpenRouterEnabled()) && OPENROUTER_KEYS.length > 0) {
     try {
       const data = await runWithOpenRouterKeys(
         (model, apiKey) => {
@@ -409,32 +443,39 @@ export async function extractScheduleFromImage(
     } catch (err) {
       PipelineLogger.error("extract", "All OpenRouter keys failed", {}, err);
     }
+  } else {
+    PipelineLogger.info(
+      "extract",
+      OPENROUTER_KEYS.length > 0
+        ? "OpenRouter is disabled (waiting for its daily reset) — using Gemini"
+        : "No OpenRouter key configured — using Gemini",
+    );
   }
 
-  // Last resort: Gemini (free tier ~1,500 requests/day, vision included).
-  // Retried once: Gemini free tier sometimes returns transient 503 (high demand).
-  if (process.env.GEMINI_API_KEY) {
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        const data = await callGemini(
+  // Gemini with multi-key rotation (key 1 -> key 2 -> ... -> key N). Free tier
+  // sometimes returns transient 503 (high demand); each key is retried once.
+  if (GEMINI_KEYS.length > 0) {
+    try {
+      const data = await runWithGeminiKeys((apiKey) =>
+        callGemini(
           [
             { inline_data: { mime_type: contentType, data: base64 } },
             { text: "Extract the classes from this image exactly as the system instructions describe. Return ONLY valid JSON." },
           ],
           { prompt: SCHEDULE_EXTRACTION_PROMPT },
-        );
-        PipelineLogger.info("extract", "Vision extraction complete (Gemini)", {
-          model: "gemini-flash-latest",
-        });
-        return { data, model: "gemini-flash-latest" };
-      } catch (err) {
-        PipelineLogger.error("extract", `Gemini attempt ${attempt} failed`, {}, err);
-        if (attempt < 2) await sleep(1500);
-      }
+          apiKey,
+        ),
+      );
+      PipelineLogger.info("extract", "Vision extraction complete (Gemini)", {
+        model: "gemini-flash-latest",
+      });
+      return { data, model: "gemini-flash-latest" };
+    } catch (err) {
+      PipelineLogger.error("extract", "All Gemini keys failed", {}, err);
     }
   }
 
-  throw new Error("All AI providers failed (OpenRouter 1-N, Gemini)");
+  throw new Error("All AI providers failed (OpenRouter 1-N, Gemini 1-N)");
 }
 
 export async function validateExtractedData(extractedJson: Record<string, unknown>) {
@@ -453,7 +494,7 @@ export async function validateExtractedData(extractedJson: Record<string, unknow
   // OpenRouter keys first (key 1 -> ... -> key N), Gemini as the very last
   // resort — same order as vision extraction.
   let usedModel = models[0]!;
-  if (OPENROUTER_KEYS.length > 0) {
+  if ((await isOpenRouterEnabled()) && OPENROUTER_KEYS.length > 0) {
     try {
       const data = await runWithOpenRouterKeys(
         (model, apiKey) => {
@@ -472,24 +513,28 @@ export async function validateExtractedData(extractedJson: Record<string, unknow
     } catch (err) {
       PipelineLogger.error("validate", "All OpenRouter keys failed", {}, err);
     }
+  } else {
+    PipelineLogger.info(
+      "validate",
+      OPENROUTER_KEYS.length > 0
+        ? "OpenRouter is disabled (waiting for its daily reset) — using Gemini"
+        : "No OpenRouter key configured — using Gemini",
+    );
   }
 
-  if (process.env.GEMINI_API_KEY) {
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        const data = await callGemini([{ text: prompt }], { prompt });
-        PipelineLogger.info("validate", "Re-validation complete (Gemini)", {
-          model: "gemini-flash-latest",
-        });
-        return data;
-      } catch (err) {
-        PipelineLogger.error("validate", `Gemini attempt ${attempt} failed`, {}, err);
-        if (attempt < 2) await sleep(1500);
-      }
+  if (GEMINI_KEYS.length > 0) {
+    try {
+      const data = await runWithGeminiKeys((apiKey) => callGemini([{ text: prompt }], { prompt }, apiKey));
+      PipelineLogger.info("validate", "Re-validation complete (Gemini)", {
+        model: "gemini-flash-latest",
+      });
+      return data;
+    } catch (err) {
+      PipelineLogger.error("validate", "All Gemini keys failed", {}, err);
     }
   }
 
-  throw new Error("All AI providers failed (OpenRouter 1-N, Gemini)");
+  throw new Error("All AI providers failed (OpenRouter 1-N, Gemini 1-N)");
 }
 
 /* ----------------------------------------------------------------------
@@ -529,22 +574,35 @@ export async function generateScheduleSuggestions(
   classes: ScheduleSuggestionInput[],
 ): Promise<string[]> {
   const models = VISION_MODELS;
-  const data = await runWithOpenRouterKeys(
-    (model, apiKey) =>
-      callOpenRouter(
-        model,
-        [
-          {
-            role: "user",
-            content:
-              `${SUGGESTIONS_PROMPT}\n\nWeekly schedule:\n${JSON.stringify(classes, null, 2)}`,
-          },
-        ],
-        0.9,
-        apiKey,
-      ).then(parseAiResponse),
-    models,
-  );
+  const fullText = `${SUGGESTIONS_PROMPT}\n\nWeekly schedule:\n${JSON.stringify(classes, null, 2)}`;
+  let data: Record<string, unknown>;
+
+  if ((await isOpenRouterEnabled()) && OPENROUTER_KEYS.length > 0) {
+    try {
+      data = await runWithOpenRouterKeys(
+        (model, apiKey) =>
+          callOpenRouter(
+            model,
+            [{ role: "user", content: fullText }],
+            0.9,
+            apiKey,
+          ).then(parseAiResponse),
+        models,
+      );
+    } catch (err) {
+      PipelineLogger.error("suggest", "OpenRouter failed", {}, err);
+      if (GEMINI_KEYS.length === 0) return [];
+      data = await runWithGeminiKeys((apiKey) =>
+        callGemini([{ text: fullText }], { prompt: SUGGESTIONS_PROMPT, temperature: 0.9 }, apiKey),
+      );
+    }
+  } else if (GEMINI_KEYS.length > 0) {
+    data = await runWithGeminiKeys((apiKey) =>
+      callGemini([{ text: fullText }], { prompt: SUGGESTIONS_PROMPT, temperature: 0.9 }, apiKey),
+    );
+  } else {
+    return [];
+  }
 
   const suggestions = (data as { suggestions?: unknown })?.suggestions;
   if (!Array.isArray(suggestions)) return [];

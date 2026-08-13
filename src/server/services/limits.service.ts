@@ -1,5 +1,6 @@
 import { getUsage, getLimitSnapshots, todayKey } from "@/server/lib/usage-counter";
 import { OPENROUTER_KEYS, OPENROUTER_SERVICES } from "@/server/lib/openrouter-keys";
+import { GEMINI_KEYS, GEMINI_SERVICES } from "@/server/lib/gemini-keys";
 
 export type LimitsService = "openrouter" | "gemini" | "qstash" | "b2_upload" | "b2_download";
 
@@ -36,7 +37,7 @@ const CAPS: Record<LimitsService, Cap> = {
     limit: OPENROUTER_DEFAULT_LIMIT_PER_KEY,
     unit: "requests",
   },
-  gemini: { name: "Gemini Flash", description: "Fallback AI model for extraction", limit: 1500, unit: "requests" },
+  gemini: { name: "Gemini Flash (All Keys)", description: "AI extraction — combined across every configured key", limit: 1500, unit: "requests" },
   qstash: { name: "QStash Messages", description: "Scheduled class reminders + push delivery", limit: 10000, unit: "transactions" },
   b2_upload: { name: "B2 Uploads (Class C)", description: "Image uploads to Backblaze", limit: 2500, unit: "transactions" },
   b2_download: { name: "B2 Downloads (Class B)", description: "Image downloads / previews", limit: 2500, unit: "transactions" },
@@ -129,7 +130,7 @@ export async function getLimitsStats() {
   const orLabel = perKey.map((k) => k.label).filter(Boolean).join(", ");
 
   const stats: LimitsStat[] = (Object.entries(CAPS) as [LimitsService, Cap][])
-    .filter(([id]) => id !== "openrouter")
+    .filter(([id]) => id !== "openrouter" && id !== "gemini")
     .map(([id, cap]) => {
       const row = byService.get(id);
       const count = row?.count ?? 0;
@@ -161,6 +162,21 @@ export async function getLimitsStats() {
         isFreeTier: orFree,
         label: orLabel,
       },
+    });
+  }
+
+  // Gemini (All Keys): combined request count across every configured key.
+  if (GEMINI_KEYS.length > 0) {
+    const geminiUsage = GEMINI_SERVICES.reduce((sum, svc) => sum + (byService.get(svc)?.count ?? 0), 0);
+    const geminiLimit = CAPS.gemini.limit * GEMINI_KEYS.length;
+    stats.unshift({
+      id: "gemini",
+      name: CAPS.gemini.name,
+      description: `${CAPS.gemini.description} (${GEMINI_KEYS.length} key${GEMINI_KEYS.length === 1 ? "" : "s"})`,
+      usage: geminiUsage,
+      limit: geminiLimit,
+      unit: "requests",
+      color: colorFor(geminiUsage, geminiLimit),
     });
   }
 
