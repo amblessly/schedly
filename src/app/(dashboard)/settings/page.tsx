@@ -11,8 +11,7 @@ import { cn } from "@/lib/utils";
 import { ShieldCheck, UploadCloud, LifeBuoy, Gauge } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Skeleton as BoneSkeleton } from "boneyard-js/react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -271,24 +270,16 @@ function AccountTab({ u }: { u: UserWithExtras | null }) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="firstName" className="text-sm font-medium">First name</Label>
-              <Input
-                id="firstName"
-                value={form.firstName}
-                onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))}
-                className="h-10"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName" className="text-sm font-medium">Last name</Label>
-              <Input
-                id="lastName"
-                value={form.lastName}
-                onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))}
-                className="h-10"
-              />
-            </div>
+            <FloatingLabelInput
+              label="First name"
+              value={form.firstName}
+              onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))}
+            />
+            <FloatingLabelInput
+              label="Last name"
+              value={form.lastName}
+              onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))}
+            />
           </div>
 
           {success && (
@@ -352,15 +343,11 @@ function DeleteAccountCard({ username }: { username: string }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="deletePhrase" className="text-sm font-medium">
-            Type your username to confirm
-          </Label>
-          <Input
-            id="deletePhrase"
+          <FloatingLabelInput
+            label="Type your username to confirm"
             value={phrase}
             onChange={(e) => setPhrase(e.target.value)}
-            placeholder={username || "username"}
-            className={`h-10 ${matches ? "border-green-500/50 focus-visible:border-green-500" : ""}`}
+            className={matches ? "border-green-500/50" : undefined}
           />
           {matches && (
             <p className="text-xs font-medium text-green-600 dark:text-green-400">
@@ -432,39 +419,27 @@ function SecurityTab() {
         <CardDescription>Make sure your account stays secure.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="currentPassword" className="text-sm font-medium">Current password</Label>
-          <Input
-            id="currentPassword"
-            type="password"
-            value={passwordForm.currentPassword}
-            onChange={(e) => setPasswordForm((p) => ({ ...p, currentPassword: e.target.value }))}
-            autoComplete="current-password"
-            className="h-10"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="newPassword" className="text-sm font-medium">New password</Label>
-          <Input
-            id="newPassword"
-            type="password"
-            value={passwordForm.newPassword}
-            onChange={(e) => setPasswordForm((p) => ({ ...p, newPassword: e.target.value }))}
-            autoComplete="new-password"
-            className="h-10"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirm new password</Label>
-          <Input
-            id="confirmPassword"
-            type="password"
-            value={passwordForm.confirmPassword}
-            onChange={(e) => setPasswordForm((p) => ({ ...p, confirmPassword: e.target.value }))}
-            autoComplete="new-password"
-            className="h-10"
-          />
-        </div>
+        <FloatingLabelInput
+          label="Current password"
+          type="password"
+          value={passwordForm.currentPassword}
+          onChange={(e) => setPasswordForm((p) => ({ ...p, currentPassword: e.target.value }))}
+          autoComplete="current-password"
+        />
+        <FloatingLabelInput
+          label="New password"
+          type="password"
+          value={passwordForm.newPassword}
+          onChange={(e) => setPasswordForm((p) => ({ ...p, newPassword: e.target.value }))}
+          autoComplete="new-password"
+        />
+        <FloatingLabelInput
+          label="Confirm new password"
+          type="password"
+          value={passwordForm.confirmPassword}
+          onChange={(e) => setPasswordForm((p) => ({ ...p, confirmPassword: e.target.value }))}
+          autoComplete="new-password"
+        />
 
         {success && (
           <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-center dark:border-green-800 dark:bg-green-950">

@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, Calculator, RotateCcw } from "lucide-react";
 
@@ -188,32 +187,22 @@ export default function GWACalculatorPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="prev-gwa" className="text-xs">Previous GWA</Label>
-              <Input
-                id="prev-gwa"
-                type="number"
-                step="0.01"
-                min={scale.minPoint}
-                max={scale.maxPoint}
-                placeholder={scale.lowerIsBetter ? "e.g. 2.50" : "e.g. 3.00"}
-                value={currentGWA}
-                onChange={(e) => setCurrentGWA(e.target.value)}
-                className="h-9"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="prev-units" className="text-xs">Total Units Earned</Label>
-              <Input
-                id="prev-units"
-                type="number"
-                min="0"
-                placeholder="e.g. 24"
-                value={currentUnits}
-                onChange={(e) => setCurrentUnits(e.target.value)}
-                className="h-9"
-              />
-            </div>
+            <FloatingLabelInput
+              label="Previous GWA"
+              type="number"
+              step="0.01"
+              min={scale.minPoint}
+              max={scale.maxPoint}
+              value={currentGWA}
+              onChange={(e) => setCurrentGWA(e.target.value)}
+            />
+            <FloatingLabelInput
+              label="Total Units Earned"
+              type="number"
+              min="0"
+              value={currentUnits}
+              onChange={(e) => setCurrentUnits(e.target.value)}
+            />
           </div>
         </CardContent>
       </Card>
@@ -230,24 +219,15 @@ export default function GWACalculatorPage() {
           </Button>
         </CardHeader>
         <CardContent className="space-y-2">
-          {/* Header (desktop only) */}
-          <div className="hidden grid-cols-[1fr_80px_100px_36px] gap-2 text-xs font-medium text-muted-foreground px-1 sm:grid">
-            <span>Course Name</span>
-            <span>Units</span>
-            <span>Grade</span>
-            <span />
-          </div>
-
           {courses.map((course) => (
             <div
               key={course.id}
               className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-lg border border-border/40 p-2 sm:grid-cols-[1fr_80px_100px_36px] sm:gap-2 sm:rounded-none sm:border-0 sm:p-0"
             >
-              <Input
-                placeholder="e.g. Mathematics"
+              <FloatingLabelInput
+                label="Course name"
                 value={course.name}
                 onChange={(e) => updateCourse(course.id, "name", e.target.value)}
-                className="h-9"
               />
               <Button
                 variant="ghost"
@@ -258,13 +238,13 @@ export default function GWACalculatorPage() {
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
-              <Input
+              <FloatingLabelInput
+                label="Units"
                 type="number"
                 min="0"
                 step="0.5"
                 value={course.units}
                 onChange={(e) => updateCourse(course.id, "units", e.target.value)}
-                className="h-9"
               />
               <select
                 value={course.grade}
@@ -313,16 +293,15 @@ export default function GWACalculatorPage() {
 
         <Card className="border-border/50">
           <CardContent className="space-y-3 pt-6 pb-4">
-            <p className="text-xs text-muted-foreground text-center">Target GWA</p>
-            <Input
+            <FloatingLabelInput
+              label="Target GWA"
+              inputClassName="text-center text-lg font-bold"
               type="number"
               step="0.01"
               min={scale.minPoint}
               max={scale.maxPoint}
-              placeholder={scale.lowerIsBetter ? "e.g. 2.00" : "e.g. 3.50"}
               value={targetGWA}
               onChange={(e) => setTargetGWA(e.target.value)}
-              className="h-9 text-center text-lg font-bold"
             />
             {target > 0 && parseFloat(currentGWA) > 0 && (
               <div className="text-center">

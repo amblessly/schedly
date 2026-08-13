@@ -9,8 +9,7 @@ import { uploadAvatar, removeAvatar } from "@/app/(dashboard)/settings/actions";
 import { PermissionsStep } from "./permissions-step";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { Spinner } from "@/components/ui/spinner";
 import { authFetch } from "@/lib/auth-fetch";
 import {
@@ -249,15 +248,14 @@ export default function OnboardingPage() {
 
               {/* Username */}
               <div className="space-y-2">
-                <Label htmlFor="username" className="text-sm font-medium">Username</Label>
                 <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                  <span className="pointer-events-none absolute left-3 top-1/2 z-[2] -translate-y-1/2 text-sm text-muted-foreground">
                     @
                   </span>
-                  <Input
-                    id="username"
+                  <FloatingLabelInput
+                    label="Username"
+                    inputClassName="pl-7"
                     type="text"
-                    placeholder="username"
                     value={username}
                     onChange={(e) => {
                       setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ""));
@@ -265,7 +263,6 @@ export default function OnboardingPage() {
                     }}
                     aria-invalid={!!usernameError}
                     autoComplete="off"
-                    className="h-11 pl-7"
                   />
                 </div>
                 {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}

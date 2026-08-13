@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -116,12 +117,12 @@ export default function TodoPage() {
         </CardHeader>
         <CardContent className="pt-1">
           <div className="flex gap-2">
-            <Input
-              placeholder="What do you need to do?"
+            <FloatingLabelInput
+              label="New task"
+              className="flex-1"
               value={newText}
               onChange={(e) => setNewText(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-              className="h-11 flex-1"
             />
             <Button
               onClick={handleAdd}
@@ -235,11 +236,11 @@ export default function TodoPage() {
               >
                 {isEditing ? (
                   <div className="space-y-3">
-                    <Input
+                    <FloatingLabelInput
+                      label="Edit task"
                       value={editText}
                       onChange={(e) => setEditText(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && saveEdit(todo.id)}
-                      className="h-10 text-sm"
                       autoFocus
                     />
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import {
   Play,
   Pause,
@@ -145,26 +146,18 @@ export default function PomodoroPage() {
           </div>
 
           <div className="grid w-full grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">
-                Focus (min)
-              </label>
-              <input
-                type="number" min={1} max={120} value={focusMin}
-                onChange={(e) => setFocusMin(Math.max(1, Number(e.target.value) || 1))}
-                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-center text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">
-                Break (min)
-              </label>
-              <input
-                type="number" min={1} max={60} value={breakMin}
-                onChange={(e) => setBreakMin(Math.max(1, Number(e.target.value) || 1))}
-                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-center text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            </div>
+            <FloatingLabelInput
+              label="Focus (min)"
+              inputClassName="text-center"
+              type="number" min={1} max={120} value={focusMin}
+              onChange={(e) => setFocusMin(Math.max(1, Number(e.target.value) || 1))}
+            />
+            <FloatingLabelInput
+              label="Break (min)"
+              inputClassName="text-center"
+              type="number" min={1} max={60} value={breakMin}
+              onChange={(e) => setBreakMin(Math.max(1, Number(e.target.value) || 1))}
+            />
           </div>
         </CardContent>
       </Card>

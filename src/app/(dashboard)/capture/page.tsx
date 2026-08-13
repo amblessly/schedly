@@ -201,12 +201,13 @@ export default function CapturePage() {
   };
 
   const handleCreateManually = () => {
-    // Skip upload, go straight to review with empty classes
+    // Skip upload, go straight to review with one blank class row so the
+    // user can start typing immediately (Enter commits + adds the next row).
     setValidationIssues([]);
     clearReviewState(userId);
     clearUploadState(userId);
     resetUpload();
-    restoreExtractedClasses([]);
+    addExtractedClass();
     setPhase("review");
   };
 
@@ -258,14 +259,20 @@ export default function CapturePage() {
     <div className="mx-auto max-w-4xl pt-8 md:pt-0">
       <div className="mb-6 sm:mb-8">
         {isManualCreate ? (
-          <div className="flex items-center gap-3 justify-center">
-            <Button variant="ghost" size="icon-sm" onClick={handleBackToSelect} aria-label="Back">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Add Schedule Manually
-            </h1>
-          </div>
+          <>
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon-sm" onClick={handleBackToSelect} aria-label="Back">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                <Calendar className="h-6 w-6 text-primary" />
+                Add Schedule Manually
+              </h1>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+              Enter your classes and details one by one
+            </p>
+          </>
         ) : (
           <>
             <div className="flex items-center gap-3">

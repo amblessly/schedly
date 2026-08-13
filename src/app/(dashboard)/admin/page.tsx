@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { getAdminStats, getUsers, toggleAdminRole, sendBroadcastNotification } from "./actions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { FloatingLabelTextarea } from "@/components/ui/floating-label-textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Skeleton as BoneSkeleton } from "boneyard-js/react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -255,15 +255,16 @@ export default function AdminPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Input
-                    placeholder="Title (optional) — e.g. New update!"
+                  <FloatingLabelInput
+                    label="Title (optional)"
                     value={broadcastTitle}
                     onChange={(e) => setBroadcastTitle(e.target.value)}
                     maxLength={100}
                     disabled={broadcasting}
                   />
-                  <Textarea
-                    placeholder="Message — e.g. Schedly v1.3 is out with bug fixes. Check it out!"
+                  <FloatingLabelTextarea
+                    label="Message"
+                    inputClassName="min-h-[110px] resize-y"
                     value={broadcastMessage}
                     onChange={(e) => setBroadcastMessage(e.target.value)}
                     maxLength={500}
@@ -408,14 +409,14 @@ export default function AdminPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               Re-enter your password to authorize this admin action.
             </p>
-            <Input
+            <FloatingLabelInput
+              label="Your password"
               type="password"
               autoFocus
-              placeholder="Your password"
+              className="mt-4"
               value={confirmPassword}
               onChange={(e) => { setConfirmPassword(e.target.value); setConfirmError(""); }}
               onKeyDown={(e) => e.key === "Enter" && confirmToggle()}
-              className="mt-4 h-11"
             />
             {confirmError && (
               <p className="mt-2 text-xs text-destructive">{confirmError}</p>

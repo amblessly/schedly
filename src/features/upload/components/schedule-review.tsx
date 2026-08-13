@@ -98,6 +98,18 @@ export function ScheduleReview({
     onUpdate(classIndex, { ...cls, days: newDays });
   };
 
+  // Quick-entry: pressing Enter in any field commits the current class and
+  // opens a fresh blank row so you can keep typing without hitting "Add Class".
+  const handleClassSubmit = (e: React.FormEvent, index: number) => {
+    e.preventDefault();
+    const cls = classes[index];
+    if (!cls || !cls.subject.trim()) return;
+    onAdd();
+    const nextIndex = classes.length;
+    setExpandedIndex(nextIndex);
+    setTimeout(() => document.getElementById(`subject-${nextIndex}`)?.focus(), 0);
+  };
+
   const validCount = classes.filter((c) => c.subject.trim() && c.days.length > 0).length;
 
   // Group validation issues per class row so each card can flag its own conflicts.
@@ -267,7 +279,8 @@ export function ScheduleReview({
                 </div>
               </CardHeader>
               {isExpanded && (
-                <CardContent className="px-4 pb-4 pt-0 space-y-3">
+                <CardContent className="px-4 pb-4 pt-0">
+                  <form className="space-y-3" onSubmit={(e) => handleClassSubmit(e, i)}>
                     {rowIssues.length > 0 && (
                       <div className="space-y-1 rounded-lg border border-red-200 bg-red-50/60 px-2.5 py-2 dark:border-red-800 dark:bg-red-950/40">
                         {rowIssues.map((issue, k) => (
@@ -284,6 +297,7 @@ export function ScheduleReview({
                     )}
                     <div className="grid grid-cols-2 gap-3">
                       <FloatingLabelInput
+                        id={`subject-${i}`}
                         label="Subject *"
                         value={cls.subject}
                         onChange={(e) => onUpdate(i, { ...cls, subject: e.target.value })}
@@ -374,11 +388,19 @@ export function ScheduleReview({
                   <Button
                     variant="ghost"
                     size="sm"
+                    type="button"
                     className="text-destructive hover:text-destructive mt-1"
                     onClick={() => onRemove(i)}
                   >
                     <Trash2 className="mr-1 h-3 w-3" /> Remove
                   </Button>
+                  <div className="flex items-center justify-between gap-2 pt-0.5">
+                    <p className="text-[11px] text-muted-foreground">
+                      Press Enter to add another class
+                    </p>
+                    <button type="submit" tabIndex={-1} aria-hidden="true" className="sr-only">Add</button>
+                  </div>
+                  </form>
                 </CardContent>
               )}
             </Card>

@@ -3,7 +3,8 @@
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { FloatingLabelTextarea } from "@/components/ui/floating-label-textarea";
 import {
   StickyNote,
   Plus,
@@ -105,17 +106,17 @@ export default function NotesPage() {
 
       <Card className="border-border/50">
         <CardContent className="space-y-3 pt-4">
-          <Input
+          <FloatingLabelInput
+            label="Note title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Note title"
             maxLength={80}
           />
-          <textarea
+          <FloatingLabelTextarea
+            label="Write something..."
+            inputClassName="min-h-[100px] resize-y"
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="Write something..."
-            className="flex min-h-[100px] w-full resize-y rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
             maxLength={2000}
           />
           <div className="flex justify-end">

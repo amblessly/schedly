@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, startTransition } from "react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { Label } from "@/components/ui/label";
 import {
   Card,
@@ -216,48 +216,45 @@ export default function AdminApkPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="versionName">Version name</Label>
             {versionOptions.length > 0 ? (
-              <select
-                id="versionName"
-                value={versionName}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setVersionName(v);
-                  const opt = versionOptions.find((o) => o.versionName === v);
-                  if (opt && !updateMessage) {
-                    setUpdateMessage(
-                      `New version ${v} is now available with a home-screen timetable widget, compact subject labels, and a redesigned class info card!`
-                    );
-                  }
-                }}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                {versionOptions.map((o) => (
-                  <option key={o.versionName} value={o.versionName}>
-                    {o.versionName} (code {o.versionCode})
-                  </option>
-                ))}
-              </select>
+              <>
+                <Label htmlFor="versionName">Version name</Label>
+                <select
+                  id="versionName"
+                  value={versionName}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setVersionName(v);
+                    const opt = versionOptions.find((o) => o.versionName === v);
+                    if (opt && !updateMessage) {
+                      setUpdateMessage(
+                        `New version ${v} is now available with a home-screen timetable widget, compact subject labels, and a redesigned class info card!`
+                      );
+                    }
+                  }}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {versionOptions.map((o) => (
+                    <option key={o.versionName} value={o.versionName}>
+                      {o.versionName} (code {o.versionCode})
+                    </option>
+                  ))}
+                </select>
+              </>
             ) : (
-              <Input
-                id="versionName"
+              <FloatingLabelInput
+                label="Version name"
                 value={versionName}
                 onChange={(e) => setVersionName(e.target.value)}
-                placeholder="1.4.2"
               />
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="updateMessage">Update message</Label>
-            <Input
-              id="updateMessage"
-              value={updateMessage}
-              onChange={(e) => setUpdateMessage(e.target.value)}
-              placeholder="Bug fixes and improvements"
-            />
-          </div>
+          <FloatingLabelInput
+            label="Update message"
+            value={updateMessage}
+            onChange={(e) => setUpdateMessage(e.target.value)}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="apk">APK file (in repo)</Label>

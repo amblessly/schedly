@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { FloatingLabelTextarea } from "@/components/ui/floating-label-textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LifeBuoy, Send, CheckCircle, AlertCircle } from "lucide-react";
@@ -143,29 +144,20 @@ export default function FeedbackPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="subject">Subject (optional)</Label>
-              <Input
-                id="subject"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder="Short summary"
-                maxLength={200}
-              />
-            </div>
+            <FloatingLabelInput
+              label="Subject (optional)"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              maxLength={200}
+            />
 
-            <div className="space-y-2">
-              <Label htmlFor="message">Message</Label>
-              <textarea
-                id="message"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                rows={6}
-                maxLength={5000}
-                placeholder="Describe the issue, what you expected, and what happened. If it's about uploading your schedule, mention the file or error you saw."
-                className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            </div>
+            <FloatingLabelTextarea
+              label="Message"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={6}
+              maxLength={5000}
+            />
 
             {error && (
               <p className="flex items-center gap-1.5 text-sm text-red-500">
