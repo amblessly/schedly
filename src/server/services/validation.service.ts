@@ -97,10 +97,13 @@ export function validateExtractedClasses(classes: ExtractedClassInput[]): Valida
         aStart !== null && aEnd !== null && bStart !== null && bEnd !== null &&
         aStart < bEnd && bStart < aEnd;
 
-      // A duplicate is either the exact same class (subject + code + days) or the
-      // same subject booked at the same time on shared days (covers missing codes).
+      // A duplicate is the exact same class (subject + code + days AND an
+      // overlapping time) or the same subject booked at the same time on
+      // shared days (covers missing codes). Same subject at DIFFERENT times —
+      // even on the same days — is a legitimate double-session (e.g. separate
+      // cards for Tue 12-1:30 and Fri 4:30-6) and must never be flagged.
       const isDuplicate =
-        (sameSubject && sameCode && sameDays) ||
+        (sameSubject && sameCode && sameDays && timesOverlap) ||
         (sameSubject && timesOverlap && sharedDays.length > 0);
 
       if (isDuplicate) {

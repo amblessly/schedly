@@ -196,7 +196,7 @@ export default function AdminPage() {
 
       <div className="flex flex-col gap-6 md:flex-row md:items-start">
         {/* Left nav */}
-        <nav className="flex shrink-0 gap-1 overflow-x-auto md:w-48 md:flex-col md:overflow-visible md:rounded-2xl md:border md:border-border/60 md:bg-card/50 md:p-2">
+        <nav className="flex shrink-0 gap-1 overflow-x-auto md:w-48 md:flex-col md:overflow-visible md:rounded-2xl md:border md:border-border/60 md:bg-card/80 md:p-2 md:backdrop-blur-sm md:sticky md:top-6">
           {[
             { id: "overview", label: "Overview", icon: LayoutDashboard },
             { id: "broadcast", label: "Broadcast", icon: Radio },

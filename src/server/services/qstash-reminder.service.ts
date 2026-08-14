@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { db } from "@/server/db/client";
 import { sendPush, isVapidConfigured } from "@/server/lib/web-push";
 import { sendFCMPush, isFcmConfigured } from "@/server/lib/firebase-admin";
-import { nextOccurrence } from "@/server/services/reminder-dispatcher.service";
+import { nextOccurrence, lastOccurrence } from "@/server/services/reminder-dispatcher.service";
 import { upsertClassReminderNotification } from "@/server/services/class-reminder-notify";
 import { incrementUsage, USAGE_SERVICES } from "@/server/lib/usage-counter";
 import type { DayOfWeek } from "@/generated/prisma/client";
@@ -239,6 +239,27 @@ export async function sendClassReminderPush(args: {
   const startLabelTxt = startLabel(cls.startTime);
 
   if (kind === "start") {
+    // Drop stale QStash messages: if the class time was edited after this
+    // message was scheduled, the occurrence it claims no longer exists in the
+    // live schedule — firing would remind the user at the wrong moment. The
+    // daily cron catch-up re-delivers based on the current schedule instead.
+    const tz = reminder.user.timezone || "Asia/Manila";
+    const nowMs = Date.now();
+    const liveOcc = lastOccurrence(
+      cls.startTime,
+      cls.days as DayOfWeek[],
+      tz,
+      new Date(nowMs + 5 * 60 * 1000)
+    );
+    if (
+      liveOcc === null ||
+      liveOcc !== occ ||
+      nowMs < occ - 5 * 60 * 1000 ||
+      nowMs > occ + 10 * 60 * 1000
+    ) {
+      return { sent: false, reason: "stale-occurrence" };
+    }
+
     // "Class starting now" — atomic claim on the occurrence BEFORE delivering.
     // Duplicate schedules re-import the same class as separate Reminder rows,
     // each with its own QStash message; claim every matching row at once so
@@ -289,6 +310,19 @@ export async function sendClassReminderPush(args: {
   // so it can never turn into a second "starting now".
   if (reminder.lastSentAt && reminder.lastSentAt.getTime() >= occ) {
     return { sent: false, reason: "already-sent" };
+  }
+
+  // Same staleness guard as "start": an old QStash message (class time edited
+  // after scheduling) must not fire for an occurrence that no longer exists.
+  const tz = reminder.user.timezone || "Asia/Manila";
+  const liveNext = nextOccurrence(
+    cls.startTime,
+    cls.days as DayOfWeek[],
+    tz,
+    new Date()
+  );
+  if (liveNext === null || liveNext !== occ) {
+    return { sent: false, reason: "stale-occurrence" };
   }
 
   const now = new Date();

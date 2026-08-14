@@ -13,7 +13,7 @@ import { useThemeConfig } from "@/features/theme";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { reportClientType, type ClientType } from "./actions";
 import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
-import { getUserReminders, scheduleUpcomingReminders } from "@/app/(dashboard)/reminders/actions";
+import { getUserReminders, scheduleUpcomingReminders, dispatchUserReminders } from "@/app/(dashboard)/reminders/actions";
 import { programReminderAlarms } from "@/lib/notification-scheduler";
 import { cachedAction } from "@/lib/server-action-cache";
 import { subscribeOpen, getOpenSnapshot, setOpen } from "@/lib/sidebar-drawer";
@@ -138,6 +138,29 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       active = false;
     };
   }, [user, pathname]);
+
+  // Client heartbeat — QStash isn't configured in this deployment, so exact-
+  // time class reminders only fire when something checks for them. Poll the
+  // dispatcher every 30s while the app is open (and on every focus/visibility
+  // change) so enabled reminders actually go out on time. Deduped server-side
+  // via lastSentAt/lastStartSentAt, so frequent polling never double-sends.
+  useEffect(() => {
+    if (!user) return;
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
+      cachedAction("layout:dispatch", () => dispatchUserReminders(), 30_000).catch(() => {});
+    };
+    tick();
+    const id = window.setInterval(tick, 30_000);
+    const onVis = () => tick();
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onVis);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onVis);
+    };
+  }, [user]);
 
   useEffect(() => {
     if (needsOnboarding) router.replace("/onboarding");

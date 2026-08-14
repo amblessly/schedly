@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useCallback, useMemo, useSyncExternalStore } from "react";
+import { createContext, useContext, useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { THEME_PRESETS, DEFAULT_THEME_ID, type ThemePreset } from "./presets";
 
 type ThemeContextValue = {
@@ -91,6 +91,17 @@ export function ThemeProvider({
     () => THEME_PRESETS.find((p) => p.id === activeId) ?? THEME_PRESETS[0]!,
     [activeId],
   );
+
+  // Apply the theme's CSS variables to <html> too — the dashboard layout only
+  // sets them on a wrapper <div>, but portals (dialogs, popovers, toasts)
+  // render at the document root OUTSIDE that div. Mirroring the vars on
+  // documentElement lets every portal inherit the user's chosen theme.
+  useEffect(() => {
+    const root = document.documentElement;
+    for (const [key, value] of Object.entries(activePreset.vars)) {
+      root.style.setProperty(key, value);
+    }
+  }, [activePreset]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({

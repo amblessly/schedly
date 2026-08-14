@@ -106,7 +106,7 @@ export default function SettingsPage() {
 
       <div className="flex flex-col gap-6 md:flex-row md:items-start">
         {/* Left nav */}
-        <nav className="flex shrink-0 gap-1 overflow-x-auto md:w-48 md:flex-col md:overflow-visible md:rounded-2xl md:border md:border-border/60 md:bg-card/50 md:p-2">
+        <nav className="flex shrink-0 gap-1 overflow-x-auto md:w-48 md:flex-col md:overflow-visible md:rounded-2xl md:border md:border-border/60 md:bg-card/80 md:p-2 md:backdrop-blur-sm md:sticky md:top-6">
           {[
             { id: "account", label: "Account" },
             { id: "security", label: "Security" },
@@ -239,6 +239,7 @@ function ThemeCard() {
 }
 
 function AccountTab({ u }: { u: UserWithExtras | null }) {
+  const { refetchSession } = useAuth();
   const [form, setForm] = useState({
     firstName: u?.firstName || "",
     lastName: u?.lastName || "",
@@ -248,10 +249,10 @@ function AccountTab({ u }: { u: UserWithExtras | null }) {
   const [error, setError] = useState("");
 
   async function handleSave() {
-    setLoading(true);
     setError("");
     setSuccess(false);
 
+    setLoading(true);
     try {
       const result = await authClient.updateUser({
         name: form.lastName ? `${form.firstName} ${form.lastName}` : form.firstName,
@@ -263,6 +264,7 @@ function AccountTab({ u }: { u: UserWithExtras | null }) {
         setError(result.error.message || "Failed to update profile.");
       } else {
         setSuccess(true);
+        refetchSession();
         setTimeout(() => setSuccess(false), 3000);
       }
     } catch {

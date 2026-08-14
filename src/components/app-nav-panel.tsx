@@ -23,7 +23,7 @@ export function AppNavPanel() {
     );
 
   return (
-    <nav className="hidden w-48 shrink-0 flex-col gap-1 self-start rounded-2xl border border-border/60 bg-card/50 p-2 md:flex">
+    <nav className="hidden w-48 shrink-0 flex-col gap-1 self-start rounded-2xl border border-border/60 bg-card/80 p-2 backdrop-blur-sm md:sticky md:top-6 md:flex">
       {mainNav.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
         return (

@@ -19,6 +19,7 @@ type Course = {
 // Grading systems. Each scale maps a grade label to a numeric point value.
 // - Philippine: 1.00 (highest) to 5.00 (failing). Lower GWA = better.
 // - US 4.0: A+ (4.0) highest to F (0). Higher GWA = better.
+// - Numeric 4.0: 4.0 (highest) to 1.0 (lowest). Higher GWA = better.
 // INC/DRP/FA don't carry grade points.
 type GradingScale = {
   id: string;
@@ -75,6 +76,25 @@ const GRADING_SCALES: Record<string, GradingScale> = {
       "D": 1.0,
       "D-": 0.7,
       "F": 0,
+      "INC": 0,
+      "DRP": 0,
+    },
+  },
+  numeric4: {
+    id: "numeric4",
+    label: "Numeric 4.0 (4 = highest)",
+    defaultGrade: "3.0",
+    lowerIsBetter: false,
+    minPoint: 1,
+    maxPoint: 4,
+    points: {
+      "4.0": 4.0,
+      "3.5": 3.5,
+      "3.0": 3.0,
+      "2.5": 2.5,
+      "2.0": 2.0,
+      "1.5": 1.5,
+      "1.0": 1.0,
       "INC": 0,
       "DRP": 0,
     },

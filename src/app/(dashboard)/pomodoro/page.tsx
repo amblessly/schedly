@@ -15,11 +15,18 @@ import { HeaderAvatar } from "@/components/header-avatar";
 import { NotificationBell } from "@/components/notification-bell";
 
 const DEFAULTS = { focus: 25, break: 5 };
+const MAX_FOCUS = 240;
+const MAX_BREAK = 120;
 
 function format(seconds: number) {
   const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
+  const s = Math.floor(seconds % 60);
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function clampInt(value: number, min: number, max: number): number {
+  const n = Number.isFinite(value) ? Math.round(value) : min;
+  return Math.min(max, Math.max(min, n));
 }
 
 export default function PomodoroPage() {
@@ -28,6 +35,10 @@ export default function PomodoroPage() {
   const [phase, setPhase] = useState<"focus" | "break">("focus");
   const [secondsLeft, setSecondsLeft] = useState(DEFAULTS.focus * 60);
   const [running, setRunning] = useState(false);
+  // Epoch ms when the current phase ends. The countdown is computed from
+  // this deadline (not a decrementing counter), so it stays accurate even
+  // when the tab is throttled in the background.
+  const [deadline, setDeadline] = useState<number | null>(null);
   const phaseRef = useRef(phase);
   const focusRef = useRef(focusMin);
   const breakRef = useRef(breakMin);
@@ -39,27 +50,61 @@ export default function PomodoroPage() {
   });
 
   useEffect(() => {
-    if (!running) return;
+    if (!running || deadline === null) return;
     const id = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) {
-          const next = phaseRef.current === "focus" ? "break" : "focus";
-          setPhase(next);
-          return next === "focus" ? focusRef.current * 60 : breakRef.current * 60;
-        }
-        return s - 1;
-      });
-    }, 1000);
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+      if (remaining <= 0) {
+        const next = phaseRef.current === "focus" ? "break" : "focus";
+        setPhase(next);
+        const dur = next === "focus" ? focusRef.current : breakRef.current;
+        const newDeadline = Date.now() + dur * 60 * 1000;
+        setSecondsLeft(dur * 60);
+        setDeadline(newDeadline);
+      }
+    }, 250);
     return () => clearInterval(id);
-  }, [running]);
+  }, [running, deadline]);
 
   const total = (phase === "focus" ? focusMin : breakMin) * 60;
   const progress = total > 0 ? (secondsLeft / total) * 100 : 0;
 
-  const toggle = () => setRunning((r) => !r);
+  /** Apply a new focus duration. If the focus phase is active, the visible
+   *  countdown resets to the new length — no stale numbers on screen. */
+  function applyFocus(value: number) {
+    const next = clampInt(value, 1, MAX_FOCUS);
+    setFocusMin(next);
+    if (phase === "focus") {
+      setSecondsLeft(next * 60);
+      setDeadline(running ? Date.now() + next * 60 * 1000 : null);
+    }
+  }
+
+  /** Apply a new break duration — same rules as applyFocus. */
+  function applyBreak(value: number) {
+    const next = clampInt(value, 1, MAX_BREAK);
+    setBreakMin(next);
+    if (phase === "break") {
+      setSecondsLeft(next * 60);
+      setDeadline(running ? Date.now() + next * 60 * 1000 : null);
+    }
+  }
+
+  const toggle = () => {
+    if (running) {
+      // Pause: freeze the remaining time by dropping the deadline.
+      setRunning(false);
+      setDeadline(null);
+    } else {
+      // Resume (or start): schedule the phase end from the current remaining.
+      setDeadline(Date.now() + secondsLeft * 1000);
+      setRunning(true);
+    }
+  };
 
   const reset = () => {
     setRunning(false);
+    setDeadline(null);
     setSecondsLeft((phase === "focus" ? focusMin : breakMin) * 60);
   };
 
@@ -67,6 +112,7 @@ export default function PomodoroPage() {
     const next = phase === "focus" ? "break" : "focus";
     setPhase(next);
     setRunning(false);
+    setDeadline(null);
     setSecondsLeft((next === "focus" ? focusMin : breakMin) * 60);
   };
 
@@ -95,7 +141,7 @@ export default function PomodoroPage() {
         <CardContent className="flex flex-col items-center gap-6 py-8">
           <div className="flex gap-2">
             <button
-              onClick={() => { setRunning(false); setPhase("focus"); setSecondsLeft(focusMin * 60); }}
+              onClick={() => { setRunning(false); setDeadline(null); setPhase("focus"); setSecondsLeft(focusMin * 60); }}
               className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
                 phase === "focus"
                   ? "bg-primary text-primary-foreground"
@@ -105,7 +151,7 @@ export default function PomodoroPage() {
               Focus
             </button>
             <button
-              onClick={() => { setRunning(false); setPhase("break"); setSecondsLeft(breakMin * 60); }}
+              onClick={() => { setRunning(false); setDeadline(null); setPhase("break"); setSecondsLeft(breakMin * 60); }}
               className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
                 phase === "break"
                   ? "bg-primary text-primary-foreground"
@@ -162,14 +208,14 @@ export default function PomodoroPage() {
             <FloatingLabelInput
               label="Focus (min)"
               inputClassName="text-center"
-              type="number" min={1} max={120} value={focusMin}
-              onChange={(e) => setFocusMin(Math.max(1, Number(e.target.value) || 1))}
+              type="number" min={1} max={MAX_FOCUS} value={focusMin}
+              onChange={(e) => applyFocus(Number(e.target.value))}
             />
             <FloatingLabelInput
               label="Break (min)"
               inputClassName="text-center"
-              type="number" min={1} max={60} value={breakMin}
-              onChange={(e) => setBreakMin(Math.max(1, Number(e.target.value) || 1))}
+              type="number" min={1} max={MAX_BREAK} value={breakMin}
+              onChange={(e) => applyBreak(Number(e.target.value))}
             />
           </div>
         </CardContent>

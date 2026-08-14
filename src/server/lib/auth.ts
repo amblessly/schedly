@@ -161,15 +161,19 @@ export const auth = betterAuth({
           const nameParts = name.split(/\s+/);
           const firstName = nameParts[0] ?? "";
           const lastName = nameParts.slice(1).join(" ") || firstName;
+          const providedUsername = (user as Record<string, unknown>).username;
 
           return {
             data: {
               ...user,
               firstName: firstName || email.split("@")[0] || "User",
               lastName: lastName || "User",
-              // username must be unique; derive from email local-part
-              username: encodeURIComponent(email.split("@")[0] ?? "user").replace(/[^a-zA-Z0-9_.]/g, "") ||
-                `user${Math.random().toString(36).slice(2, 8)}`,
+              // Only derive a username when the sign-up didn't provide one
+              // (social providers). Email sign-ups keep the username the user chose.
+              username: typeof providedUsername === "string" && providedUsername.trim()
+                ? providedUsername.trim()
+                : encodeURIComponent(email.split("@")[0] ?? "user").replace(/[^a-zA-Z0-9_.]/g, "") ||
+                  `user${Math.random().toString(36).slice(2, 8)}`,
             },
           };
         },

@@ -5,6 +5,8 @@ import { auth } from "@/server/lib/auth";
 import { reminderService } from "@/server/services/reminder.service";
 import { auditLog } from "@/server/lib/audit";
 import { scheduleQstashReminders } from "@/server/services/qstash-reminder.service";
+import { dispatchDueReminders } from "@/server/services/reminder-dispatcher.service";
+import { dispatchTodoDeadlines } from "@/server/services/todo-deadline-reminder.service";
 
 export async function getUserReminders() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -22,6 +24,24 @@ export async function scheduleUpcomingReminders() {
     return { ok: true, ...result };
   } catch (err) {
     console.error("[SCHEDULE_UPCOMING]", err);
+    return { ok: false };
+  }
+}
+
+/** Client heartbeat — dispatches due reminders for the signed-in user NOW.
+ *  QStash isn't configured in this deployment, so exact-time reminders only
+ *  fire when something checks for them: this runs while the app is open (the
+ *  daily cron remains the safety net for when it's closed). Delivery is
+ *  deduped via lastSentAt/lastStartSentAt, so polling every minute is safe. */
+export async function dispatchUserReminders() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return { ok: false };
+  try {
+    const result = await dispatchDueReminders(new Date(), session.user.id);
+    const todos = await dispatchTodoDeadlines(new Date(), session.user.id);
+    return { ok: true, ...result, todos };
+  } catch (err) {
+    console.error("[DISPATCH_USER]", err);
     return { ok: false };
   }
 }

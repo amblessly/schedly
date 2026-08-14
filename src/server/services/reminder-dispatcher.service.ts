@@ -129,11 +129,11 @@ function nearestOccurrence(
   return best;
 }
 
-export async function dispatchDueReminders(now: Date = new Date()) {
+export async function dispatchDueReminders(now: Date = new Date(), userId?: string) {
   if (!isVapidConfigured() && !isFcmConfigured()) return { sent: 0, checked: 0 };
 
   const reminders = await db.reminder.findMany({
-    where: { isActive: true },
+    where: { isActive: true, ...(userId ? { userId } : {}) },
     include: {
       class: { include: { schedule: true } },
       user: { select: { id: true, timezone: true } },
@@ -141,7 +141,7 @@ export async function dispatchDueReminders(now: Date = new Date()) {
   });
 
   const subsByUser = new Map<string, { endpoint: string; p256dh: string; auth: string }[]>();
-  const subRows = await db.pushSubscription.findMany();
+  const subRows = await db.pushSubscription.findMany(userId ? { where: { userId } } : undefined);
   for (const sub of subRows) {
     const list = subsByUser.get(sub.userId) ?? [];
     list.push({ endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth });
@@ -149,7 +149,10 @@ export async function dispatchDueReminders(now: Date = new Date()) {
   }
 
   const fcmTokensByUser = new Map<string, number>();
-  const fcmRows = await db.fCMToken.findMany({ select: { userId: true } });
+  const fcmRows = await db.fCMToken.findMany({
+    ...(userId ? { where: { userId } } : {}),
+    select: { userId: true },
+  });
   for (const row of fcmRows) {
     fcmTokensByUser.set(row.userId, (fcmTokensByUser.get(row.userId) ?? 0) + 1);
   }

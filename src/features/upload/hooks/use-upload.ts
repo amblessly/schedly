@@ -208,19 +208,25 @@ export function useUpload() {
               reject(pollErr);
             });
         } else {
+          // The server may return a plain-text / HTML error body (e.g. a 413
+          // "Request entity too large" from the platform). Never surface the
+          // raw parse error — map non-JSON responses to a friendly message.
+          let friendly = `Upload failed (${xhr.status}). Please try again.`;
+          if (xhr.status === 413) {
+            friendly = "The file is too large to upload. Please choose a smaller image.";
+          } else if (xhr.status === 429) {
+            friendly = "Too many uploads. Please wait a moment and try again.";
+          }
           try {
             const err = JSON.parse(xhr.responseText);
-            setUpload((prev) => prev ? { ...prev, status: "failed", error: err.error || "Upload failed" } : null);
-            setIsUploading(false);
-            setIsProcessing(false);
-            reject(new Error(err.error || "Upload failed"));
+            friendly = (typeof err?.error === "string" && err.error) || friendly;
           } catch (e) {
-            const msg = e instanceof Error ? e.message : "Upload failed";
-            setUpload((prev) => prev ? { ...prev, status: "failed", error: msg } : null);
-            setIsUploading(false);
-            setIsProcessing(false);
-            reject(e);
+            // Non-JSON body — keep the friendly message above.
           }
+          setUpload((prev) => prev ? { ...prev, status: "failed", error: friendly } : null);
+          setIsUploading(false);
+          setIsProcessing(false);
+          reject(new Error(friendly));
         }
       });
 

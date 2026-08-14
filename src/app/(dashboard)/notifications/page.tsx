@@ -130,6 +130,15 @@ const typeColors = {
   system: "bg-muted text-muted-foreground",
 };
 
+/** Friendlier category label for a notification. To-do deadline reminders
+ *  reuse the `system` type, so they get a readable label instead of "system". */
+function typeLabel(n: { type: Notification["type"]; title: string }): string {
+  if (n.type === "system" && (n.title === "Task due today" || n.title === "Task overdue")) {
+    return "task reminder";
+  }
+  return n.type.replace("_", " ");
+}
+
 /** Small pill switch — the app doesn't have a Switch component. */
 function Toggle({
   checked,
@@ -906,7 +915,7 @@ function NotificationDetail({
                 </p>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <span className="capitalize">
-                    {notification.type.replace("_", " ")}
+                    {typeLabel(notification)}
                   </span>
                   <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
                   <span>{new Date(notification.createdAt).toLocaleString()}</span>

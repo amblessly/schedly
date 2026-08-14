@@ -68,6 +68,7 @@ android/app/capacitor.build.gradle
 
 # project specific
 CLAUDE.md
+dev-server.log
 
 # benchmark generated artifacts
 benchmark/fixtures/

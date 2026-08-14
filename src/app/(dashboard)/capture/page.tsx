@@ -14,6 +14,7 @@ import {
   Calendar, Upload, X, Plus,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { compressImage } from "@/lib/image-compress";
 import { validateExtractedClasses, type ValidationIssue } from "@/server/services/validation.service";
 import {
   getReviewState,
@@ -134,15 +135,19 @@ export default function CapturePage() {
     }
   }, [reviewReady, userId, previewUrl]);
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = async (file: File) => {
     if (!file.type.startsWith("image/")) {
       alert("Please select an image file");
       return;
     }
-    setSelectedFile(file);
+    // Big phone photos can exceed the server's request-body limit, which makes
+    // the upload fail with a confusing error. Downscale + re-encode in the
+    // browser first so the image stays crisp but lands well under the limit.
+    const processed = await compressImage(file).catch(() => file);
+    setSelectedFile(processed);
     const reader = new FileReader();
     reader.onload = () => setPreviewUrl(reader.result as string);
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(processed);
   };
 
   const removeFile = () => {

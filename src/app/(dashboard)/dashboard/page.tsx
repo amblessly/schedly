@@ -85,6 +85,16 @@ export default function DashboardPage() {
       .catch(() => setSchedules([]));
   }, []);
 
+  // Refetch after an in-place edit so the timetable + today cards update.
+  const reloadSchedules = useCallback(async () => {
+    try {
+      const data = await getUserSchedules();
+      setSchedules(data as ScheduleData[]);
+    } catch {
+      // Keep the current state when the refresh fails.
+    }
+  }, []);
+
   // Fetch weather on mount using browser geolocation, falling back to IP-based
   // detection when permission is denied or unavailable. Results are cached so
   // the last known weather still shows offline.
@@ -366,6 +376,7 @@ export default function DashboardPage() {
             setActiveIndex={setActiveIndex}
             downloading={downloading}
             onDownload={handleDownload}
+            onEdited={reloadSchedules}
             scheduleRef={scheduleRef}
             captureRef={captureRef}
           />

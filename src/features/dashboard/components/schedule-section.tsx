@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Skeleton as BoneSkeleton } from "boneyard-js/react";
 import { SchedulePreview } from "@/features/schedule/components/schedule-preview";
+import { EditScheduleDialog } from "@/features/dashboard/components/edit-schedule-dialog";
 import type { ClassData, ScheduleData } from "@/features/dashboard/lib/types";
 
 type ScheduleSectionProps = {
@@ -19,6 +20,7 @@ type ScheduleSectionProps = {
   idx: number;
   downloading: boolean;
   onDownload: () => void;
+  onEdited?: () => void;
   setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
   scheduleRef: React.RefObject<HTMLDivElement | null>;
   captureRef: React.RefObject<HTMLDivElement | null>;
@@ -35,6 +37,7 @@ export function ScheduleSection({
   idx,
   downloading,
   onDownload,
+  onEdited,
   setActiveIndex,
   scheduleRef,
   captureRef,
@@ -136,6 +139,13 @@ export function ScheduleSection({
                 </>
               )}
             </Button>
+            {activeSchedule && (
+              <EditScheduleDialog
+                scheduleId={activeSchedule.id}
+                classes={activeClasses}
+                onSaved={onEdited}
+              />
+            )}
           </div>
           <div ref={scheduleRef}>
             <SchedulePreview classes={activeClasses} filename="schedule.png" bare />

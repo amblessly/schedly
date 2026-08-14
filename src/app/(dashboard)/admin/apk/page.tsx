@@ -209,11 +209,13 @@ export default function AdminApkPage() {
             <a
               href={current.apkUrl}
               className="text-sm text-primary underline"
-              target="_blank"
-              rel="noreferrer"
+              onClick={() => pushLog("ok", `Downloading v${current.versionName} (${current.apkUrl})...`)}
             >
               Download current APK
             </a>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Opens the Android package directly in your browser&apos;s download manager.
+            </p>
           </CardContent>
         )}
       </Card>

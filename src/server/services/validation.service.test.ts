@@ -49,4 +49,30 @@ describe("validateExtractedClasses — enhanced duplicate & conflict detection",
     ]);
     expect(result.issues.some((i) => i.type === "overlap")).toBe(false);
   });
+
+  it("does NOT flag same subject + code + days with DIFFERENT (non-overlapping) times", () => {
+    const result = validateExtractedClasses([
+      { subject: "OLCC03", code: "OLCC03", days: ["tuesday", "friday"], startTime: "12:00", endTime: "13:30" },
+      { subject: "OLCC03", code: "OLCC03", days: ["tuesday", "friday"], startTime: "16:30", endTime: "18:00" },
+    ]);
+    expect(result.issues.some((i) => i.type === "duplicate")).toBe(false);
+    expect(result.issues.some((i) => i.type === "overlap")).toBe(false);
+  });
+
+  it("does NOT flag same subject on different days at different times", () => {
+    const result = validateExtractedClasses([
+      { subject: "OLCC03", code: "OLCC03", days: ["tuesday"], startTime: "12:00", endTime: "13:30" },
+      { subject: "OLCC03", code: "OLCC03", days: ["friday"], startTime: "16:30", endTime: "18:00" },
+    ]);
+    expect(result.issues.some((i) => i.type === "duplicate")).toBe(false);
+    expect(result.issues.some((i) => i.type === "overlap")).toBe(false);
+  });
+
+  it("still flags same subject at the SAME time on a shared day", () => {
+    const result = validateExtractedClasses([
+      { subject: "OLCC03", code: "OLCC03", days: ["tuesday"], startTime: "12:00", endTime: "13:30" },
+      { subject: "OLCC03", code: "OLCC03", days: ["tuesday", "friday"], startTime: "12:00", endTime: "13:30" },
+    ]);
+    expect(result.issues.some((i) => i.type === "duplicate")).toBe(true);
+  });
 });

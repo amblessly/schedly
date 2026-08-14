@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dispatchDueReminders } from "@/server/services/reminder-dispatcher.service";
+import { dispatchTodoDeadlines } from "@/server/services/todo-deadline-reminder.service";
 import { scheduleQstashReminders } from "@/server/services/qstash-reminder.service";
 import { auditLog } from "@/server/lib/audit";
 
@@ -22,11 +23,16 @@ export async function GET(request: NextRequest) {
     const result = await dispatchDueReminders();
     auditLog("reminders.cron", result);
 
+    // To-do deadline reminders for every user (fires even when the app is
+    // closed; the client heartbeat covers the open-app case).
+    const todos = await dispatchTodoDeadlines();
+    auditLog("reminders.todos", todos);
+
     // Schedule exact-time QStash messages for the next round of occurrences.
     const scheduled = await scheduleQstashReminders();
     auditLog("reminders.qstash", scheduled);
 
-    return NextResponse.json({ ok: true, ...result, qstash: scheduled });
+    return NextResponse.json({ ok: true, ...result, todos, qstash: scheduled });
   } catch (err) {
     console.error("[CRON_REMINDERS]", err);
     return NextResponse.json({ ok: false, error: "Cron failed" }, { status: 500 });
