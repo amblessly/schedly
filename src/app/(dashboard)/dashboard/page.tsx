@@ -297,25 +297,27 @@ export default function DashboardPage() {
         windowHeight: node.scrollHeight,
       });
 
-      // The visible timetable is a full-bleed grid (no box chrome), so corner
-      // rounding would clip class cells — only round the boxed capture fallback.
-      const radius = node === scheduleRef.current ? 0 : 24;
+      // A white frame around the timetable makes the image a bit wider and
+      // taller, and gives the rounded corners room so no class cell is ever
+      // clipped — the grid keeps its full shape on every side.
+      const padX = 36;
+      const padY = 56;
+      const radius = 24;
       const rounded = document.createElement("canvas");
-      rounded.width = canvas.width;
-      rounded.height = canvas.height;
+      rounded.width = canvas.width + padX * 2;
+      rounded.height = canvas.height + padY * 2;
       const rctx = rounded.getContext("2d")!;
-      rctx.clearRect(0, 0, rounded.width, rounded.height);
-      if (radius > 0) {
-        rctx.beginPath();
-        rctx.moveTo(radius, 0);
-        rctx.arcTo(rounded.width, 0, rounded.width, rounded.height, radius);
-        rctx.arcTo(rounded.width, rounded.height, 0, rounded.height, radius);
-        rctx.arcTo(0, rounded.height, 0, 0, radius);
-        rctx.arcTo(0, 0, rounded.width, 0, radius);
-        rctx.closePath();
-        rctx.clip();
-      }
-      rctx.drawImage(canvas, 0, 0);
+      rctx.fillStyle = "#ffffff";
+      rctx.fillRect(0, 0, rounded.width, rounded.height);
+      rctx.beginPath();
+      rctx.moveTo(radius, 0);
+      rctx.arcTo(rounded.width, 0, rounded.width, rounded.height, radius);
+      rctx.arcTo(rounded.width, rounded.height, 0, rounded.height, radius);
+      rctx.arcTo(0, rounded.height, 0, 0, radius);
+      rctx.arcTo(0, 0, rounded.width, 0, radius);
+      rctx.closePath();
+      rctx.clip();
+      rctx.drawImage(canvas, padX, padY);
 
       const dataUrl = rounded.toDataURL("image/png");
 
