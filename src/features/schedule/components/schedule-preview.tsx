@@ -27,6 +27,9 @@ type Props = {
   filename?: string;
   scale?: number;
   capture?: boolean;
+  /** Render without the outer box chrome (border/bg/shadow/dots) — for when
+   *  the preview sits inside its own card (dashboard "Your Schedule"). */
+  bare?: boolean;
   /** Optional element rendered on the right side of the top bar (non-capture). */
   action?: React.ReactNode;
 };
@@ -83,7 +86,7 @@ function formatTimeRange(start: Date, end: Date): string {
   return `${minutesTo12h(timeToMinutes(start))} – ${minutesTo12h(timeToMinutes(end))}`;
 }
 
-export function SchedulePreview({ classes, filename = "schedule.png", scale, capture, action }: Props) {
+export function SchedulePreview({ classes, filename = "schedule.png", scale, capture, bare, action }: Props) {
   const activeDays = ALL_DAYS.filter((day) => classes.some((c) => c.days.includes(day)));
   const [selected, setSelected] = useState<ClassData | null>(null);
 
@@ -113,7 +116,9 @@ export function SchedulePreview({ classes, filename = "schedule.png", scale, cap
       className={
         isCapture
           ? "w-full rounded-xl border border-border/60 bg-card p-8"
-          : "mx-auto w-full max-w-2xl rounded-xl border border-border/60 bg-card p-3 shadow-2xl shadow-primary/5 sm:p-5"
+          : bare
+            ? "w-full"
+            : "mx-auto w-full max-w-2xl rounded-xl border border-border/60 bg-card p-3 shadow-2xl shadow-primary/5 sm:p-5"
       }
       style={
         isCapture
@@ -123,13 +128,19 @@ export function SchedulePreview({ classes, filename = "schedule.png", scale, cap
           : undefined
       }
     >
-      <div className="mb-3 flex items-center gap-2">
-        <div className="h-3 w-3 rounded-full bg-destructive/60" />
-        <div className="h-3 w-3 rounded-full bg-yellow-400/60" />
-        <div className="h-3 w-3 rounded-full bg-green-400/60" />
-        <span className="ml-2 min-w-0 flex-1 truncate text-xs font-mono text-muted-foreground">{filename}</span>
-        {!isCapture && action && <div className="ml-auto shrink-0">{action}</div>}
-      </div>
+      {bare ? (
+        action ? (
+          <div className="mb-3 flex items-center justify-end">{action}</div>
+        ) : null
+      ) : (
+        <div className="mb-3 flex items-center gap-2">
+          <div className="h-3 w-3 rounded-full bg-destructive/60" />
+          <div className="h-3 w-3 rounded-full bg-yellow-400/60" />
+          <div className="h-3 w-3 rounded-full bg-green-400/60" />
+          <span className="ml-2 min-w-0 flex-1 truncate text-xs font-mono text-muted-foreground">{filename}</span>
+          {!isCapture && action && <div className="ml-auto shrink-0">{action}</div>}
+        </div>
+      )}
 
       {/* The non-capture timetable fills its container so the whole week is
           always visible without horizontal scrolling — columns shrink evenly

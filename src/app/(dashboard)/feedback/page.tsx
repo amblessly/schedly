@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LifeBuoy, Send, CheckCircle, AlertCircle } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { authFetch } from "@/lib/auth-fetch";
+import { HeaderBack } from "@/components/header-back";
+import { NotificationBell } from "@/components/notification-bell";
 
 const TYPE_OPTIONS = [
   { value: "bug", label: "Report an issue" },
@@ -92,13 +94,19 @@ export default function FeedbackPage() {
 
   return (
     <div className="mx-auto max-w-2xl pt-8 md:pt-0">
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Help &amp; Feedback
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground sm:text-base">
-          Having trouble uploading your schedule? Tell us what happened.
-        </p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3 sm:mb-8">
+        <div className="flex items-start gap-3">
+          <HeaderBack to="/settings?tab=support" />
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              Help &amp; Feedback
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+              Having trouble uploading your schedule? Tell us what happened.
+            </p>
+          </div>
+        </div>
+        <NotificationBell variant="inline" className="hidden md:flex" />
       </div>
 
       <Card>

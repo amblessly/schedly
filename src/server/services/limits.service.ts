@@ -101,16 +101,53 @@ export async function getLimitsStats() {
   // Per-key real-time usage, preferring the provider x-ratelimit snapshot
   // (authoritative — it also reflects failed attempts, which consume the daily
   // cap), then the /key endpoint, then the local request counter.
+  //
+  // A snapshot is only authoritative while its window is still open. Once
+  // `x-ratelimit-reset` passes, the provider's counter has rolled over, so the
+  // stale 100/100 would stay red forever (no new call succeeds to refresh the
+  // headers). Expired snapshots fall back to the live /key endpoint, or to the
+  // fresh-window state (usage 0) so the card clears in real time after reset.
   const perKey = OPENROUTER_SERVICES.map((service, i) => {
     const snap = snapshots[service];
     const info = orInfo[i];
     const counted = byService.get(service)?.count ?? 0;
+    const snapStale = snap?.resetAt != null && snap.resetAt.getTime() <= Date.now();
+    const snapOk = snap != null && !snapStale;
+
+    const limit =
+      snapOk && snap.limit != null
+        ? snap.limit
+        : info?.limit && info.limit > 0
+          ? info.limit
+          : OPENROUTER_DEFAULT_LIMIT_PER_KEY;
+
+    let usage: number;
+    let remaining: number | null;
+    let reset: string | null;
+
+    if (snapOk && snap.remaining != null) {
+      usage = Math.max(0, limit - snap.remaining);
+      remaining = snap.remaining;
+      reset = snap.resetAt ? snap.resetAt.toISOString() : (info?.reset ?? null);
+    } else if (snapStale) {
+      // The provider's daily window already rolled over → fresh budget. The
+      // /key endpoint reports CREDITS (not requests), so it can't size the
+      // daily request cap — showing the fresh window is the honest state.
+      usage = 0;
+      remaining = limit;
+      reset = null;
+    } else {
+      // No snapshot yet → the local request counter is the best estimate.
+      usage = Math.min(limit, counted);
+      remaining = Math.max(0, limit - usage);
+      reset = info?.reset ?? null;
+    }
+
     return {
-      usage:
-        snap?.limit != null ? Math.max(0, snap.limit - (snap.remaining ?? snap.limit)) : (info?.usage ?? counted),
-      limit: snap?.limit ?? info?.limit ?? OPENROUTER_DEFAULT_LIMIT_PER_KEY,
-      remaining: snap?.remaining ?? info?.remaining ?? null,
-      reset: snap?.resetAt ? snap.resetAt.toISOString() : (info?.reset ?? null),
+      usage,
+      limit,
+      remaining,
+      reset,
       isFreeTier: info?.isFreeTier ?? true,
       label: info?.label ?? `Key ${i + 1}`,
     };

@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Skeleton as BoneSkeleton } from "boneyard-js/react";
+import { HeaderBack } from "@/components/header-back";
 import {
   Bell,
   BellOff,
@@ -410,9 +411,7 @@ export function NotificationsPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <BellRing className="h-5 w-5" />
-          </span>
+          <HeaderBack to="/dashboard" />
           <div className="min-w-0">
             <h1 className="truncate text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               Notifications

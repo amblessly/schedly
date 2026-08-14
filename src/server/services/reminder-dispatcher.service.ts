@@ -1,6 +1,7 @@
 import { db } from "@/server/db/client";
 import { sendPush, isVapidConfigured } from "@/server/lib/web-push";
 import { sendFCMPush, isFcmConfigured } from "@/server/lib/firebase-admin";
+import { upsertClassReminderNotification } from "@/server/services/class-reminder-notify";
 import type { DayOfWeek } from "@/generated/prisma/client";
 
 const DAYS_OF_WEEK: DayOfWeek[] = [
@@ -262,6 +263,16 @@ export async function dispatchDueReminders(now: Date = new Date()) {
     if (alreadySent(rows, occ)) continue;
 
     const remaining = Math.max(0, Math.round((occ - now.getTime()) / 60000));
+    // Dedupe across delivery paths — if QStash already recorded this
+    // occurrence, the daily cron must not stack a second "Upcoming class".
+    const { fresh } = await upsertClassReminderNotification(
+      userId,
+      "Upcoming class",
+      `Reminder: ${rows[0]!.label} starts in ${remaining} min.`,
+      new Date(occ),
+    );
+    if (!fresh) continue;
+
     staleEndpoints.push(
       ...(await deliverPush(
         userId,
@@ -277,17 +288,6 @@ export async function dispatchDueReminders(now: Date = new Date()) {
     await db.reminder.updateMany({
       where: { id: { in: rows.map((r) => r.reminderId) } },
       data: { lastSentAt: new Date(occ) },
-    });
-
-    // Also record in the in-app notification list.
-    await db.notification.create({
-      data: {
-        userId,
-        type: "class_reminder",
-        title: "Upcoming class",
-        body: `Reminder: ${rows[0]!.label} starts in ${remaining} min.`,
-        scheduledAt: new Date(occ),
-      },
     });
 
     sent++;
@@ -306,6 +306,16 @@ export async function dispatchDueReminders(now: Date = new Date()) {
     if (rows.some((r) => r.occNext !== null && now.getTime() >= r.occNext - r.minutes * 60 * 1000)) continue;
     if (alreadyStarted(rows, occPrev)) continue;
 
+    // Dedupe across delivery paths — the exact-time QStash "start" message
+    // owns this push; if it already recorded the occurrence, skip.
+    const { fresh } = await upsertClassReminderNotification(
+      userId,
+      "Class starting now",
+      `${rows[0]!.label} starts now (${rows[0]!.startLabelTxt})`,
+      new Date(occPrev),
+    );
+    if (!fresh) continue;
+
     staleEndpoints.push(
       ...(await deliverPush(
         userId,
@@ -317,17 +327,6 @@ export async function dispatchDueReminders(now: Date = new Date()) {
     await db.reminder.updateMany({
       where: { id: { in: rows.map((r) => r.reminderId) } },
       data: { lastStartSentAt: new Date(occPrev) },
-    });
-
-    // Also record in the in-app notification list.
-    await db.notification.create({
-      data: {
-        userId,
-        type: "class_reminder",
-        title: "Class starting now",
-        body: `${rows[0]!.label} starts now (${rows[0]!.startLabelTxt})`,
-        scheduledAt: new Date(occPrev),
-      },
     });
 
     sent++;
@@ -351,21 +350,21 @@ export async function dispatchDueReminders(now: Date = new Date()) {
           ? `${rows[0]!.label} starts in ${remaining} min (${rows[0]!.startLabelTxt})`
           : `${rows[0]!.label} starts now (${rows[0]!.startLabelTxt})`;
 
+    // The exact-time QStash "pre" message owns the "Upcoming class" push for
+    // this occurrence — a same-occurrence heads-up here stays quiet.
+    const { fresh } = await upsertClassReminderNotification(
+      userId,
+      "Upcoming class",
+      `Reminder: ${rows[0]!.label} at ${rows[0]!.startLabelTxt} today.`,
+      new Date(occToday),
+    );
+    if (!fresh) continue;
+
     staleEndpoints.push(...(await deliverPush(userId, "Upcoming class", body)));
 
     await db.reminder.updateMany({
       where: { id: { in: rows.map((r) => r.reminderId) } },
       data: { lastSentAt: new Date(occToday) },
-    });
-
-    await db.notification.create({
-      data: {
-        userId,
-        type: "class_reminder",
-        title: "Upcoming class",
-        body: `Reminder: ${rows[0]!.label} at ${rows[0]!.startLabelTxt} today.`,
-        scheduledAt: new Date(occToday),
-      },
     });
 
     sent++;

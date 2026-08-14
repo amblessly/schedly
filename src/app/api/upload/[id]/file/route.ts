@@ -49,8 +49,12 @@ export async function GET(
         },
       });
     } catch (err) {
-      console.error("[UPLOAD_FILE] B2 read failed:", err);
-      return new NextResponse("Not found", { status: 404 });
+      // B2 unavailable or cap exceeded — fall back to the DB copy (avatars)
+      // rather than breaking the image; large B2-backed files have no copy.
+      console.error("[UPLOAD_FILE] B2 read failed — falling back to DB copy:", err);
+      if (!upload.fileData) {
+        return new NextResponse("Not found", { status: 404 });
+      }
     }
   }
 

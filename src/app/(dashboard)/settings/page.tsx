@@ -9,6 +9,8 @@ import { deleteAccount } from "./actions";
 import { useThemeConfig, THEME_PRESETS } from "@/features/theme";
 import { cn } from "@/lib/utils";
 import { ShieldCheck, UploadCloud, LifeBuoy, Gauge } from "lucide-react";
+import { HeaderBack } from "@/components/header-back";
+import { NotificationBell } from "@/components/notification-bell";
 
 import { Button } from "@/components/ui/button";
 import { FloatingLabelInput } from "@/components/ui/floating-label-input";
@@ -87,13 +89,19 @@ export default function SettingsPage() {
           </div>
         }
       >
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Settings
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground sm:text-base">
-          Manage your account, security, theme, and more.
-        </p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3 sm:mb-8">
+        <div className="flex items-start gap-3">
+          <HeaderBack to="/dashboard" />
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              Settings
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+              Manage your account, security, theme, and more.
+            </p>
+          </div>
+        </div>
+        <NotificationBell variant="inline" className="hidden md:flex" />
       </div>
 
       <div className="flex flex-col gap-6 md:flex-row md:items-start">

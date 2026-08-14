@@ -38,7 +38,9 @@ export async function uploadAvatar(formData: FormData): Promise<{ url: string } 
 
   let blobUrl: string;
   try {
-    const stored = await storeImage(session.user.id, buffer, detectedMime, filename);
+    // dbFallback: avatar bytes are tiny, so if B2 is capped/unreachable the
+    // image still stores in the database and keeps rendering.
+    const stored = await storeImage(session.user.id, buffer, detectedMime, filename, { dbFallback: true });
     blobUrl = stored.url;
   } catch (err) {
     console.error("[uploadAvatar] File store failed:", err);

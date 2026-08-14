@@ -66,8 +66,9 @@ export function InstallPrompt() {
 
     // Register the service worker so the PWA is installable (Chrome/Edge)
     // and the app shell is cached for offline use. Registered on every mount
-    // so already-installed PWAs also pick up SW updates (cache v2).
-    if ("serviceWorker" in navigator) {
+    // so already-installed PWAs also pick up SW updates (cache v2). Skipped
+    // in development — the SW's cache-first chunk policy breaks dev reloads.
+    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
       navigator.serviceWorker
         .register("/sw.js", { updateViaCache: "none" })
         .catch(() => {});

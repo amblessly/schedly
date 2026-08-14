@@ -5,6 +5,8 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { Label } from "@/components/ui/label";
+import { HeaderBack } from "@/components/header-back";
+import { NotificationBell } from "@/components/notification-bell";
 import {
   Card,
   CardContent,
@@ -179,12 +181,18 @@ export default function AdminApkPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">APK Release Manager</h1>
-        <p className="text-sm text-muted-foreground">
-          Upload a signed release APK. The app will auto-detect the new version
-          and prompt users to update.
-        </p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3 sm:mb-8">
+        <div className="flex items-start gap-3">
+          <HeaderBack to="/settings?tab=support" />
+          <div>
+            <h1 className="text-2xl font-semibold">APK Release Manager</h1>
+            <p className="text-sm text-muted-foreground">
+              Upload a signed release APK. The app will auto-detect the new version
+              and prompt users to update.
+            </p>
+          </div>
+        </div>
+        <NotificationBell variant="inline" className="hidden md:flex" />
       </div>
 
       <Card>

@@ -5,6 +5,7 @@ import { siteConfig } from "@/config/site";
 import { Warmup } from "@/components/warmup";
 import { InstallPrompt } from "@/components/install-prompt";
 import { PushForegroundListener } from "@/components/push-foreground-listener";
+import { DevSwCleanup } from "@/components/dev-sw-cleanup";
 import { ThemeProvider } from "@/features/theme";
 import { Toaster } from "sonner";
 import "ldrs/react/JellyTriangle.css";
@@ -110,6 +111,7 @@ export default async function RootLayout({
           <Warmup />
           <InstallPrompt />
           <PushForegroundListener />
+          <DevSwCleanup />
           <ThemeProvider initialThemeId={initialThemeId}>{children}</ThemeProvider>
           <Toaster position="top-right" richColors />
         </div>

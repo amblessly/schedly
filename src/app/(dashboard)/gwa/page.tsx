@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, Calculator, RotateCcw } from "lucide-react";
+import { AppNavPanel } from "@/components/app-nav-panel";
+import { HeaderAvatar } from "@/components/header-avatar";
+import { NotificationBell } from "@/components/notification-bell";
 
 type Course = {
   id: number;
@@ -150,15 +153,18 @@ export default function GWACalculatorPage() {
   const target = parseFloat(targetGWA) || 0;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 pt-8 md:pt-0">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            GWA Calculator
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Compute your semester and cumulative GWA (General Weighted Average).
-          </p>
+    <div className="mx-auto w-full max-w-6xl pt-8 md:pt-0">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 sm:mb-8">
+        <div className="flex items-start gap-3">
+          <HeaderAvatar />
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              GWA Calculator
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Compute your semester and cumulative GWA (General Weighted Average).
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <select
@@ -175,9 +181,14 @@ export default function GWACalculatorPage() {
             <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
             Reset
           </Button>
+          <NotificationBell variant="inline" className="hidden md:flex" />
         </div>
       </div>
 
+      <div className="flex flex-col gap-6 md:flex-row md:items-start">
+        <AppNavPanel />
+
+        <div className="min-w-0 flex-1 mx-auto w-full max-w-3xl space-y-6 md:mx-0">
       {/* Previous GWA */}
       <Card className="border-border/50">
         <CardHeader className="pb-3">
@@ -319,6 +330,8 @@ export default function GWACalculatorPage() {
             )}
           </CardContent>
         </Card>
+      </div>
+        </div>
       </div>
     </div>
   );

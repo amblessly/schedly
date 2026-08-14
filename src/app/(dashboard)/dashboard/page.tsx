@@ -5,6 +5,7 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 import html2canvas from "html2canvas-pro";
 
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { AppNavPanel } from "@/components/app-nav-panel";
 import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
 import { getAiInsights } from "@/app/(dashboard)/dashboard/actions";
 import {
@@ -72,7 +73,11 @@ export default function DashboardPage() {
         return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
       })();
 
-  const username = (user as { username?: string } | null)?.username || "there";
+  const u = user as
+    | { username?: string; firstName?: string; image?: string; avatarUrl?: string }
+    | null
+    | undefined;
+  const username = u?.username || "there";
 
   useEffect(() => {
     retry(() => withOfflineCache("schedule:list", () => cachedAction("dash:schedules", () => getUserSchedules())), { delayMs: 2000 })
@@ -267,8 +272,10 @@ export default function DashboardPage() {
   };
 
   const handleDownload = async () => {
-      const node = captureRef.current || scheduleRef.current;
-      if (!node) return;
+    // Download exactly what the user sees: capture the visible timetable
+    // (scheduleRef) first, and only fall back to the off-screen export render.
+    const node = scheduleRef.current || captureRef.current;
+    if (!node) return;
     setDownloading(true);
     try {
       const canvas = await html2canvas(node, {
@@ -280,20 +287,24 @@ export default function DashboardPage() {
         windowHeight: node.scrollHeight,
       });
 
-      const radius = 24;
+      // The visible timetable is a full-bleed grid (no box chrome), so corner
+      // rounding would clip class cells — only round the boxed capture fallback.
+      const radius = node === scheduleRef.current ? 0 : 24;
       const rounded = document.createElement("canvas");
       rounded.width = canvas.width;
       rounded.height = canvas.height;
       const rctx = rounded.getContext("2d")!;
       rctx.clearRect(0, 0, rounded.width, rounded.height);
-      rctx.beginPath();
-      rctx.moveTo(radius, 0);
-      rctx.arcTo(rounded.width, 0, rounded.width, rounded.height, radius);
-      rctx.arcTo(rounded.width, rounded.height, 0, rounded.height, radius);
-      rctx.arcTo(0, rounded.height, 0, 0, radius);
-      rctx.arcTo(0, 0, rounded.width, 0, radius);
-      rctx.closePath();
-      rctx.clip();
+      if (radius > 0) {
+        rctx.beginPath();
+        rctx.moveTo(radius, 0);
+        rctx.arcTo(rounded.width, 0, rounded.width, rounded.height, radius);
+        rctx.arcTo(rounded.width, rounded.height, 0, rounded.height, radius);
+        rctx.arcTo(0, rounded.height, 0, 0, radius);
+        rctx.arcTo(0, 0, rounded.width, 0, radius);
+        rctx.closePath();
+        rctx.clip();
+      }
       rctx.drawImage(canvas, 0, 0);
 
       const dataUrl = rounded.toDataURL("image/png");
@@ -319,41 +330,47 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 pt-8 md:pt-0">
+    <div className="mx-auto w-full max-w-6xl space-y-4 pt-8 md:pt-0 md:space-y-8">
       <DashboardHeader greeting={greeting} username={username} />
 
-      <BentoGrid>
-        <TodayClassesCard
-          classes={todaysClasses}
-          now={now}
-          loading={schedules === null}
-          nextDay={nextDayClass}
-        />
-        <WeatherCard
-          weather={weather}
-          loading={weatherLoading}
-          error={weatherError}
-          onRefresh={refreshWeather}
-        />
-        <FreeTimeCard
-          loading={schedules === null}
-          freeToday={freeToday}
-          longestBreak={longestBreakToday}
-        />
-      </BentoGrid>
+      <div className="flex flex-col gap-6 md:flex-row md:items-start">
+        <AppNavPanel />
 
-      <ScheduleSection
-        schedules={schedules}
-        activeClasses={activeClasses}
-        activeSchedule={activeSchedule}
-        scheduleCount={scheduleCount}
-        idx={idx}
-        setActiveIndex={setActiveIndex}
-        downloading={downloading}
-        onDownload={handleDownload}
-        scheduleRef={scheduleRef}
-        captureRef={captureRef}
-      />
+        <div className="min-w-0 flex-1 space-y-4 md:space-y-8">
+          <BentoGrid>
+            <TodayClassesCard
+              classes={todaysClasses}
+              now={now}
+              loading={schedules === null}
+              nextDay={nextDayClass}
+            />
+            <WeatherCard
+              weather={weather}
+              loading={weatherLoading}
+              error={weatherError}
+              onRefresh={refreshWeather}
+            />
+            <FreeTimeCard
+              loading={schedules === null}
+              freeToday={freeToday}
+              longestBreak={longestBreakToday}
+            />
+          </BentoGrid>
+
+          <ScheduleSection
+            schedules={schedules}
+            activeClasses={activeClasses}
+            activeSchedule={activeSchedule}
+            scheduleCount={scheduleCount}
+            idx={idx}
+            setActiveIndex={setActiveIndex}
+            downloading={downloading}
+            onDownload={handleDownload}
+            scheduleRef={scheduleRef}
+            captureRef={captureRef}
+          />
+        </div>
+      </div>
     </div>
   );
 }

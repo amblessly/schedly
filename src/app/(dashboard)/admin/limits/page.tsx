@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { HeaderBack } from "@/components/header-back";
 import { Activity, Gauge, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -208,21 +209,26 @@ export default function AdminLimitsPage() {
     <div className="mx-auto max-w-3xl space-y-6 p-6">
       <div>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Service Limits</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Daily usage caps for {date || "today"} — auto-refreshes every 30s · resets at midnight.
-            </p>
+          <div className="flex items-start gap-3">
+            <HeaderBack to="/settings?tab=support" />
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Service Limits</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Daily usage caps for {date || "today"} — auto-refreshes every 30s · resets at midnight.
+              </p>
+            </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void load(false)}
-            disabled={refreshing}
-          >
-            <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
-            {refreshing ? "Refreshing…" : "Refresh"}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void load(false)}
+              disabled={refreshing}
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
+              {refreshing ? "Refreshing…" : "Refresh"}
           </Button>
+        </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span
@@ -291,6 +297,10 @@ export default function AdminLimitsPage() {
           <li>
             The OpenRouter card aggregates every configured key — it reads the provider&apos;s live
             rate-limit headers and sums them, so the numbers update on every AI call, even failed ones.
+          </li>
+          <li>
+            Once a key&apos;s reset time passes, the card automatically clears to a fresh window —
+            it never stays stuck at 100% after the provider resets.
           </li>
           <li>Gemini, QStash, and B2 counts come from local request counters (updates as requests are made).</li>
           <li>B2 free tier: 1 GB/day download bandwidth + 2,500 Class B &amp; C transactions/day.</li>

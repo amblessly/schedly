@@ -41,4 +41,7 @@ export const navGroups: NavGroup[] = [
   },
 ];
 
-export const mainNav: NavItem[] = [...primaryNav, ...navGroups.flatMap((g) => g.items)];
+// Flattened, deduped list of every sidebar destination. navGroups[0] is
+// already `primaryNav`, so spreading primaryNav first would duplicate the
+// primary items (React key collisions). flatMap keeps each href once.
+export const mainNav: NavItem[] = navGroups.flatMap((g) => g.items);

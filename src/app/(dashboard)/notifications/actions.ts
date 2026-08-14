@@ -3,11 +3,14 @@
 import { auth } from "@/server/lib/auth";
 import { headers } from "next/headers";
 import { notificationService } from "@/server/services/notification.service";
+import { cleanupClassReminderList } from "@/server/services/class-reminder-notify";
 import { auditLog } from "@/server/lib/audit";
 
 export async function getUserNotifications() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return [];
+  // Tidy class-reminder floods (legacy duplicates / per-title backlog).
+  await cleanupClassReminderList(session.user.id);
   return notificationService.getByUser(session.user.id);
 }
 

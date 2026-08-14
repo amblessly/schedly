@@ -4,6 +4,7 @@ import { db } from "@/server/db/client";
 import { sendPush, isVapidConfigured } from "@/server/lib/web-push";
 import { sendFCMPush, isFcmConfigured } from "@/server/lib/firebase-admin";
 import { nextOccurrence } from "@/server/services/reminder-dispatcher.service";
+import { upsertClassReminderNotification } from "@/server/services/class-reminder-notify";
 import { incrementUsage, USAGE_SERVICES } from "@/server/lib/usage-counter";
 import type { DayOfWeek } from "@/generated/prisma/client";
 
@@ -262,17 +263,18 @@ export async function sendClassReminderPush(args: {
     const title = "Class starting now";
     const body = `You have class today — ${label} at ${startLabelTxt}`;
 
-    const stale = await deliverPushToUser(reminder.userId, title, body);
+    // Deduped across every duplicate class row: the notification row is the
+    // lock — if another row already recorded this occurrence, stay silent so
+    // the user is pushed once, not once per duplicate schedule.
+    const { fresh } = await upsertClassReminderNotification(
+      reminder.userId,
+      title,
+      `${label} starts now (${startLabelTxt})`,
+      new Date(occ),
+    );
+    if (!fresh) return { sent: false, reason: "already-sent" };
 
-    await db.notification.create({
-      data: {
-        userId: reminder.userId,
-        type: "class_reminder",
-        title,
-        body: `${label} starts now (${startLabelTxt})`,
-        scheduledAt: new Date(occ),
-      },
-    });
+    const stale = await deliverPushToUser(reminder.userId, title, body);
 
     if (stale.length > 0) {
       await db.pushSubscription.deleteMany({ where: { endpoint: { in: stale } } });
@@ -322,17 +324,16 @@ export async function sendClassReminderPush(args: {
       ? `${label} at ${startLabelTxt}`
       : `${label} starts in ${remaining} min (${startLabelTxt})`;
 
-  const stale = await deliverPushToUser(reminder.userId, title, body);
+  // Deduped across every duplicate class row — same lock as the start push.
+  const { fresh } = await upsertClassReminderNotification(
+    reminder.userId,
+    title,
+    `Reminder: ${label} at ${startLabelTxt}.`,
+    new Date(occ),
+  );
+  if (!fresh) return { sent: false, reason: "already-sent" };
 
-  await db.notification.create({
-    data: {
-      userId: reminder.userId,
-      type: "class_reminder",
-      title,
-      body: `Reminder: ${label} at ${startLabelTxt}.`,
-      scheduledAt: new Date(occ),
-    },
-  });
+  const stale = await deliverPushToUser(reminder.userId, title, body);
 
   if (stale.length > 0) {
     await db.pushSubscription.deleteMany({ where: { endpoint: { in: stale } } });

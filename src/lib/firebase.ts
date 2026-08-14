@@ -78,6 +78,8 @@ function getFcmConfig() {
  *  (and the FCM token request) have a handler to target. */
 export async function ensureFcmRegistration(): Promise<ServiceWorkerRegistration | null> {
   try {
+    // Production only — see src/lib/push.ts for why the SW must not run in dev.
+    if (process.env.NODE_ENV !== "production") return null;
     const existing = await navigator.serviceWorker.getRegistration("/");
     let reg = existing && existing.active ? existing : null;
     if (!reg) {

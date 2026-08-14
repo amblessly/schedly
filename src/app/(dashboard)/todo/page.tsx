@@ -10,6 +10,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, ListTodo, CircleDot, CalendarDays, CheckCircle2, Pencil, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTodos } from "@/features/todo/use-todos";
+import { AppNavPanel } from "@/components/app-nav-panel";
+import { HeaderAvatar } from "@/components/header-avatar";
+import { NotificationBell } from "@/components/notification-bell";
 
 type FilterType = "all" | "active" | "completed";
 type Priority = "low" | "medium" | "high";
@@ -84,15 +87,18 @@ export default function TodoPage() {
   const todoCount = todos.length;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 pt-8 md:pt-0">
-      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            To-Do List
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Keep track of your assignments and tasks.
-          </p>
+    <div className="mx-auto w-full max-w-6xl pt-8 md:pt-0">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-x-3 gap-y-2 sm:mb-8">
+        <div className="flex items-start gap-3">
+          <HeaderAvatar />
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              To-Do List
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Keep track of your assignments and tasks.
+            </p>
+          </div>
         </div>
         {todoCount > 0 && (
           <div className="flex shrink-0 items-center gap-2">
@@ -104,10 +110,15 @@ export default function TodoPage() {
               <CheckCircle2 className="h-3 w-3" />
               {completedCount} done
             </span>
+            <NotificationBell variant="inline" className="hidden md:flex" />
           </div>
         )}
       </div>
 
+      <div className="flex flex-col gap-6 md:flex-row md:items-start">
+        <AppNavPanel />
+
+        <div className="min-w-0 flex-1 mx-auto w-full max-w-3xl space-y-6 md:mx-0">
       {/* Add Task */}
       <Card className="border-border/50">
         <CardHeader className="pb-2">
@@ -348,6 +359,8 @@ export default function TodoPage() {
           })}
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }

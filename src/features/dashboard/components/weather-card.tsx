@@ -15,13 +15,13 @@ type WeatherCardProps = {
   onRefresh: () => void;
 };
 
-// Compact bento side tile. Rows wrap instead of clipping so the card keeps
-// working even inside the half-width tile on narrow phones.
+// Dashboard side tile (right column on desktop, stacked on mobile). Rows
+// wrap instead of clipping so the card keeps working at any width.
 export function WeatherCard({ weather, loading, error, onRefresh }: WeatherCardProps) {
   return (
-    <Card className="bento-tile-side border-border/50 [--card-spacing:--spacing(5)]">
+    <Card className="bento-tile-side border-border/50 shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">Weather</CardTitle>
+        <CardTitle className="text-base">Weather</CardTitle>
         <div className="flex items-center gap-2">
           {weather && (
             <button

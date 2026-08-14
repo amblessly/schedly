@@ -19,12 +19,13 @@ type FreeTimeCardProps = {
   longestBreak: FreePeriod | null;
 };
 
-// Compact bento side tile — the answer to "when can I study / rest?".
+// Dashboard side tile (right column on desktop, stacked on mobile) — the
+// answer to "when can I study / rest?".
 export function FreeTimeCard({ loading, freeToday, longestBreak }: FreeTimeCardProps) {
   return (
-    <Card className="bento-tile-side border-border/50">
+    <Card className="bento-tile-side border-border/50 shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="truncate text-sm font-medium text-muted-foreground">
+        <CardTitle className="truncate text-base">
           {/* "Free Time Today" can't fit a 320px half-tile header, so narrow
               screens get the shorter label instead of a wrapped title. */}
           <span className="hidden min-[360px]:inline">Free Time Today</span>

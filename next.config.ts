@@ -53,6 +53,12 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Turbopack must watch this exact directory — without an explicit root,
+  // Next can infer the wrong workspace root and dev mode stops picking up
+  // file changes (stale SSR HTML → hydration mismatches after edits).
+  turbopack: {
+    root: __dirname,
+  },
   serverExternalPackages: ["pdf-parse"],
   experimental: {
     serverActions: {

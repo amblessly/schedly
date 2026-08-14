@@ -13,6 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Skeleton as BoneSkeleton } from "boneyard-js/react";
 import { ArrowLeft, Calendar, Camera, Trash2 } from "lucide-react";
+import { AppNavPanel } from "@/components/app-nav-panel";
+import { HeaderAvatar } from "@/components/header-avatar";
+import { NotificationBell } from "@/components/notification-bell";
 
 type ClassData = {
   id: string;
@@ -95,21 +98,31 @@ export default function SchedulePage() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl pt-8 md:pt-0">
+    <div className="mx-auto w-full max-w-6xl pt-8 md:pt-0">
       {phase === "list" && (
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Calendar
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground sm:text-base">
-            {mounted
-              ? `${schedules.length} schedule${schedules.length !== 1 ? "s" : ""} saved`
-              : "Your class schedule"
-            }
-          </p>
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-3 sm:mb-8">
+          <div className="flex items-start gap-3">
+            <HeaderAvatar />
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                Calendar
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+                {mounted
+                  ? `${schedules.length} schedule${schedules.length !== 1 ? "s" : ""} saved`
+                  : "Your class schedule"
+                }
+              </p>
+            </div>
+          </div>
+          <NotificationBell variant="inline" className="hidden md:flex" />
         </div>
       )}
 
+      <div className="flex flex-col gap-6 md:flex-row md:items-start">
+        <AppNavPanel />
+
+        <div className="min-w-0 flex-1 mx-auto w-full max-w-4xl md:mx-0">
       {/* === VIEW TIMETABLE === */}
       {phase === "view" && selectedSchedule && (
         <div className="space-y-4">
@@ -175,6 +188,8 @@ export default function SchedulePage() {
           </BoneSkeleton>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }

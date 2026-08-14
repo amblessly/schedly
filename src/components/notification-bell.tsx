@@ -3,15 +3,26 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { getUnreadNotificationCount } from "@/app/(dashboard)/notifications/actions";
 
 const POLL_INTERVAL = 30_000;
 
-/** Bell icon with a live unread-count badge. Sits next to the sidebar menu
- *  button. Polls the unread count every 30s, refreshes on window focus, and
- *  refreshes again on every navigation (e.g. returning from the Notifications
- *  page right after marking reads). */
-export function NotificationBell() {
+/** Bell icon with a live unread-count badge. Polls the unread count every 30s,
+ *  refreshes on window focus, and refreshes again on every navigation (e.g.
+ *  returning from the Notifications page right after marking reads).
+ *
+ *  `variant="floating"` (default) is the fixed top-right button used in the
+ *  mobile app shell. `variant="inline"` is the same bell without the fixed
+ *  positioning, sized to sit level with the avatar in the desktop dashboard
+ *  header. */
+export function NotificationBell({
+  variant = "floating",
+  className,
+}: {
+  variant?: "floating" | "inline";
+  className?: string;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const [unread, setUnread] = useState(0);
@@ -42,7 +53,13 @@ export function NotificationBell() {
   return (
     <button
       onClick={() => router.push("/notifications")}
-      className="fixed right-[4.75rem] top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center rounded-xl bg-sidebar/90 text-sidebar-foreground shadow-[0_8px_40px_rgba(0,0,0,0.12)] transition-colors hover:bg-sidebar"
+      className={cn(
+        "relative flex h-11 w-11 items-center justify-center rounded-xl transition-colors",
+        variant === "floating"
+          ? "fixed right-[4.75rem] top-[calc(env(safe-area-inset-top)+1rem)] z-50 bg-sidebar/90 text-sidebar-foreground shadow-[0_8px_40px_rgba(0,0,0,0.12)] hover:bg-sidebar md:right-4"
+          : "border border-border/60 bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground",
+        className,
+      )}
       aria-label={`Notifications${unread > 0 ? ` (${unread} unread)` : ""}`}
     >
       <Bell className="h-5 w-5" />

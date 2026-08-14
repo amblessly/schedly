@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, ArrowLeft } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
@@ -16,38 +16,11 @@ import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
 import { getUserReminders, scheduleUpcomingReminders } from "@/app/(dashboard)/reminders/actions";
 import { programReminderAlarms } from "@/lib/notification-scheduler";
 import { cachedAction } from "@/lib/server-action-cache";
+import { subscribeOpen, getOpenSnapshot, setOpen } from "@/lib/sidebar-drawer";
 import {
   getNotificationDetailSnapshot,
   subscribeNotificationDetail,
 } from "@/lib/notification-detail-store";
-
-// The drawer's open state lives in a tiny external store so its initial
-// value can come from matchMedia only AFTER hydration. The server renders
-// "closed" by default — otherwise narrow (mobile) windows would paint the
-// open sidebar briefly during SSR, then slide it shut right after hydration
-// (the flash the user saw). On desktop the drawer slides open once hydration
-// computes the true viewport, with no hydration mismatch.
-let openState: boolean | null = null;
-const openListeners = new Set<() => void>();
-
-function getOpenSnapshot(): boolean {
-  if (openState === null) {
-    openState = window.matchMedia("(min-width: 768px)").matches;
-  }
-  return openState;
-}
-
-function subscribeOpen(listener: () => void) {
-  openListeners.add(listener);
-  return () => {
-    openListeners.delete(listener);
-  };
-}
-
-function setOpen(next: boolean) {
-  openState = next;
-  openListeners.forEach((l) => l());
-}
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const { themeVars } = useThemeConfig();
@@ -76,10 +49,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     | {
         firstName?: string;
         lastName?: string;
-        email?: string;
         image?: string;
         avatarUrl?: string;
-        isAdmin?: boolean;
       }
     | null
     | undefined;
@@ -225,12 +196,11 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const isProfile = pathname === "/profile";  // Admin pages are full-screen — same treatment as settings/profile.
   const isAdmin = pathname.startsWith("/admin");
 
-  // Feedback page is opened from Settings → Support, so it goes back there too.
-  const isFeedback = pathname === "/feedback";
-
-  // Notifications page is opened from the bell icon — the avatar becomes a
-  // back arrow that exits back to the dashboard.
+  // Notifications page is opened from the bell icon.
   const isNotifications = pathname === "/notifications";
+
+  // Feedback page is opened from the support section.
+  const isFeedback = pathname === "/feedback";
 
   // Close the mobile drawer on every navigation so it never stays open
   // covering a page (e.g., after coming back from the design editor).
@@ -258,8 +228,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   // own skeletons instead of a full-screen loading state, so a refresh feels
   // like the cards are simply refreshing in place.
   const sidebarWrap = [
-    "sidebar-slide fixed right-3 z-40 w-[304px] max-w-[calc(100vw-1.5rem)] will-change-transform",
-    "top-16 max-h-[70vh] md:top-0 md:bottom-0 md:max-h-none md:right-0",
+    "sidebar-slide fixed right-3 top-16 z-40 w-[304px] max-w-[calc(100vw-1.5rem)] max-h-[70vh] will-change-transform md:hidden",
     open ? "translate-y-0 opacity-100" : "-translate-y-[130%] opacity-0",
   ].join(" ");
 
@@ -280,31 +249,48 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         aria-hidden
       />
 
-      {/* Avatar/back top-left — fixed to the page (stays put while content scrolls).
-          On account settings, profile, admin, feedback, and notifications pages it
-          becomes a back arrow. Elsewhere it's the user's avatar; tapping it opens
-          the profile page. */}
+      {/* Floating menu button — mobile only; on desktop the persistent left
+          rail replaces the drawer, so there is nothing to open. */}
+      {!isImmersive && showButton && !detailOpen && (
+        <button
+          onClick={() => setOpen(true)}
+          className="fixed right-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center rounded-xl bg-sidebar/90 text-sidebar-foreground shadow-[0_8px_40px_rgba(0,0,0,0.12)] transition-colors hover:bg-sidebar md:hidden"
+          aria-label="Show sidebar"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      )}
+
+      {/* Floating avatar / back arrow — mobile only. On desktop each page
+          header renders its own inline avatar or back arrow. */}
       {!isImmersive && showButton && !detailOpen && (
         <button
           type="button"
-          onClick={() =>
-            isSettings || isProfile
-              ? router.push("/dashboard")
-              : isAdmin || isFeedback || isNotifications
-                ? isNotifications
-                  ? router.push("/dashboard")
-                  : router.push("/settings?tab=support")
-                : router.push("/profile")
-          }
-          className={`fixed left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center transition-all duration-300 ${isSettings || isProfile || isAdmin || isFeedback || isNotifications ? "" : "hover:scale-105"}`}
+          onClick={() => {
+            if (isSettings || isProfile || isNotifications) {
+              router.push("/dashboard");
+            } else if (isAdmin || isFeedback) {
+              router.push("/settings?tab=support");
+            } else {
+              router.push("/profile");
+            }
+          }}
+          className="fixed left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-sidebar/90 text-sidebar-foreground shadow-[0_8px_40px_rgba(0,0,0,0.12)] transition-all duration-300 hover:bg-sidebar md:hidden"
           aria-label={
-            isSettings || isProfile || isAdmin || isFeedback || isNotifications ? "Back" : "Open profile"
+            isSettings || isProfile || isNotifications || isAdmin || isFeedback
+              ? "Go back"
+              : "Open profile"
           }
         >
-          {isSettings || isProfile || isAdmin || isFeedback || isNotifications ? (
-            <ArrowLeft className="h-6 w-6 text-foreground" />
+          {isSettings || isProfile || isNotifications || isAdmin || isFeedback ? (
+            <ArrowLeft className="h-6 w-6" />
           ) : userAvatar ? (
-            <img src={userAvatar} alt={displayName} onError={() => setAvatarError(true)} className="h-11 w-11 rounded-full object-cover ring-2 ring-border/40" />
+            <img
+              src={userAvatar}
+              alt={displayName}
+              onError={() => setAvatarError(true)}
+              className="h-11 w-11 rounded-full object-cover ring-2 ring-border/40"
+            />
           ) : (
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary ring-2 ring-border/40">
               {initials}
@@ -313,39 +299,29 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </button>
       )}
 
-      {/* Notification button — sits to the left of the sidebar menu button.
-          Shows a live unread-count badge; refreshes via polling + navigation. */}
-      {!isImmersive && showButton && !isNotifications && !detailOpen && <NotificationBell />}
-
-      {/* Floating menu button — opens the sidebar drawer (top-right, same height as the logo) */}
-      {!isImmersive && showButton && !detailOpen && (
-        <button
-          onClick={() => setOpen(true)}
-          className="fixed right-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center rounded-xl bg-sidebar/90 text-sidebar-foreground shadow-[0_8px_40px_rgba(0,0,0,0.12)] transition-colors hover:bg-sidebar"
-          aria-label="Show sidebar"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+      {/* Floating notification bell — mobile only; desktop pages render it
+          inline in their headers. */}
+      {!isImmersive && showButton && !isNotifications && !detailOpen && (
+        <NotificationBell className="md:hidden" />
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <main
-          onClick={() => setOpen(false)}
-          className={[
-            "flex-1 transition-transform duration-300 ease-out",
-            isImmersive ? "" : "px-4 pt-[calc(env(safe-area-inset-top)+4rem)] pb-28 sm:px-6 sm:pt-[calc(env(safe-area-inset-top)+4rem)] md:pt-20 md:pb-4",
-            open ? "md:-translate-x-[304px]" : "md:translate-x-0",
-          ].join(" ")}
-        >
+          <main
+            onClick={() => setOpen(false)}
+            className={[
+              "flex-1",
+              isImmersive ? "" : "px-4 pt-[calc(env(safe-area-inset-top)+4rem)] pb-28 sm:px-6 sm:pt-[calc(env(safe-area-inset-top)+4rem)] md:px-8 md:pt-16 md:pb-12",
+            ].join(" ")}
+          >
           {isImmersive ? (
             <div key={pathname} className="animate-fade-up h-dvh-fallback overflow-y-auto p-0 md:p-6 md:pt-20">
               {children}
             </div>
           ) : (
-            <div key={pathname} className="animate-fade-up mx-auto w-full min-w-0 max-w-5xl md:w-full">{children}</div>
+            <div key={pathname} className="animate-fade-up mx-auto w-full min-w-0 max-w-6xl">{children}</div>
           )}
         </main>
-      </div>
+        </div>
 
       {!isImmersive && !isProfile && !isNotifications && !isSettings && !isAdmin && <BottomNav />}
       {!isImmersive && <OfflineBanner />}

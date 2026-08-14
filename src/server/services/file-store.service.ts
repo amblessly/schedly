@@ -25,6 +25,10 @@ type StoreOptions = {
   folder?: string;
   scheduleId?: string | null;
   status?: "pending" | "uploading" | "processing" | "completed" | "failed";
+  /** Persist bytes in the database (`uploads.file_data`) as a fallback when
+   *  B2 is unreachable or its cap is exceeded. Only safe for small files
+   *  (avatars) — never enable for schedule images (Neon overage risk). */
+  dbFallback?: boolean;
 };
 
 /**
@@ -46,41 +50,57 @@ export async function storeImage(
   opts: StoreOptions = {}
 ): Promise<StoredFile> {
   const status = opts.status ?? "completed";
+  const dbFallback = opts.dbFallback ?? false;
 
-  if (!B2_BUCKET) {
+  let objectKey: string | null = null;
+  if (B2_BUCKET) {
+    try {
+      objectKey = `${opts.folder ?? "files"}/${userId}/${crypto.randomUUID()}.${extForMime(mime)}`;
+      await b2Client().send(
+        new PutObjectCommand({
+          Bucket: B2_BUCKET,
+          Key: objectKey,
+          Body: Buffer.from(data),
+          ContentType: mime,
+        })
+      );
+    } catch (err) {
+      if (!dbFallback) {
+        console.error("[file-store] Backblaze B2 upload failed:", err);
+        throw new Error("File storage unavailable — upload rejected (no database fallback)", { cause: err });
+      }
+      console.error("[file-store] B2 upload failed — persisting to database instead:", err);
+      objectKey = null;
+    }
+  } else if (!dbFallback) {
     throw new Error("B2 storage not configured (B2_BUCKET missing)");
   }
 
   try {
-    const key = `${opts.folder ?? "files"}/${userId}/${crypto.randomUUID()}.${extForMime(mime)}`;
-    await b2Client().send(
-      new PutObjectCommand({
-        Bucket: B2_BUCKET,
-        Key: key,
-        Body: Buffer.from(data),
-        ContentType: mime,
-      })
-    );
     const upload = await db.upload.create({
       data: {
         userId,
         scheduleId: opts.scheduleId ?? null,
         fileUrl: "",
-        objectKey: key,
+        objectKey,
         fileName,
         fileSize: data.byteLength,
         mimeType: mime,
         status,
+        // DB fallback keeps the bytes serveable when B2 is capped/unconfigured.
+        ...(objectKey === null ? { fileData: Buffer.from(data).toString("base64") } : {}),
       },
     });
     const url = `/api/upload/${upload.id}/file`;
     await db.upload.update({ where: { id: upload.id }, data: { fileUrl: url } });
-    // Track B2 upload (Class C transaction) — cap dashboard.
-    void incrementUsage(USAGE_SERVICES.B2_UPLOAD, { bytes: data.byteLength });
+    if (objectKey) {
+      // Track B2 upload (Class C transaction) — cap dashboard.
+      void incrementUsage(USAGE_SERVICES.B2_UPLOAD, { bytes: data.byteLength });
+    }
     return { url, uploadId: upload.id, storedIn: "blob" };
   } catch (err) {
-    console.error("[file-store] Backblaze B2 upload failed:", err);
-    throw new Error("File storage unavailable — upload rejected (no database fallback)", { cause: err });
+    console.error("[file-store] Database record failed:", err);
+    throw new Error("File storage unavailable — upload rejected", { cause: err });
   }
 }
 

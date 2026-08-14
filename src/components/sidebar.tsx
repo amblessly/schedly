@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { navGroups, type NavItem } from "@/config/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
-import { useThemeConfig, THEME_PRESETS } from "@/features/theme";
-import { Check } from "lucide-react";
+import { ThemePicker } from "@/components/theme-picker";
 import {
   Calendar,
   ArrowUp,
@@ -16,7 +15,6 @@ import {
   BellRing,
   GraduationCap,
   Inbox,
-  ChevronLeft,
   ChevronRight,
   LifeBuoy,
   Timer,
@@ -78,66 +76,6 @@ function NavItemLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => v
       )}
       <ChevronRight className="h-4 w-4 shrink-0 text-sidebar-foreground/30 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-sidebar-foreground/60" />
     </Link>
-  );
-}
-
-function ThemePicker() {
-  const { activeId, setTheme } = useThemeConfig();
-  const [start, setStart] = useState(0);
-  const VISIBLE = 3;
-  const maxStart = Math.max(0, THEME_PRESETS.length - VISIBLE);
-
-  const visible = THEME_PRESETS.slice(start, start + VISIBLE);
-
-  return (
-    <div className="px-4 pb-3">
-      <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
-        Theme
-      </p>
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => setStart((s) => Math.max(0, s - 1))}
-          disabled={start === 0}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sidebar-foreground/60 transition-colors hover:bg-white/10 hover:text-sidebar-foreground disabled:opacity-25 disabled:hover:bg-transparent"
-          aria-label="Previous themes"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-
-        <div className="flex flex-1 items-center justify-center gap-2">
-          {visible.map((preset) => (
-            <button
-              key={preset.id}
-              onClick={() => setTheme(preset.id)}
-              className={cn(
-                "relative h-7 w-7 rounded-full transition-all duration-200",
-                activeId === preset.id
-                  ? "ring-2 ring-sidebar-primary ring-offset-2 ring-offset-sidebar scale-110"
-                  : "ring-1 ring-sidebar-border/50 hover:ring-sidebar-foreground/30 hover:scale-105"
-              )}
-              style={{ backgroundColor: preset.swatch }}
-              title={preset.name}
-              aria-label={`Theme: ${preset.name}`}
-            >
-              {activeId === preset.id && (
-                <Check className="absolute inset-0 m-auto h-3.5 w-3.5 text-white drop-shadow-sm" />
-              )}
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setStart((s) => Math.min(maxStart, s + 1))}
-          disabled={start >= maxStart}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sidebar-foreground/60 transition-colors hover:bg-white/10 hover:text-sidebar-foreground disabled:opacity-25 disabled:hover:bg-transparent"
-          aria-label="Next themes"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
   );
 }
 

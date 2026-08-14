@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/card";
 import { Megaphone, LayoutDashboard, Users, Radio, Globe, Smartphone, Apple, Download, type LucideIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { HeaderBack } from "@/components/header-back";
+import { NotificationBell } from "@/components/notification-bell";
 import { cn } from "@/lib/utils";
 
 type AdminUser = {
@@ -177,11 +179,9 @@ export default function AdminPage() {
           </>
         }
       >
-      <div className="mb-6 sm:mb-8">
-        <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <LayoutDashboard className="h-5 w-5" />
-          </span>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3 sm:mb-8">
+        <div className="flex items-start gap-3">
+          <HeaderBack to="/settings?tab=support" />
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               Admin Dashboard
@@ -191,6 +191,7 @@ export default function AdminPage() {
             </p>
           </div>
         </div>
+        <NotificationBell variant="inline" className="hidden md:flex" />
       </div>
 
       <div className="flex flex-col gap-6 md:flex-row md:items-start">

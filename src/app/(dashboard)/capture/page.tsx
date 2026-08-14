@@ -7,6 +7,8 @@ import { useUpload } from "@/features/upload";
 import { ScheduleReview } from "@/features/upload";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { HeaderAvatar } from "@/components/header-avatar";
+import { NotificationBell } from "@/components/notification-bell";
 import {
   Camera, Image, AlertCircle, CheckCircle, ArrowLeft,
   Calendar, Upload, X, Plus,
@@ -260,14 +262,18 @@ export default function CapturePage() {
       <div className="mb-6 sm:mb-8">
         {isManualCreate ? (
           <>
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon-sm" onClick={handleBackToSelect} aria-label="Back">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-                <Calendar className="h-6 w-6 text-primary" />
-                Add Schedule Manually
-              </h1>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <HeaderAvatar />
+                <Button variant="ghost" size="icon-sm" onClick={handleBackToSelect} aria-label="Back">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                  <Calendar className="h-6 w-6 text-primary" />
+                  Add Schedule Manually
+                </h1>
+              </div>
+              <NotificationBell variant="inline" className="hidden md:flex" />
             </div>
             <p className="mt-1 text-sm text-muted-foreground sm:text-base">
               Enter your classes and details one by one
@@ -275,14 +281,18 @@ export default function CapturePage() {
           </>
         ) : (
           <>
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon-sm" onClick={handleBackToCalendar} aria-label="Back to calendar">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-                <Camera className="h-6 w-6 text-primary" />
-                Capture Schedule
-              </h1>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <HeaderAvatar />
+                <Button variant="ghost" size="icon-sm" onClick={handleBackToCalendar} aria-label="Back to calendar">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                  <Camera className="h-6 w-6 text-primary" />
+                  Capture Schedule
+                </h1>
+              </div>
+              <NotificationBell variant="inline" className="hidden md:flex" />
             </div>
             <p className="mt-1 text-sm text-muted-foreground sm:text-base">
               Take or choose a photo of your class schedule

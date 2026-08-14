@@ -93,6 +93,11 @@ function base64UrlOf(bytes: ArrayBuffer | ArrayBufferView | null | undefined): s
 /** Ensure the Schedly service worker is registered and current. */
 export async function ensureServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   try {
+    // Development only: the SW caches `_next/static` chunks cache-first and
+    // RSC payloads stale-while-revalidate, but dev chunk URLs change on every
+    // server restart — an active SW then serves stale module factories.
+    // Register only in production builds.
+    if (process.env.NODE_ENV !== "production") return null;
     const existing = await navigator.serviceWorker.getRegistration("/");
     let reg = existing && existing.active ? existing : null;
     if (!reg) {

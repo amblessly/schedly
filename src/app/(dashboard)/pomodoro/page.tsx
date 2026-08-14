@@ -10,6 +10,9 @@ import {
   RotateCcw,
   SkipForward,
 } from "lucide-react";
+import { AppNavPanel } from "@/components/app-nav-panel";
+import { HeaderAvatar } from "@/components/header-avatar";
+import { NotificationBell } from "@/components/notification-bell";
 
 const DEFAULTS = { focus: 25, break: 5 };
 
@@ -68,16 +71,26 @@ export default function PomodoroPage() {
   };
 
   return (
-    <div className="mx-auto max-w-md pt-8 md:pt-0">
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Pomodoro Timer
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground sm:text-base">
-          Focus in sprints, then take a break.
-        </p>
+    <div className="mx-auto w-full max-w-6xl pt-8 md:pt-0">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3 sm:mb-8">
+        <div className="flex items-start gap-3">
+          <HeaderAvatar />
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              Pomodoro Timer
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+              Focus in sprints, then take a break.
+            </p>
+          </div>
+        </div>
+        <NotificationBell variant="inline" className="hidden md:flex" />
       </div>
 
+      <div className="flex flex-col gap-6 md:flex-row md:items-start">
+        <AppNavPanel />
+
+        <div className="min-w-0 flex-1 mx-auto w-full max-w-md md:mx-0">
       <Card>
         <CardContent className="flex flex-col items-center gap-6 py-8">
           <div className="flex gap-2">
@@ -161,6 +174,8 @@ export default function PomodoroPage() {
           </div>
         </CardContent>
       </Card>
+        </div>
+      </div>
     </div>
   );
 }
