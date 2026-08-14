@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { authClient } from "@/lib/auth-client";
+import { cacheRemove } from "@/lib/offline-cache";
 import { deleteAccount } from "./actions";
 import { useThemeConfig, THEME_PRESETS } from "@/features/theme";
 import { cn } from "@/lib/utils";
@@ -337,6 +338,9 @@ function DeleteAccountCard({ username }: { username: string }) {
       }
       // Clear the session cookie before leaving the app.
       await authClient.signOut();
+      // Drop the cached session so it can't resurrect the deleted account
+      // offline.
+      await cacheRemove("session:user").catch(() => {});
       router.push("/");
     } catch {
       setError("Something went wrong. Please try again.");

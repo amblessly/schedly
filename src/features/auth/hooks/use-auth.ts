@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { retry } from "@/lib/retry";
 import { useMounted } from "@/lib/use-mounted";
-import { cacheRead, cacheWrite, isOffline } from "@/lib/offline-cache";
+import { cacheRead, cacheRemove, cacheWrite, isNetworkError, isOffline } from "@/lib/offline-cache";
 
 type CachedUser = Record<string, unknown> & {
   username?: string;
@@ -16,7 +16,7 @@ type CachedUser = Record<string, unknown> & {
 };
 
 export function useAuth() {
-  const { data: session, isPending, refetch } = authClient.useSession();
+  const { data: session, isPending, error, refetch } = authClient.useSession();
   // better-auth's useSession hydrates from cookies client-side only, so the
   // server renders a session-less tree. Deferring the session until after
   // mount keeps SSR and the first client render identical (no hydration
@@ -27,7 +27,10 @@ export function useAuth() {
   // Offline fallback: persist the signed-in user so the greeting, name, and
   // avatar still show without a connection. The session fetch fails offline,
   // so server-rendered pages would otherwise fall back to "there" and a
-  // missing photo.
+  // missing photo. We fall back on any network failure, not just
+  // navigator.onLine === false — on Android (Wi-Fi with no internet, mobile
+  // data with no signal) the browser still reports online while every
+  // request fails.
   const [offlineUser, setOfflineUser] = useState<CachedUser | null>(null);
   const [offlineSettled, setOfflineSettled] = useState(false);
 
@@ -47,7 +50,7 @@ export function useAuth() {
       }).catch(() => {});
       return;
     }
-    if (!isPending && isOffline()) {
+    if (!isPending && (isOffline() || isNetworkError(error))) {
       cacheRead<CachedUser>("session:user")
         .then((cached) => {
           if (cached) {
@@ -58,8 +61,16 @@ export function useAuth() {
         })
         .catch(() => {})
         .finally(() => setOfflineSettled(true));
+      return;
     }
-  }, [mounted, resolvedSession, isPending]);
+    if (!isPending && (error == null || (error as { status?: number }).status === 401)) {
+      // The server confirmed there's no session (or it expired): drop any
+      // stale cached session so it can't "log back in" when offline.
+      cacheRemove("session:user")
+        .catch(() => {})
+        .then(() => setOfflineUser(null));
+    }
+  }, [mounted, resolvedSession, isPending, error]);
 
   const signUp = useCallback(
     async (data: {
@@ -117,6 +128,9 @@ export function useAuth() {
 
   const signOut = useCallback(async () => {
     await authClient.signOut();
+    // Clear the cached session so it can't resurrect the user offline.
+    setOfflineUser(null);
+    cacheRemove("session:user").catch(() => {});
     router.push("/login");
   }, [router]);
 

@@ -57,14 +57,26 @@ export function isOffline(): boolean {
 }
 
 export function isNetworkError(err: unknown): boolean {
-  if (err instanceof TypeError) return true;
-  return (
-    err instanceof Error &&
-    (err.message === "Network error" ||
-      err.message.toLowerCase().includes("fetch failed") ||
-      err.message.toLowerCase().includes("network") ||
-      err.name === "TypeError")
-  );
+  const walk = (e: unknown): boolean => {
+    if (e instanceof TypeError) return true;
+    if (e instanceof Error) {
+      const msg = (e.message || "").toLowerCase();
+      if (
+        e.name === "FetchError" ||
+        e.name === "TypeError" ||
+        msg === "network error" ||
+        msg.includes("fetch failed") ||
+        msg.includes("failed to fetch") ||
+        msg.includes("network")
+      ) {
+        return true;
+      }
+      // BetterFetchError wraps the underlying TypeError in `cause`.
+      if (e.cause && e.cause !== e) return walk(e.cause);
+    }
+    return false;
+  };
+  return walk(err);
 }
 
 /** Persist any value for later offline use (session user, weather, etc.). */
@@ -79,6 +91,17 @@ export async function cacheRead<T>(key: string): Promise<T | null> {
     | null
     | undefined;
   return entry?.value ?? null;
+}
+
+/** Remove a value persisted with `cacheWrite`. */
+export async function cacheRemove(key: string): Promise<void> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
 }
 
 /** Run `action`; on network failure serve the last cached value for `key`. */
