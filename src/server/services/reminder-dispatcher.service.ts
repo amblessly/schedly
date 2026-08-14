@@ -31,19 +31,31 @@ function localParts(timezone: string, at: Date): {
   d: number;
   offsetMs: number;
 } {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    hour12: false,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).formatToParts(at);
-  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
-  const asUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"));
-  return { y: get("year"), mo: get("month"), d: get("day"), offsetMs: asUtc - at.getTime() };
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hour12: false,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }).formatToParts(at);
+    const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+    const asUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"));
+    return { y: get("year"), mo: get("month"), d: get("day"), offsetMs: asUtc - at.getTime() };
+  } catch {
+    // A corrupt/invalid timezone stored in the DB must never crash the whole
+    // cron — fall back to the instant's UTC wall clock so that one bad row is
+    // just skipped instead of 500-ing every dispatch run.
+    return {
+      y: at.getUTCFullYear(),
+      mo: at.getUTCMonth() + 1,
+      d: at.getUTCDate(),
+      offsetMs: 0,
+    };
+  }
 }
 
 /** Local weekday (0=Sunday) of `at` in the given timezone. */

@@ -90,7 +90,8 @@ function base64UrlOf(bytes: ArrayBuffer | ArrayBufferView | null | undefined): s
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-/** Ensure the Schedly service worker is registered and current. */
+/** Ensure the Schedly service worker is registered and ready to accept a
+ *  push subscription. */
 export async function ensureServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   try {
     // Development only: the SW caches `_next/static` chunks cache-first and
@@ -98,13 +99,20 @@ export async function ensureServiceWorker(): Promise<ServiceWorkerRegistration |
     // server restart — an active SW then serves stale module factories.
     // Register only in production builds.
     if (process.env.NODE_ENV !== "production") return null;
-    const existing = await navigator.serviceWorker.getRegistration("/");
-    let reg = existing && existing.active ? existing : null;
-    if (!reg) {
-      reg = await navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" });
+
+    // Register the app SW (a no-op when it already exists, but it still
+    // re-checks for post-deploy updates in the background — without forcing an
+    // immediate worker replacement that would abort an in-flight subscribe).
+    const reg = await navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" });
+
+    // Wait until an active worker is actually ready before returning. Creating
+    // a push subscription while the worker is still installing or being
+    // replaced makes Chrome abort subscribe() with an AbortError, so we never
+    // hand back a half-initialised registration.
+    if (!reg.active) {
+      await navigator.serviceWorker.ready.catch(() => {});
     }
-    await reg.update().catch(() => {});
-    return reg;
+    return reg.active ? reg : null;
   } catch {
     return null;
   }
@@ -141,86 +149,130 @@ function detectPlatform(): { userAgent: string; device: string; platform: string
   };
 }
 
+/** Serialise subscribe attempts so two components (e.g. onboarding and the
+ *  notifications page) can never fire pushManager.subscribe() at the same time
+ *  — concurrent subscribe calls abort each other with an AbortError. */
+let enablePushInFlight: Promise<PushResult> | null = null;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** pushManager.subscribe() aborts with an AbortError when the service worker
+ *  is mid-update or the browser's push service is briefly unreachable — both
+ *  transient. Retry a couple of times before giving up. */
+async function subscribeWithRetry(
+  reg: ServiceWorkerRegistration,
+  publicKey: string
+): Promise<PushSubscription> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      return await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
+    } catch (err) {
+      lastError = err;
+      if ((err as { name?: string })?.name !== "AbortError") throw err;
+      if (attempt < 3) await delay(750 * attempt);
+    }
+  }
+  throw lastError;
+}
+
 /** Subscribe this device via the native push service and register it with
  *  Schedly. Stale subscriptions from the old FCM era are dropped first so
  *  pushManager always carries a subscription bound to the current VAPID key. */
 export async function enablePush(): Promise<PushResult> {
-  if (!isPushSupported()) {
-    return { ok: false, code: "PUSH_NOT_SUPPORTED", reason: pushUnsupportedReasons().join(" · ") };
-  }
-  if (Notification.permission === "denied") {
-    return {
-      ok: false,
-      code: "NOTIFICATION_PERMISSION_DENIED",
-      reason: isIosPwa()
-        ? "Notifications are blocked. Enable them in iOS Settings → Schedly → Notifications."
-        : "Notifications are blocked. Enable them in your browser or device settings, then try again.",
-    };
-  }
-  if (Notification.permission !== "granted") {
-    const result = await Notification.requestPermission();
-    if (result !== "granted") {
-      return {
-        ok: false,
-        code: "NOTIFICATION_PERMISSION_DENIED",
-        reason: "Notification permission wasn't granted.",
-      };
-    }
-  }
-
-  const publicKey = await fetchVapidPublicKey();
-  if (!publicKey) {
-    return {
-      ok: false,
-      code: "SERVICE_WORKER_NOT_READY",
-      reason: "The server isn't configured for push alerts yet.",
-    };
-  }
-
-  const reg = await ensureServiceWorker();
-  if (!reg) {
-    return {
-      ok: false,
-      code: "SERVICE_WORKER_NOT_READY",
-      reason: "The app's background service is still starting up. Refresh, then try again.",
-    };
-  }
-
-  try {
-    const existing = await reg.pushManager.getSubscription();
-    if (existing) {
-      const currentKey = base64UrlOf(existing.options.applicationServerKey);
-      if (currentKey && currentKey !== publicKey.replace(/=+$/, "")) {
-        // Old FCM-era subscription — swap it for the current VAPID one.
-        await existing.unsubscribe().catch(() => {});
-      } else {
-        await registerSubscription(existing);
-        return { ok: true };
+  if (enablePushInFlight) return enablePushInFlight;
+  enablePushInFlight = (async () => {
+    try {
+      if (!isPushSupported()) {
+        return { ok: false, code: "PUSH_NOT_SUPPORTED", reason: pushUnsupportedReasons().join(" · ") };
       }
+      if (Notification.permission === "denied") {
+        return {
+          ok: false,
+          code: "NOTIFICATION_PERMISSION_DENIED",
+          reason: isIosPwa()
+            ? "Notifications are blocked. Enable them in iOS Settings → Schedly → Notifications."
+            : "Notifications are blocked. Enable them in your browser or device settings, then try again.",
+        };
+      }
+      if (Notification.permission !== "granted") {
+        const result = await Notification.requestPermission();
+        if (result !== "granted") {
+          return {
+            ok: false,
+            code: "NOTIFICATION_PERMISSION_DENIED",
+            reason: "Notification permission wasn't granted.",
+          };
+        }
+      }
+
+      const publicKey = await fetchVapidPublicKey();
+      if (!publicKey) {
+        return {
+          ok: false,
+          code: "SERVICE_WORKER_NOT_READY",
+          reason: "The server isn't configured for push alerts yet.",
+        };
+      }
+
+      const reg = await ensureServiceWorker();
+      if (!reg) {
+        return {
+          ok: false,
+          code: "SERVICE_WORKER_NOT_READY",
+          reason: "The app's background service is still starting up. Refresh, then try again.",
+        };
+      }
+
+      try {
+        const existing = await reg.pushManager.getSubscription();
+        if (existing) {
+          const currentKey = base64UrlOf(existing.options.applicationServerKey);
+          if (currentKey && currentKey !== publicKey.replace(/=+$/, "")) {
+            // Old FCM-era subscription — swap it for the current VAPID one.
+            await existing.unsubscribe().catch(() => {});
+          } else {
+            await registerSubscription(existing);
+            return { ok: true };
+          }
+        }
+        const sub = await subscribeWithRetry(reg, publicKey);
+        await registerSubscription(sub);
+        return { ok: true };
+      } catch (err) {
+        const name = (err as { name?: string })?.name;
+        if (name === "NotSupportedError" || (err as { message?: string })?.message?.includes("unsupported")) {
+          return {
+            ok: false,
+            code: "PUSH_NOT_SUPPORTED",
+            reason: isIosPwa()
+              ? "Push needs the PWA installed from the Home Screen (iOS 16.4+)."
+              : "Push alerts aren't supported on this device.",
+          };
+        }
+        if (name === "AbortError") {
+          return {
+            ok: false,
+            code: "SUBSCRIPTION_FAILED",
+            reason: "Your browser cancelled the push setup — usually a brief hiccup. Refresh the page and try again.",
+          };
+        }
+        return {
+          ok: false,
+          code: "SUBSCRIPTION_FAILED",
+          reason: `Couldn't subscribe this device (${name || "unknown error"}). Check your connection and try again.`,
+        };
+      }
+    } finally {
+      enablePushInFlight = null;
     }
-    const sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey),
-    });
-    await registerSubscription(sub);
-    return { ok: true };
-  } catch (err) {
-    const name = (err as { name?: string })?.name;
-    if (name === "NotSupportedError" || (err as { message?: string })?.message?.includes("unsupported")) {
-      return {
-        ok: false,
-        code: "PUSH_NOT_SUPPORTED",
-        reason: isIosPwa()
-          ? "Push needs the PWA installed from the Home Screen (iOS 16.4+)."
-          : "Push alerts aren't supported on this device.",
-      };
-    }
-    return {
-      ok: false,
-      code: "SUBSCRIPTION_FAILED",
-      reason: `Couldn't subscribe this device (${name || "unknown error"}). Check your connection and try again.`,
-    };
-  }
+  })();
+  return enablePushInFlight;
 }
 
 async function registerSubscription(

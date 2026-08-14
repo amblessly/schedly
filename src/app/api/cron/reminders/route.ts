@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { dispatchDueReminders } from "@/server/services/reminder-dispatcher.service";
 import { dispatchTodoDeadlines } from "@/server/services/todo-deadline-reminder.service";
 import { scheduleQstashReminders } from "@/server/services/qstash-reminder.service";
-import { auditLog } from "@/server/lib/audit";
+import { auditLog, type AuditAction } from "@/server/lib/audit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -19,22 +19,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Each step runs isolated so one transient failure never fails the whole
+  // cron (which would trip the GitHub Actions watchdog / Vercel Cron). Failures
+  // are logged and reported in the response instead of 500-ing everything.
+  const reminders = await runStep("reminders.cron", () => dispatchDueReminders());
+  const todos = await runStep("reminders.todos", () => dispatchTodoDeadlines());
+  const qstash = await runStep("reminders.qstash", () => scheduleQstashReminders());
+
+  return NextResponse.json({ ok: true, reminders, todos, qstash });
+}
+
+async function runStep(name: AuditAction, fn: () => Promise<unknown>) {
   try {
-    const result = await dispatchDueReminders();
-    auditLog("reminders.cron", result);
-
-    // To-do deadline reminders for every user (fires even when the app is
-    // closed; the client heartbeat covers the open-app case).
-    const todos = await dispatchTodoDeadlines();
-    auditLog("reminders.todos", todos);
-
-    // Schedule exact-time QStash messages for the next round of occurrences.
-    const scheduled = await scheduleQstashReminders();
-    auditLog("reminders.qstash", scheduled);
-
-    return NextResponse.json({ ok: true, ...result, todos, qstash: scheduled });
+    const result = await fn();
+    auditLog(name, result as Record<string, unknown>);
+    return result;
   } catch (err) {
-    console.error("[CRON_REMINDERS]", err);
-    return NextResponse.json({ ok: false, error: "Cron failed" }, { status: 500 });
+    console.error(`[CRON_REMINDERS] ${name} failed:`, err);
+    return { error: "step failed" };
   }
 }

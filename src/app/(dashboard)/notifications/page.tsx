@@ -10,12 +10,20 @@ import {
   deleteNotification as deleteNotificationAction,
 } from "@/app/(dashboard)/notifications/actions";
 import { getUserReminders, updateReminder, type UpdateReminderResult } from "@/app/(dashboard)/reminders/actions";
-import { isPushSupported, getPushState, pushUnsupportedReasons, enablePush, disablePush, sendTestPush, isIosPwa } from "@/lib/push";
+import { isPushSupported, getPushState, pushUnsupportedReasons, enablePush, disablePush, sendTestPush, isIosPwa, type PushErrorCode } from "@/lib/push";
 import { programReminderAlarms } from "@/lib/notification-scheduler";
 import {
   setNotificationDetailOpen,
 } from "@/lib/notification-detail-store";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Skeleton as BoneSkeleton } from "boneyard-js/react";
 import { HeaderBack } from "@/components/header-back";
@@ -170,6 +178,30 @@ function Toggle({
   );
 }
 
+/** Troubleshooting steps shown in the dialog when enabling class reminders
+ *  (push subscription) fails on this device. */
+function buildPushHelpSteps(code: PushErrorCode): string[] {
+  if (isIosPwa()) {
+    return [
+      "Make sure Schedly was installed from your Home Screen — push alerts don't work in Safari tabs.",
+      "Open iOS Settings → Schedly → Notifications and allow alerts.",
+      "Come back to the app, refresh the page, and turn the toggle on again.",
+    ];
+  }
+  if (code === "NOTIFICATION_PERMISSION_DENIED") {
+    return [
+      "Notifications are blocked for this site. Open your browser or phone settings and allow Schedly notifications.",
+      "Then come back, refresh the page, and turn the toggle on again.",
+    ];
+  }
+  return [
+    "Refresh the page, then try the toggle again.",
+    "On Android, use the Chrome app — in-app browsers (like Facebook or Messenger) block push alerts.",
+    "Make sure you're online with a stable connection, then try again.",
+    "If it still fails, check your browser settings and confirm notifications for Schedly aren't blocked.",
+  ];
+}
+
 export function NotificationsPage() {
   const router = useRouter();
   const [tab, setTab] = useState<"notifications" | "reminders">("notifications");
@@ -190,6 +222,8 @@ export function NotificationsPage() {
   const [pushMessage, setPushMessage] = useState<{ kind: "error"; text: string } | null>(null);
   const [pushTesting, setPushTesting] = useState(false);
   const [savingMinutes, setSavingMinutes] = useState<string | null>(null);
+  const [pushHelpOpen, setPushHelpOpen] = useState(false);
+  const [pushHelp, setPushHelp] = useState<{ reason: string; steps: string[] } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -346,12 +380,19 @@ export function NotificationsPage() {
         else {
           if (result.code === "NOTIFICATION_PERMISSION_DENIED") setPushBlocked(true);
           setPushMessage({ kind: "error", text: result.reason });
+          setPushHelp({ reason: result.reason, steps: buildPushHelpSteps(result.code) });
+          setPushHelpOpen(true);
         }
       }
     } catch {
       setPushMessage({ kind: "error", text: "Something went wrong. Try again." });
     }
     setPushUpdating(false);
+  };
+
+  const handleRetryPush = () => {
+    setPushHelpOpen(false);
+    togglePush();
   };
 
   const sendTest = async () => {
@@ -848,6 +889,36 @@ export function NotificationsPage() {
           }}
         />
       )}
+
+      {/* Help dialog when enabling class reminders fails */}
+      <Dialog open={pushHelpOpen} onOpenChange={setPushHelpOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Couldn&apos;t enable class reminders</DialogTitle>
+            <DialogDescription>{pushHelp?.reason}</DialogDescription>
+          </DialogHeader>
+          {pushHelp && (
+            <ol className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+              {pushHelp.steps.map((step, i) => (
+                <li key={i} className="flex gap-2.5">
+                  <span className="mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
+                    {i + 1}
+                  </span>
+                  <span>{step}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+          <DialogFooter className="flex-row justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setPushHelpOpen(false)}>
+              Close
+            </Button>
+            <Button size="sm" onClick={handleRetryPush} disabled={pushUpdating}>
+              {pushUpdating ? "Trying..." : "Try again"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

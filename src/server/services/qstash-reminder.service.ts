@@ -94,6 +94,13 @@ export async function scheduleQstashReminders(
   const seenPre = new Set<string>();
   const seenStart = new Set<string>();
 
+  // Every publish is a network round-trip; running them sequentially blows
+  // the serverless timeout once there are a few hundred reminders. Collect
+  // the publishes as tasks and fire them with bounded concurrency instead.
+  const CONCURRENCY = 6;
+  type PublishOutcome = "scheduled" | "skipped" | "failed";
+  const tasks: (() => Promise<PublishOutcome>)[] = [];
+
   for (const reminder of reminders) {
     const cls = reminder.class;
     if (cls.days.length === 0) continue;
@@ -119,26 +126,26 @@ export async function scheduleQstashReminders(
       !seenPre.has(key)
     ) {
       seenPre.add(key);
-      try {
-        await client.publishJSON({
-          url: `${baseUrl}/api/reminders/fire`,
-          method: "POST",
-          body: { reminderId: reminder.id, occ, kind: "pre" },
-          // The Upstash-Not-Before header expects unix SECONDS (not ms).
-          notBefore: Math.floor(preAt / 1000),
-          messageId: `rem-${reminder.userId}-${occ}-pre-${msgSuffix}`,
-          retries: 1,
-        });
-        scheduled++;
-        void incrementUsage(USAGE_SERVICES.QSTASH);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (/duplicate|already exists|maxDelay/i.test(msg)) {
-          skipped++;
-        } else {
+      tasks.push(async () => {
+        try {
+          await client.publishJSON({
+            url: `${baseUrl}/api/reminders/fire`,
+            method: "POST",
+            body: { reminderId: reminder.id, occ, kind: "pre" },
+            // The Upstash-Not-Before header expects unix SECONDS (not ms).
+            notBefore: Math.floor(preAt / 1000),
+            messageId: `rem-${reminder.userId}-${occ}-pre-${msgSuffix}`,
+            retries: 1,
+          });
+          void incrementUsage(USAGE_SERVICES.QSTASH);
+          return "scheduled";
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (/duplicate|already exists|maxDelay/i.test(msg)) return "skipped";
           console.error("[QSTASH_SCHEDULE]", err);
+          return "failed";
         }
-      }
+      });
     }
 
     // "Class starting now" push at exactly [start].
@@ -148,26 +155,44 @@ export async function scheduleQstashReminders(
       !seenStart.has(key)
     ) {
       seenStart.add(key);
-      try {
-        await client.publishJSON({
-          url: `${baseUrl}/api/reminders/fire`,
-          method: "POST",
-          body: { reminderId: reminder.id, occ, kind: "start" },
-          notBefore: Math.floor(occ / 1000),
-          messageId: `rem-${reminder.userId}-${occ}-start-${msgSuffix}`,
-          retries: 1,
-        });
-        scheduled++;
-        void incrementUsage(USAGE_SERVICES.QSTASH);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (/duplicate|already exists|maxDelay/i.test(msg)) {
-          skipped++;
-        } else {
+      tasks.push(async () => {
+        try {
+          await client.publishJSON({
+            url: `${baseUrl}/api/reminders/fire`,
+            method: "POST",
+            body: { reminderId: reminder.id, occ, kind: "start" },
+            notBefore: Math.floor(occ / 1000),
+            messageId: `rem-${reminder.userId}-${occ}-start-${msgSuffix}`,
+            retries: 1,
+          });
+          void incrementUsage(USAGE_SERVICES.QSTASH);
+          return "scheduled";
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (/duplicate|already exists|maxDelay/i.test(msg)) return "skipped";
           console.error("[QSTASH_SCHEDULE]", err);
+          return "failed";
         }
-      }
+      });
     }
+  }
+
+  // Run the publish pool with bounded concurrency, then tally the outcomes.
+  const outcomes: PublishOutcome[] = [];
+  let cursor = 0;
+  async function worker(): Promise<void> {
+    while (cursor < tasks.length) {
+      const task = tasks[cursor++]!;
+      outcomes.push(await task());
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(CONCURRENCY, tasks.length) }, () => worker())
+  );
+
+  for (const outcome of outcomes) {
+    if (outcome === "scheduled") scheduled++;
+    else if (outcome === "skipped") skipped++;
   }
 
   return { scheduled, skipped, total: reminders.length };
