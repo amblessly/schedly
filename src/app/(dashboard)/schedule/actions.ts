@@ -2,12 +2,13 @@
 
 import { auth } from "@/server/lib/auth";
 import { headers } from "next/headers";
-import { scheduleService } from "@/server/services/schedule.service";
+import { scheduleService, DEFAULT_COLORS } from "@/server/services/schedule.service";
 import { notificationService } from "@/server/services/notification.service";
 import { saveScheduleSchema } from "@/server/validators/ai.schema";
 import { db } from "@/server/db/client";
 import { scheduleQstashReminders } from "@/server/services/qstash-reminder.service";
 import { auditLog } from "@/server/lib/audit";
+import { generateShortName } from "@/lib/abbreviations";
 import type { DayOfWeek } from "@/generated/prisma/client";
 
 export type SaveScheduleResult =
@@ -76,14 +77,15 @@ export async function getUserSchedules() {
 }
 
 export type ClassEditInput = {
+  /** Existing class id, or a "new-*" id to create a fresh class. */
   id: string;
   subject: string;
   shortName?: string | null;
   code?: string | null;
-  /** "HH:MM" wall-clock start/end — optional, omit to keep the current time. */
+  /** "HH:MM" wall-clock start/end — optional for edits, required for new classes. */
   startTime?: string | null;
   endTime?: string | null;
-  /** Days the class occurs on — optional, omit to keep the current days. */
+  /** Days the class occurs on — optional for edits, required for new classes. */
   days?: DayOfWeek[];
 };
 
@@ -131,6 +133,9 @@ export async function updateClasses(
   }
 
   try {
+    const isNew = (id: string) => id.startsWith("new-");
+    let classCount = await db.class.count({ where: { scheduleId } });
+
     for (const u of updates) {
       const subject = u.subject?.trim();
       if (!subject) return { success: false, error: "Subject name is required" };
@@ -152,6 +157,31 @@ export async function updateClasses(
           u.days.some((d) => !VALID_DAYS.includes(d as (typeof VALID_DAYS)[number])))
       ) {
         return { success: false, error: "Select at least one valid class day" };
+      }
+
+      if (isNew(u.id)) {
+        // New subject — time and days are required.
+        if (!start || !end) {
+          return { success: false, error: "Start and end times are required for new subjects" };
+        }
+        if (!u.days || u.days.length === 0) {
+          return { success: false, error: "Select at least one class day" };
+        }
+        const created = await db.class.create({
+          data: {
+            scheduleId,
+            subject,
+            shortName: u.shortName?.trim() || generateShortName(subject),
+            code: u.code?.trim() || null,
+            color: DEFAULT_COLORS[classCount % DEFAULT_COLORS.length]!,
+            startTime: applyWallClock(new Date(), start),
+            endTime: applyWallClock(new Date(), end),
+            days: u.days as DayOfWeek[],
+          },
+        });
+        classCount += 1;
+        await db.reminder.create({ data: { classId: created.id, userId: session.user.id } });
+        continue;
       }
 
       const row = await db.class.findUnique({

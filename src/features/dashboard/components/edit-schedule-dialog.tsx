@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Plus, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -97,6 +97,25 @@ export function EditScheduleDialog({ scheduleId, classes, onSaved }: Props) {
     setDrafts((prev) => prev.map((d) => (d.id === id ? { ...d, ...patch } : d)));
   };
 
+  const addSubject = () => {
+    setDrafts((prev) => [
+      ...prev,
+      {
+        id: `new-${crypto.randomUUID()}`,
+        subject: "",
+        shortName: "",
+        code: "",
+        startTime: "",
+        endTime: "",
+        days: [],
+      },
+    ]);
+  };
+
+  const removeSubject = (id: string) => {
+    setDrafts((prev) => prev.filter((d) => d.id !== id));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
@@ -129,26 +148,38 @@ export function EditScheduleDialog({ scheduleId, classes, onSaved }: Props) {
               const classDays = d.days ?? [];
               return (
                 <div key={d.id} className="space-y-2 rounded-lg border border-border/60 bg-card/40 p-3">
-                  <div className="flex flex-wrap gap-1">
-                    {DAY_ORDER.map((day) => {
-                      const on = classDays.includes(day as ClassData["days"][number]);
-                      return (
-                        <button
-                          key={day}
-                          type="button"
-                          onClick={() => toggleDay(d.id, day as ClassData["days"][number])}
-                          aria-pressed={on}
-                          className={cn(
-                            "rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors",
-                            on
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted text-muted-foreground hover:bg-muted/60"
-                          )}
-                        >
-                          {DAY_LABELS[day]}
-                        </button>
-                      );
-                    })}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-wrap gap-1">
+                      {DAY_ORDER.map((day) => {
+                        const on = classDays.includes(day as ClassData["days"][number]);
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => toggleDay(d.id, day as ClassData["days"][number])}
+                            aria-pressed={on}
+                            className={cn(
+                              "rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                              on
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted text-muted-foreground hover:bg-muted/60"
+                            )}
+                          >
+                            {DAY_LABELS[day]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {d.id.startsWith("new-") && (
+                      <button
+                        type="button"
+                        onClick={() => removeSubject(d.id)}
+                        aria-label="Remove subject"
+                        className="shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                   <Input
                     value={d.subject}
@@ -195,6 +226,14 @@ export function EditScheduleDialog({ scheduleId, classes, onSaved }: Props) {
                 </div>
               );
             })}
+            <button
+              type="button"
+              onClick={addSubject}
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/70 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+            >
+              <Plus className="h-4 w-4" />
+              Add subject
+            </button>
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
           <div className="flex justify-end gap-2">
