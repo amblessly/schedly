@@ -46,8 +46,7 @@ const TextFieldArea = React.forwardRef<HTMLTextAreaElement, TextFieldAreaProps>(
             className={cn(
               "peer w-full bg-transparent px-4 pt-4 pb-2 text-base font-normal outline-none resize-y min-h-[120px]",
               "placeholder:text-transparent",
-              "disabled:cursor-not-allowed",
-              props.className
+              "disabled:cursor-not-allowed"
             )}
             aria-invalid={error || undefined}
             {...props}
