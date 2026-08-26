@@ -33,8 +33,8 @@ type Deck = {
   description: string | null;
   subject: string | null;
   cardCount: number;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
 };
 
 export default function FlashcardsPage() {
