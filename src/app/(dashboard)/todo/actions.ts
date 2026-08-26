@@ -6,12 +6,18 @@ import { db } from "@/server/db/client";
 import { auditLog } from "@/server/lib/audit";
 
 export type TodoPriority = "low" | "medium" | "high";
+export type TodoCategory = "general" | "school" | "personal" | "work";
 
 const PRIORITIES: TodoPriority[] = ["low", "medium", "high"];
+const CATEGORIES: TodoCategory[] = ["general", "school", "personal", "work"];
 const DUE_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function isPriority(value: string): value is TodoPriority {
   return (PRIORITIES as string[]).includes(value);
+}
+
+function isCategory(value: string): value is TodoCategory {
+  return (CATEGORIES as string[]).includes(value);
 }
 
 export async function getTodos() {
@@ -29,7 +35,8 @@ export type AddTodoResult = { success: true } | { success: false; error: string 
 export async function addTodoAction(
   text: string,
   priority: string,
-  dueDate?: string
+  dueDate?: string,
+  category?: string
 ): Promise<AddTodoResult> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return { success: false, error: "Unauthorized" };
@@ -39,6 +46,7 @@ export async function addTodoAction(
   if (clean.length > 500) return { success: false, error: "Task is too long (max 500 characters)" };
   if (!isPriority(priority)) return { success: false, error: "Invalid priority" };
   if (dueDate && !DUE_DATE_RE.test(dueDate)) return { success: false, error: "Invalid due date" };
+  const cat = category && isCategory(category) ? category : "general";
 
   try {
     await db.todo.create({
@@ -47,6 +55,7 @@ export async function addTodoAction(
         text: clean,
         priority,
         dueDate: dueDate || undefined,
+        category: cat,
       },
     });
     return { success: true };
@@ -80,7 +89,8 @@ export async function editTodoAction(
   todoId: string,
   text: string,
   priority: string,
-  dueDate?: string
+  dueDate?: string,
+  category?: string
 ): Promise<EditTodoResult> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return { success: false, error: "Unauthorized" };
@@ -90,13 +100,14 @@ export async function editTodoAction(
   if (clean.length > 500) return { success: false, error: "Task is too long (max 500 characters)" };
   if (!isPriority(priority)) return { success: false, error: "Invalid priority" };
   if (dueDate && !DUE_DATE_RE.test(dueDate)) return { success: false, error: "Invalid due date" };
+  const cat = category && isCategory(category) ? category : undefined;
 
   try {
     const existing = await db.todo.findFirst({ where: { id: todoId, userId: session.user.id } });
     if (!existing) return { success: false, error: "Task not found" };
     await db.todo.update({
       where: { id: todoId },
-      data: { text: clean, priority, dueDate: dueDate || null },
+      data: { text: clean, priority, dueDate: dueDate || null, ...(cat ? { category: cat } : {}) },
     });
     return { success: true };
   } catch (err) {

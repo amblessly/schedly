@@ -17,6 +17,7 @@ export type TodoItem = {
   text: string;
   completed: boolean;
   priority: TodoPriority;
+  category?: string;
   dueDate?: string;
   createdAt: number;
   completedAt?: number;
@@ -73,6 +74,7 @@ function rowToItem(row: {
   text: string;
   completed: boolean;
   priority: string;
+  category?: string | null;
   dueDate: string | null;
   createdAt: Date | string;
   completedAt: Date | string | null;
@@ -82,6 +84,7 @@ function rowToItem(row: {
     text: row.text,
     completed: row.completed,
     priority: (row.priority as TodoPriority) || "medium",
+    category: row.category ?? undefined,
     dueDate: row.dueDate ?? undefined,
     createdAt: new Date(row.createdAt).getTime(),
     completedAt: row.completedAt ? new Date(row.completedAt).getTime() : undefined,
@@ -110,19 +113,20 @@ export function useTodos() {
   }, []);
 
   const addTodo = useCallback(
-    async (text: string, priority: TodoPriority, dueDate?: string) => {
+    async (text: string, priority: TodoPriority, dueDate?: string, category?: string) => {
       const id = crypto.randomUUID();
       const todo: TodoItem = {
         id,
         text: text.trim(),
         completed: false,
         priority,
+        category: category || "general",
         dueDate: dueDate || undefined,
         createdAt: Date.now(),
       };
       const prev = cached;
       persist([todo, ...cached]);
-      const result = await addTodoAction(todo.text, priority, dueDate);
+      const result = await addTodoAction(todo.text, priority, dueDate, category);
       if (!result.success) {
         persist(prev);
         console.error("[ADD_TODO]", result.error);
@@ -167,13 +171,13 @@ export function useTodos() {
     }
   }, []);
 
-  const editTodo = useCallback(async (id: string, text: string, priority: TodoPriority, dueDate?: string) => {
+  const editTodo = useCallback(async (id: string, text: string, priority: TodoPriority, dueDate?: string, category?: string) => {
     const prev = cached;
     const next = cached.map((t) =>
-      t.id === id ? { ...t, text: text.trim(), priority, dueDate: dueDate || undefined } : t
+      t.id === id ? { ...t, text: text.trim(), priority, dueDate: dueDate || undefined, category: category || t.category } : t
     );
     persist(next);
-    const result = await editTodoAction(id, text, priority, dueDate);
+    const result = await editTodoAction(id, text, priority, dueDate, category);
     if (!result.success) {
       persist(prev);
       console.error("[EDIT_TODO]", result.error);

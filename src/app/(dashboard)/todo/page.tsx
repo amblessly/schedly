@@ -16,12 +16,20 @@ import { NotificationBell } from "@/components/notification-bell";
 
 type FilterType = "all" | "active" | "completed";
 type Priority = "low" | "medium" | "high";
+type Category = "general" | "school" | "personal" | "work";
 
 const PRIORITY_DOTS: Record<Priority, string> = {
   low: "bg-green-400",
   medium: "bg-yellow-400",
   high: "bg-red-400",
 };
+
+const CATEGORY_OPTIONS: { value: Category; label: string; color: string }[] = [
+  { value: "general", label: "General", color: "#6b7280" },
+  { value: "school", label: "School", color: "#3b82f6" },
+  { value: "personal", label: "Personal", color: "#ec4899" },
+  { value: "work", label: "Work", color: "#f59e0b" },
+];
 
 function dueDateAsLocal(dateStr: string): Date {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -44,26 +52,30 @@ function isOverdue(dateStr: string): boolean {
 export default function TodoPage() {
   const { todos, addTodo, toggleTodo, deleteTodo, clearCompleted, editTodo } = useTodos();
   const [filter, setFilter] = useState<FilterType>("all");
+  const [categoryFilter, setCategoryFilter] = useState<Category | "all">("all");
   const [newText, setNewText] = useState("");
   const [newPriority, setNewPriority] = useState<Priority>("medium");
   const [newDueDate, setNewDueDate] = useState("");
+  const [newCategory, setNewCategory] = useState<Category>("general");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [editPriority, setEditPriority] = useState<Priority>("medium");
   const [editDueDate, setEditDueDate] = useState("");
+  const [editCategory, setEditCategory] = useState<Category>("general");
 
   function handleAdd() {
     if (!newText.trim()) return;
-    addTodo(newText, newPriority, newDueDate || undefined);
+    addTodo(newText, newPriority, newDueDate || undefined, newCategory);
     setNewText("");
     setNewDueDate("");
   }
 
-  function startEdit(id: string, text: string, priority: Priority, dueDate?: string) {
+  function startEdit(id: string, text: string, priority: Priority, dueDate?: string, category?: string) {
     setEditingId(id);
     setEditText(text);
     setEditPriority(priority);
     setEditDueDate(dueDate || "");
+    setEditCategory((category as Category) || "general");
   }
 
   function cancelEdit() {
@@ -72,13 +84,14 @@ export default function TodoPage() {
 
   async function saveEdit(id: string) {
     if (!editText.trim()) return;
-    await editTodo(id, editText, editPriority, editDueDate || undefined);
+    await editTodo(id, editText, editPriority, editDueDate || undefined, editCategory);
     setEditingId(null);
   }
 
   const filtered = todos.filter((t) => {
     if (filter === "active") return !t.completed;
     if (filter === "completed") return t.completed;
+    if (categoryFilter !== "all" && t.category !== categoryFilter) return false;
     return true;
   });
 
@@ -167,6 +180,28 @@ export default function TodoPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Category
+              </Label>
+              <div className="flex gap-1.5">
+                {CATEGORY_OPTIONS.map((c) => (
+                  <button
+                    key={c.value}
+                    onClick={() => setNewCategory(c.value)}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                      newCategory === c.value
+                        ? "border-primary/40 bg-primary/10 text-foreground"
+                        : "border-border/50 bg-card text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: c.color }} />
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
               <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 type="date"
@@ -197,6 +232,25 @@ export default function TodoPage() {
               {f}
             </button>
           ))}
+        </div>
+        <div className="flex gap-1 flex-wrap">
+          {(["all", ...CATEGORY_OPTIONS.map((c) => c.value)] as const).map((c) => {
+            const cat = CATEGORY_OPTIONS.find((opt) => opt.value === c);
+            return (
+              <button
+                key={c}
+                onClick={() => setCategoryFilter(c)}
+                className={cn(
+                  "rounded-full border px-2.5 py-1 text-[10px] font-medium transition-colors",
+                  categoryFilter === c
+                    ? "border-primary/40 bg-primary/10 text-foreground"
+                    : "border-border/50 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {c === "all" ? "All" : cat?.label}
+              </button>
+            );
+          })}
         </div>
         {completedCount > 0 && (
           <button
@@ -276,6 +330,26 @@ export default function TodoPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        <Label className="text-xs font-medium text-muted-foreground">Category</Label>
+                        <div className="flex gap-1.5">
+                          {CATEGORY_OPTIONS.map((c) => (
+                            <button
+                              key={c.value}
+                              onClick={() => setEditCategory(c.value)}
+                              className={cn(
+                                "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                                editCategory === c.value
+                                  ? "border-primary/40 bg-primary/10 text-foreground"
+                                  : "border-border/50 bg-card text-muted-foreground hover:text-foreground"
+                              )}
+                            >
+                              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: c.color }} />
+                              {c.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
                         <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
                         <Input
                           type="date"
@@ -318,6 +392,17 @@ export default function TodoPage() {
                           <span className={cn("h-1.5 w-1.5 rounded-full", PRIORITY_DOTS[todo.priority])} />
                           {todo.priority}
                         </span>
+                        {todo.category && todo.category !== "general" && (
+                          <span
+                            className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                            style={{
+                              backgroundColor: `${CATEGORY_OPTIONS.find((c) => c.value === todo.category)?.color}20`,
+                              color: CATEGORY_OPTIONS.find((c) => c.value === todo.category)?.color,
+                            }}
+                          >
+                            {CATEGORY_OPTIONS.find((c) => c.value === todo.category)?.label}
+                          </span>
+                        )}
                         {due && (
                           <span
                             className={cn(
@@ -338,7 +423,7 @@ export default function TodoPage() {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 shrink-0 text-muted-foreground/50 md:opacity-0 md:group-hover:opacity-100 hover:text-foreground"
-                      onClick={() => startEdit(todo.id, todo.text, todo.priority, todo.dueDate)}
+                      onClick={() => startEdit(todo.id, todo.text, todo.priority, todo.dueDate, todo.category)}
                       aria-label={`Edit ${todo.text}`}
                     >
                       <Pencil className="h-4 w-4" />

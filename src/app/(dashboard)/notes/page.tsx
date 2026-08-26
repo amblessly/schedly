@@ -1,188 +1,418 @@
 "use client";
 
-import { useCallback, useState, useSyncExternalStore } from "react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  getNoteFolders,
+  getNotes,
+  createFolder,
+  deleteFolder,
+  createNote,
+  updateNote,
+  togglePin,
+  deleteNote,
+} from "./actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FloatingLabelInput } from "@/components/ui/floating-label-input";
-import { FloatingLabelTextarea } from "@/components/ui/floating-label-textarea";
-import {
-  StickyNote,
-  Plus,
-  Trash2,
-} from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { AppNavPanel } from "@/components/app-nav-panel";
-import { HeaderAvatar } from "@/components/header-avatar";
-import { NotificationBell } from "@/components/notification-bell";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import {
+  PlusIcon,
+  TrashIcon,
+  PinIcon,
+  SearchIcon,
+  FolderIcon,
+  FolderOpenIcon,
+  StickyNoteIcon,
+  ChevronRightIcon,
+  XIcon,
+} from "lucide-react";
 
 type Note = {
   id: string;
   title: string;
-  body: string;
-  createdAt: number;
-  updatedAt: number;
+  content: string;
+  pinned: boolean;
+  folderId: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
-const STORAGE_KEY = "schedly-notes";
+type Folder = {
+  id: string;
+  name: string;
+  color: string;
+  _count: { notes: number };
+};
 
-const listeners = new Set<() => void>();
-let loaded = false;
-let cached: Note[] = [];
-const EMPTY_NOTES: Note[] = [];
-
-function readStorage(): Note[] {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-  } catch {
-    return [];
-  }
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-function getSnapshot(): Note[] {
-  if (typeof window === "undefined") return EMPTY_NOTES;
-  if (!loaded) {
-    cached = readStorage();
-    loaded = true;
-  }
-  return cached;
-}
-
-function getServerSnapshot(): Note[] {
-  return EMPTY_NOTES;
-}
-
-function persist(next: Note[]) {
-  cached = next;
-  loaded = true;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  } catch {
-    // storage full or unavailable — keep state in memory
-  }
-  listeners.forEach((l) => l());
-}
+const FOLDER_COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
 
 export default function NotesPage() {
-  const notes = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [newFolderColor, setNewFolderColor] = useState(FOLDER_COLORS[0]);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [showMobileFolders, setShowMobileFolders] = useState(false);
 
-  const addNote = useCallback(() => {
-    if (!title.trim() && !body.trim()) return;
-    setSaving(true);
-    const now = Date.now();
-    const note: Note = {
-      id: now.toString(36) + Math.random().toString(36).slice(2, 7),
-      title: title.trim() || "Untitled",
-      body: body.trim(),
-      createdAt: now,
-      updatedAt: now,
-    };
-    persist([note, ...cached]);
-    setTitle("");
-    setBody("");
-    setSaving(false);
-  }, [title, body]);
-
-  const deleteNote = useCallback((id: string) => {
-    persist(cached.filter((n) => n.id !== id));
+  const loadFolders = useCallback(async () => {
+    const data = await getNoteFolders();
+    setFolders(data as Folder[]);
   }, []);
 
+  const loadNotes = useCallback(async () => {
+    const data = selectedFolder === null
+      ? await getNotes()
+      : await getNotes(selectedFolder);
+    setNotes(data as Note[]);
+    setLoading(false);
+  }, [selectedFolder]);
+
+  useEffect(() => {
+    loadFolders();
+  }, [loadFolders]);
+
+  useEffect(() => {
+    setLoading(true);
+    loadNotes();
+  }, [loadNotes]);
+
+  const filtered = searchQuery
+    ? notes.filter(
+        (n) =>
+          n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          n.content.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : notes;
+
+  function openNewNote() {
+    setEditingNote(null);
+    setEditTitle("");
+    setEditContent("");
+  }
+
+  function openEditNote(note: Note) {
+    setEditingNote(note);
+    setEditTitle(note.title);
+    setEditContent(note.content);
+  }
+
+  async function handleSave() {
+    if (!editTitle.trim()) return;
+    setSaving(true);
+    if (editingNote) {
+      const result = await updateNote(editingNote.id, editTitle, editContent);
+      setSaving(false);
+      if (result.success) {
+        toast.success("Note saved");
+        setEditingNote(null);
+        loadNotes();
+      } else {
+        toast.error(result.error);
+      }
+    } else {
+      const result = await createNote(editTitle, editContent, selectedFolder);
+      setSaving(false);
+      if (result.success) {
+        toast.success("Note created");
+        loadNotes();
+      } else {
+        toast.error(result.error);
+      }
+    }
+  }
+
+  async function handleDeleteNote(id: string) {
+    const result = await deleteNote(id);
+    if (result.success) {
+      toast.success("Note deleted");
+      if (editingNote?.id === id) setEditingNote(null);
+      loadNotes();
+    }
+  }
+
+  async function handleTogglePin(id: string) {
+    await togglePin(id);
+    loadNotes();
+  }
+
+  async function handleCreateFolder() {
+    if (!newFolderName.trim()) return;
+    setCreatingFolder(true);
+    const result = await createFolder(newFolderName, newFolderColor);
+    setCreatingFolder(false);
+    if (result.success) {
+      toast.success("Folder created");
+      setShowNewFolder(false);
+      setNewFolderName("");
+      loadFolders();
+    }
+  }
+
+  async function handleDeleteFolder(id: string) {
+    const result = await deleteFolder(id);
+    if (result.success) {
+      toast.success("Folder deleted");
+      if (selectedFolder === id) setSelectedFolder(null);
+      loadFolders();
+    }
+  }
+
   return (
-    <div className="mx-auto w-full max-w-6xl pt-8 md:pt-0">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3 sm:mb-8">
-        <div className="flex items-start gap-3">
-          <HeaderAvatar />
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Notes
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground sm:text-base">
-              Jot down quick thoughts and study notes.
-            </p>
-          </div>
+    <div className="mx-auto w-full max-w-6xl pt-8 pb-24 md:pt-0 md:pb-8">
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Notes</h1>
+          <p className="text-sm text-muted-foreground">
+            {notes.length} note{notes.length !== 1 ? "s" : ""}
+          </p>
         </div>
-        <NotificationBell variant="inline" className="hidden md:flex" />
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowMobileFolders(!showMobileFolders)}
+            className="md:hidden"
+          >
+            <FolderIcon className="h-4 w-4" />
+          </Button>
+          <Button onClick={openNewNote} size="sm">
+            <PlusIcon className="mr-1.5 h-4 w-4" />
+            New Note
+          </Button>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-6 md:flex-row md:items-start">
-        <AppNavPanel />
+      <div className="flex flex-col gap-6 md:flex-row">
+        <div
+          className={`${
+            showMobileFolders ? "block" : "hidden"
+          } md:block md:w-56 shrink-0 space-y-2`}
+        >
+          <button
+            onClick={() => { setSelectedFolder(null); setShowMobileFolders(false); }}
+            className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
+              selectedFolder === null
+                ? "bg-primary text-primary-foreground"
+                : "hover:bg-accent text-muted-foreground"
+            }`}
+          >
+            <StickyNoteIcon className="h-4 w-4" />
+            All Notes
+            <span className="ml-auto text-xs opacity-70">{notes.length}</span>
+          </button>
 
-        <div className="min-w-0 flex-1">
-      <Card className="border-border/50">
-        <CardContent className="space-y-3 pt-4">
-          <FloatingLabelInput
-            label="Note title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={80}
-          />
-          <FloatingLabelTextarea
-            label="Write something..."
-            inputClassName="min-h-[100px] resize-y"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            maxLength={2000}
-          />
-          <div className="flex justify-end">
-            <Button onClick={addNote} disabled={saving || (!title.trim() && !body.trim())}>
-              {saving ? (
-                <><Spinner size={16} color="var(--primary-foreground)" /> Saving...</>
-              ) : (
-                <><Plus className="mr-2 h-4 w-4" /> Add note</>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          {folders.map((folder) => (
+            <div key={folder.id} className="group flex items-center">
+              <button
+                onClick={() => { setSelectedFolder(folder.id); setShowMobileFolders(false); }}
+                className={`flex-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
+                  selectedFolder === folder.id
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-accent text-muted-foreground"
+                }`}
+              >
+                <div
+                  className="h-3 w-3 rounded-sm shrink-0"
+                  style={{ backgroundColor: folder.color }}
+                />
+                <span className="truncate">{folder.name}</span>
+                <span className="ml-auto text-xs opacity-70">{folder._count.notes}</span>
+              </button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="opacity-0 group-hover:opacity-100 shrink-0"
+                onClick={() => handleDeleteFolder(folder.id)}
+              >
+                <TrashIcon className="h-3.5 w-3.5 text-destructive" />
+              </Button>
+            </div>
+          ))}
 
-      <div className="mt-6 space-y-3">
-        {notes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-14 text-center">
-            <StickyNote className="mb-3 h-10 w-10 text-muted-foreground/40" />
-            <p className="text-sm font-medium text-foreground">No notes yet</p>
-            <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-              Add your first note above to get started.
-            </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-muted-foreground"
+            onClick={() => setShowNewFolder(true)}
+          >
+            <PlusIcon className="mr-1.5 h-3.5 w-3.5" />
+            New Folder
+          </Button>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="relative mb-4">
+            <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search notes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-lg border bg-background pl-10 pr-4 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2"
+              >
+                <XIcon className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
           </div>
-        ) : (
-          notes.map((n) => (
-            <Card key={n.id} className="border-border/50">
-              <CardContent className="flex items-start gap-3 pt-4">
-<div className="min-w-0 flex-1 mx-auto w-full max-w-2xl md:mx-0">
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {n.title}
-                  </p>
-                  {n.body && (
-                    <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted-foreground">
-                      {n.body}
-                    </p>
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                  onClick={() => deleteNote(n.id)}
-                  aria-label="Delete note"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+
+          {loading ? (
+            <div className="flex justify-center py-16">
+              <Spinner size={28} />
+            </div>
+          ) : filtered.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <StickyNoteIcon className="mb-3 h-10 w-10 text-muted-foreground/40" />
+                <p className="text-muted-foreground">
+                  {searchQuery ? "No matching notes" : "No notes yet"}
+                </p>
+                {!searchQuery && (
+                  <Button onClick={openNewNote} className="mt-3" size="sm">
+                    Create Note
+                  </Button>
+                )}
               </CardContent>
             </Card>
-          ))
-        )}
-      </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {filtered.map((note) => (
+                <Card
+                  key={note.id}
+                  className="group cursor-pointer transition-colors hover:border-primary/30"
+                  onClick={() => openEditNote(note)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          {note.pinned && (
+                            <PinIcon className="h-3 w-3 text-primary shrink-0" />
+                          )}
+                          <h3 className="font-medium truncate">{note.title}</h3>
+                        </div>
+                        {note.content && (
+                          <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                            {note.content}
+                          </p>
+                        )}
+                        <p className="mt-2 text-xs text-muted-foreground/60">
+                          {new Date(note.updatedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={(e) => { e.stopPropagation(); handleTogglePin(note.id); }}
+                        >
+                          <PinIcon className={`h-3.5 w-3.5 ${note.pinned ? "fill-primary text-primary" : ""}`} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={(e) => { e.stopPropagation(); handleDeleteNote(note.id); }}
+                        >
+                          <TrashIcon className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </div>
+
+      <Dialog open={!!editingNote || editTitle !== "" || editContent !== ""} onOpenChange={(v) => { if (!v) { setEditingNote(null); setEditTitle(""); setEditContent(""); } }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingNote ? "Edit Note" : "New Note"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <FloatingLabelInput
+              label="Title"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+            />
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              placeholder="Start writing..."
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring min-h-[200px] resize-y"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={handleSave}
+              disabled={!editTitle.trim() || saving}
+            >
+              {saving ? <Spinner size={16} className="mr-2" /> : null}
+              {editingNote ? "Save" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showNewFolder} onOpenChange={setShowNewFolder}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>New Folder</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <FloatingLabelInput
+              label="Folder name"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+            />
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Color</p>
+              <div className="flex gap-2">
+                {FOLDER_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setNewFolderColor(c)}
+                    className={`h-7 w-7 rounded-full transition-transform ${
+                      newFolderColor === c ? "scale-125 ring-2 ring-offset-2 ring-primary" : ""
+                    }`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={handleCreateFolder}
+              disabled={!newFolderName.trim() || creatingFolder}
+            >
+              {creatingFolder ? <Spinner size={16} className="mr-2" /> : null}
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

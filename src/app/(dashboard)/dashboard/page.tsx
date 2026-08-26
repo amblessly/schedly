@@ -36,6 +36,7 @@ import {
   WeatherCard,
 } from "@/features/dashboard/components";
 import { UpdateAnnouncement } from "@/components/update-announcement";
+import { GamificationCard } from "@/features/dashboard/components/gamification-card";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -357,6 +358,7 @@ export default function DashboardPage() {
               freeToday={freeToday}
               longestBreak={longestBreakToday}
             />
+            <GamificationCard />
           </BentoGrid>
 
           <ScheduleSection

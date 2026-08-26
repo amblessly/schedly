@@ -71,6 +71,12 @@ model User {
   feedbacks     Feedback[]
   pushSubscriptions PushSubscription[]
   fcmTokens        FCMToken[]
+  flashcardDecks   FlashcardDeck[]
+  focusSessions    FocusSession[]
+  userProfile      UserProfile?
+  noteFolders      NoteFolder[]
+  notes            Note[]
+  plannerEntries   PlannerEntry[]
 
   @@map("users")
 }
@@ -184,6 +190,7 @@ model Todo {
   text        String
   completed   Boolean   @default(false)
   priority    String    @default("medium")
+  category    String?   @default("general")
   dueDate     String?   @map("due_date")
   createdAt   DateTime  @default(now()) @map("created_at")
   completedAt DateTime? @map("completed_at")
@@ -192,6 +199,128 @@ model Todo {
 
   @@index([userId])
   @@map("todos")
+}
+
+model FlashcardDeck {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  title       String
+  description String?
+  subject     String?
+  cardCount   Int      @default(0) @map("card_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cards Flashcard[]
+
+  @@index([userId])
+  @@map("flashcard_decks")
+}
+
+model Flashcard {
+  id           String    @id @default(uuid())
+  deckId       String    @map("deck_id")
+  front        String
+  back         String
+  difficulty   Int       @default(0)
+  lastReviewed DateTime? @map("last_reviewed")
+  nextReview   DateTime? @map("next_review")
+  streak       Int       @default(0)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  deck FlashcardDeck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+
+  @@index([deckId])
+  @@map("flashcards")
+}
+
+model FocusSession {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  duration   Int
+  completed  Boolean   @default(false)
+  xpEarned   Int       @default(0) @map("xp_earned")
+  startedAt  DateTime  @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("focus_sessions")
+}
+
+model UserProfile {
+  id                String   @id @default(uuid())
+  userId            String   @unique @map("user_id")
+  xp                Int      @default(0)
+  level             Int      @default(1)
+  currentStreak     Int      @default(0) @map("current_streak")
+  longestStreak     Int      @default(0) @map("longest_streak")
+  lastActiveDate    String?  @map("last_active_date")
+  totalFocusMinutes Int      @default(0) @map("total_focus_minutes")
+  totalTasksCompleted Int    @default(0) @map("total_tasks_completed")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model NoteFolder {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  name      String
+  color     String   @default("#3b82f6")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes Note[]
+
+  @@index([userId])
+  @@map("note_folders")
+}
+
+model Note {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  folderId  String?  @map("folder_id")
+  title     String
+  content   String   @default("")
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder NoteFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([folderId])
+  @@map("notes")
+}
+
+model PlannerEntry {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  title     String
+  date      String
+  startTime String?   @map("start_time")
+  endTime   String?   @map("end_time")
+  type      String    @default("task")
+  color     String    @default("#3b82f6")
+  completed Boolean   @default(false)
+  todoId    String?   @map("todo_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([date])
+  @@map("planner_entries")
 }
 
 model PushSubscription {
