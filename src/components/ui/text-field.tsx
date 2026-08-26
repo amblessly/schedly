@@ -8,10 +8,11 @@ export interface TextFieldProps extends React.ComponentProps<"input"> {
   variant?: "outlined" | "filled";
   helperText?: string;
   error?: boolean;
+  inputClassName?: string;
 }
 
 const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
-  ({ label, variant = "outlined", className, helperText, error, id, type = "text", ...props }, ref) => {
+  ({ label, variant = "outlined", className, helperText, error, id, type = "text", inputClassName, ...props }, ref) => {
     const inputId = id || React.useId();
     const hasValue = props.value !== undefined && props.value !== "";
     const hasPlaceholder = !!props.placeholder;
@@ -35,7 +36,8 @@ const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
               "border-b-input",
               "focus:border-b-primary",
               error && "border-b-destructive focus:border-b-destructive",
-            ]
+            ],
+            inputClassName
           )}
           aria-invalid={error || undefined}
           {...props}
