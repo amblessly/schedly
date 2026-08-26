@@ -10,7 +10,31 @@ export const scheduleRepository = {
   findByUser(userId: string) {
     return db.schedule.findMany({
       where: { userId },
-      include: { classes: true },
+      select: {
+        id: true,
+        title: true,
+        semester: true,
+        academicYear: true,
+        isActive: true,
+        createdAt: true,
+        classes: {
+          select: {
+            id: true,
+            subject: true,
+            shortName: true,
+            code: true,
+            instructor: true,
+            room: true,
+            section: true,
+            block: true,
+            notes: true,
+            color: true,
+            startTime: true,
+            endTime: true,
+            days: true,
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
   },
@@ -18,7 +42,31 @@ export const scheduleRepository = {
   findActiveByUser(userId: string) {
     return db.schedule.findFirst({
       where: { userId, isActive: true },
-      include: { classes: true },
+      select: {
+        id: true,
+        title: true,
+        semester: true,
+        academicYear: true,
+        isActive: true,
+        createdAt: true,
+        classes: {
+          select: {
+            id: true,
+            subject: true,
+            shortName: true,
+            code: true,
+            instructor: true,
+            room: true,
+            section: true,
+            block: true,
+            notes: true,
+            color: true,
+            startTime: true,
+            endTime: true,
+            days: true,
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
   },

@@ -17,6 +17,14 @@ export const notificationRepository = {
   findByUser(userId: string) {
     return db.notification.findMany({
       where: { userId },
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        body: true,
+        read: true,
+        createdAt: true,
+      },
       orderBy: { createdAt: "desc" },
     });
   },

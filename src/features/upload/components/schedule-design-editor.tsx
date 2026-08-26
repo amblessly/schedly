@@ -1,7 +1,6 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import html2canvas from "html2canvas-pro";
 import type { ExtractedClass } from "@/features/upload/hooks/use-upload";
 import { PALETTE } from "@/features/upload/lib/palette";
 import { Button } from "@/components/ui/button";
@@ -541,6 +540,7 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
         scale = TARGET_LONG / longSide;
       }
       scale = Math.min(scale, MAX_SCALE);
+      const html2canvas = (await import("html2canvas-pro")).default;
       const canvas = await html2canvas(el, {
         scale,
         backgroundColor: "#ffffff",

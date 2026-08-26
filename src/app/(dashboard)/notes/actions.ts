@@ -10,7 +10,12 @@ export async function getNoteFolders() {
 
   return db.noteFolder.findMany({
     where: { userId: session.user.id },
-    include: { _count: { select: { notes: true } } },
+    select: {
+      id: true,
+      name: true,
+      color: true,
+      _count: { select: { notes: true } },
+    },
     orderBy: { createdAt: "asc" },
   });
 }
@@ -24,6 +29,15 @@ export async function getNotes(folderId?: string | null) {
       userId: session.user.id,
       folderId: folderId || null,
     },
+    select: {
+      id: true,
+      title: true,
+      content: true,
+      pinned: true,
+      folderId: true,
+      createdAt: true,
+      updatedAt: true,
+    },
     orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
   });
 }
@@ -34,6 +48,15 @@ export async function getAllNotes() {
 
   return db.note.findMany({
     where: { userId: session.user.id },
+    select: {
+      id: true,
+      title: true,
+      content: true,
+      pinned: true,
+      folderId: true,
+      createdAt: true,
+      updatedAt: true,
+    },
     orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
   });
 }

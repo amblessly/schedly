@@ -10,7 +10,16 @@ export async function getFlashcardDecks() {
 
   return db.flashcardDeck.findMany({
     where: { userId: session.user.id },
-    include: { _count: { select: { cards: true } } },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      subject: true,
+      cardCount: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: { select: { cards: true } },
+    },
     orderBy: { updatedAt: "desc" },
   });
 }
@@ -21,7 +30,23 @@ export async function getFlashcardDeck(deckId: string) {
 
   return db.flashcardDeck.findFirst({
     where: { id: deckId, userId: session.user.id },
-    include: { cards: { orderBy: { createdAt: "asc" } } },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      subject: true,
+      cardCount: true,
+      cards: {
+        select: {
+          id: true,
+          front: true,
+          back: true,
+          streak: true,
+          difficulty: true,
+        },
+        orderBy: { createdAt: "asc" },
+      },
+    },
   });
 }
 

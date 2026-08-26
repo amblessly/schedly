@@ -131,7 +131,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       .catch(() => {});
     // Refresh exact-time QStash deliveries (30s throttle, no-op until tokens
     // are configured).
-    cachedAction("layout:qstash", () => scheduleUpcomingReminders(), 30_000).catch(() => {});
+    cachedAction("layout:qstash", () => scheduleUpcomingReminders(), 60_000).catch(() => {});
     return () => {
       active = false;
     };
@@ -149,7 +149,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       cachedAction("layout:dispatch", () => dispatchUserReminders(), 30_000).catch(() => {});
     };
     tick();
-    const id = window.setInterval(tick, 30_000);
+    const id = window.setInterval(tick, 60_000);
     const onVis = () => tick();
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", onVis);

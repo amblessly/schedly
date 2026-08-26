@@ -25,6 +25,14 @@ export async function getGamificationProfile() {
 
   let profile = await db.userProfile.findUnique({
     where: { userId: session.user.id },
+    select: {
+      xp: true,
+      level: true,
+      currentStreak: true,
+      longestStreak: true,
+      lastActiveDate: true,
+      totalFocusMinutes: true,
+    },
   });
 
   if (!profile) {

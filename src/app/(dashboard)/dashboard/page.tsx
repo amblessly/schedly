@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import html2canvas from "html2canvas-pro";
 
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { AppNavPanel } from "@/components/app-nav-panel";
@@ -284,6 +283,7 @@ export default function DashboardPage() {
     if (!node) return;
     setDownloading(true);
     try {
+      const html2canvas = (await import("html2canvas-pro")).default;
       const canvas = await html2canvas(node, {
         backgroundColor: "#ffffff",
         scale: 2,
