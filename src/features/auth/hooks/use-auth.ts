@@ -82,25 +82,41 @@ export function useAuth() {
       course?: string;
       year?: string;
     }) => {
-      const result = await retry(() => authClient.signUp.email({
-        ...data,
-        name: `${data.firstName} ${data.lastName}`,
-        year: data.year && !isNaN(Number(data.year)) ? Number(data.year) : undefined,
-        callbackURL: "/verify-email/success",
-      } as Parameters<typeof authClient.signUp.email>[0]));
-      return result;
+      try {
+        const result = await retry(() => authClient.signUp.email({
+          ...data,
+          name: `${data.firstName} ${data.lastName}`,
+          year: data.year && !isNaN(Number(data.year)) ? Number(data.year) : undefined,
+          callbackURL: "/verify-email/success",
+        } as Parameters<typeof authClient.signUp.email>[0]));
+        return result;
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error ? err.message : "Something went wrong.";
+        return { data: null, error: { message } };
+      }
     },
     []
   );
 
   const signIn = useCallback(
     async (data: { email: string; password: string }) => {
-      const result = await retry(() => authClient.signIn.email({
-        email: data.email,
-        password: data.password,
-        callbackURL: "/dashboard",
-      }));
-      return result;
+      try {
+        const result = await retry(() => authClient.signIn.email({
+          email: data.email,
+          password: data.password,
+          callbackURL: "/dashboard",
+        }));
+        return result;
+      } catch (err: unknown) {
+        // better-auth's client may throw on unexpected status codes (423
+        // locked, 429 rate-limited, network errors) instead of returning
+        // { error }. Convert those into the same shape the login form expects
+        // so the existing error-message logic can handle them.
+        const message =
+          err instanceof Error ? err.message : "Something went wrong.";
+        return { data: null, error: { message } };
+      }
     },
     []
   );
