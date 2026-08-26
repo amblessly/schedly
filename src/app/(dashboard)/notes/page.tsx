@@ -38,8 +38,8 @@ type Note = {
   content: string;
   pinned: boolean;
   folderId: string | null;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
 };
 
 type Folder = {
