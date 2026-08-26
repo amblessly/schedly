@@ -4,7 +4,7 @@ export function warmup() {
   if (warmed || typeof window === "undefined") return;
   warmed = true;
 
-  const urls = ["/api/version", "/api/admin/apk"];
+  const urls = ["/api/version"];
 
   for (const url of urls) {
     setTimeout(() => {

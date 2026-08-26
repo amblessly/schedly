@@ -53,19 +53,6 @@ src/generated/
 # docker
 docker-compose.override.yml
 
-# capacitor / android
-android/.gradle/
-android/app/build/
-android/build/
-android/local.properties
-android/.idea/
-android/capacitor.settings.gradle
-android/capacitor.build.gradle
-android/app/capacitor.build.gradle
-# signing keys (never commit — provided via CI secrets)
-*.keystore
-*.jks
-
 # project specific
 CLAUDE.md
 dev-server.log
@@ -79,6 +66,3 @@ benchmark/report.md
 # Firebase admin service account (contains a live private key)
 *-firebase-adminsdk-*.json
 firebase-admin*.json
-
-# android build cache
-android/.kotlin/

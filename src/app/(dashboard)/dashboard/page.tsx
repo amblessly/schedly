@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Capacitor, registerPlugin } from "@capacitor/core";
 import html2canvas from "html2canvas-pro";
 
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -36,11 +35,6 @@ import {
   TodayClassesCard,
   WeatherCard,
 } from "@/features/dashboard/components";
-
-interface GallerySavePlugin {
-  save(options: { data: string; filename: string }): Promise<{ success: boolean }>;
-}
-const GallerySave = registerPlugin<GallerySavePlugin>("GallerySave");
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -321,18 +315,12 @@ export default function DashboardPage() {
 
       const dataUrl = rounded.toDataURL("image/png");
 
-      if (Capacitor.isNativePlatform()) {
-        const base64 = dataUrl.split(",")[1] || "";
-        await GallerySave.save({ data: base64, filename: "schedule.png" });
-        alert("Schedule saved to your gallery!");
-      } else {
-        const a = document.createElement("a");
-        a.href = dataUrl;
-        a.download = "schedule.png";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = "schedule.png";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     } catch (err) {
       console.error("Download failed", err);
       alert("Failed to download image. Please try again.");

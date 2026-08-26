@@ -16,7 +16,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Megaphone, LayoutDashboard, Users, Radio, Globe, Smartphone, Apple, Download, type LucideIcon } from "lucide-react";
+import { Megaphone, LayoutDashboard, Users, Radio, Globe, Smartphone, Apple, type LucideIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { HeaderBack } from "@/components/header-back";
 import { NotificationBell } from "@/components/notification-bell";
@@ -495,7 +495,6 @@ function DeviceBadge({
     web: { label: "Website", cls: "bg-sky-500/10 text-sky-600 dark:text-sky-400", Icon: Globe },
     "pwa-android": { label: "PWA · Android", cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", Icon: Smartphone },
     "pwa-ios": { label: "PWA · iOS", cls: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400", Icon: Apple },
-    apk: { label: "Android App (APK)", cls: "bg-amber-500/10 text-amber-600 dark:text-amber-400", Icon: Download },
   };
   const c = config[clientType ?? ""];
 

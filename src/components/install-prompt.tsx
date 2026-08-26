@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Capacitor } from "@capacitor/core";
 import { Download, X, Share, Home, Check, Smartphone, ExternalLink } from "lucide-react";
 
 type BeforeInstallPromptEvent = Event & {
@@ -35,13 +34,12 @@ function isInAppBrowser(): boolean {
 }
 
 /* True when the page is already running as an installed app — either a
- * standalone PWA (launched from home screen) or the Capacitor app. */
+ * standalone PWA (launched from home screen) or the native app. */
 function isStandaloneApp(): boolean {
   if (typeof window === "undefined") return false;
   return (
     (window.matchMedia?.("(display-mode: standalone)")?.matches ?? false) ||
-    (navigator as { standalone?: boolean }).standalone === true ||
-    Capacitor.isNativePlatform()
+    (navigator as { standalone?: boolean }).standalone === true
   );
 }
 

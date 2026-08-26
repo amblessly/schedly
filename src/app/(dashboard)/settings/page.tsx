@@ -9,7 +9,7 @@ import { cacheRemove } from "@/lib/offline-cache";
 import { deleteAccount } from "./actions";
 import { useThemeConfig, THEME_PRESETS } from "@/features/theme";
 import { cn } from "@/lib/utils";
-import { ShieldCheck, UploadCloud, LifeBuoy, Gauge } from "lucide-react";
+import { ShieldCheck, LifeBuoy, Gauge } from "lucide-react";
 import { HeaderBack } from "@/components/header-back";
 import { NotificationBell } from "@/components/notification-bell";
 
@@ -140,7 +140,6 @@ export default function SettingsPage() {
               {u?.isAdmin && (
                 <div className="space-y-3">
                   <SettingsLinkCard href="/admin" icon={<ShieldCheck className="h-4 w-4 text-primary" />} title="Admin Dashboard" description="Manage the Schedly admin panel." />
-                  <SettingsLinkCard href="/admin/apk" icon={<UploadCloud className="h-4 w-4 text-primary" />} title="APK Releases" description="Upload and manage Android releases." />
                   <SettingsLinkCard href="/admin/limits" icon={<Gauge className="h-4 w-4 text-primary" />} title="Service Limits" description="Check daily usage caps for AI, QStash & B2." />
                 </div>
               )}

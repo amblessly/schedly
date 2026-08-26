@@ -4,7 +4,7 @@ import { auth } from "@/server/lib/auth";
 import { db } from "@/server/db/client";
 import { headers } from "next/headers";
 
-const ALLOWED_CLIENT_TYPES = ["web", "pwa-android", "pwa-ios", "apk"] as const;
+const ALLOWED_CLIENT_TYPES = ["web", "pwa-android", "pwa-ios"] as const;
 
 export type ClientType = (typeof ALLOWED_CLIENT_TYPES)[number];
 

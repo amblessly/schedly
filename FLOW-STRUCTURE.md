@@ -2,8 +2,7 @@
 
 > Complete map of how Schedly flows: routes, auth, onboarding, navigation, and every feature's user journey. For technical/architecture details see [`architecture.md`](./architecture.md).
 
-- **Stack:** Next.js 16 (App Router) + TypeScript + Prisma 7 (PostgreSQL) + better-auth + Capacitor 8 (Android) + Vercel Blob
-- **Native app:** Capacitor wrapper around the hosted web app (`https://app.schedly.shop`)
+- **Stack:** Next.js 16 (App Router) + TypeScript + Prisma 7 (PostgreSQL) + better-auth + Vercel Blob
 
 ---
 
@@ -59,7 +58,6 @@
 | `/feedback` | `(dashboard)/feedback/page.tsx` | Feedback form → `/api/feedback` |
 | `/notifications` | `(dashboard)/notifications/page.tsx` | Notification-style cards from schedules |
 | `/admin` | `(dashboard)/admin/page.tsx` | Admin stats + user management |
-| `/admin/apk` | `(dashboard)/admin/apk/page.tsx` | APK release publisher |
 
 ---
 
@@ -70,7 +68,7 @@ Guard lives in **`src/proxy.ts`** (Next's new `proxy.ts` middleware convention).
 ```mermaid
 flowchart TD
     A[Request] --> B{Route public?}
-    B -->|"/ /login /register /widget /api/auth /api/version /api/admin/apk* /verify-email"| C[Allow]
+    B -->|"/ /login /register /widget /api/auth /api/version /verify-email"| C[Allow]
     B -->|No| D{Authenticated?}
     D -->|No| E[Redirect /login]
     D -->|Yes| F{Already on / /login /register?}
@@ -178,7 +176,7 @@ flowchart TD
 | Drawer | Right slide-in; desktop = full nav groups, mobile = Tools/account only (primary in bottom nav) |
 | Back arrow | On `/settings`, top-left logo becomes back arrow → `/dashboard`; elsewhere logo = refresh |
 | Theme picker | Swatch carousel (3 of 9 visible) in sidebar |
-| User menu | Account settings · Help & Feedback · Admin Dashboard / APK Releases (admin) · Sign out |
+| User menu | Account settings · Help & Feedback · Admin Dashboard (admin) · Sign out |
 | Bottom nav | Auto-hides on scroll down (mobile) |
 | Immersive | `/design` + `/widget`: no header/drawer/backdrop/bottom-nav |
 | Settings | Bottom nav hidden |
@@ -247,7 +245,6 @@ flowchart TD
 ### 6c. Admin flows
 
 - **`/admin`** — stats (users/schedules/uploads/feedback), user list, toggle admin (requires password re-auth, cannot toggle self).
-- **`/admin/apk`** — loads version options from `release/releases.json` + live version from `/api/admin/apk`; Publish → `POST /api/admin/apk-upload` (fetches APK from GitHub raw → Blob → writes `releases/version.json`) with live log console.
 
 ---
 
@@ -263,10 +260,6 @@ flowchart TD
 | `/api/feedback` | Submit feedback (zod, rate-limited, CSRF) |
 | `/api/version` | Returns `releases/version.json` (in-app update checks) |
 | `/api/csp-report` | CSP violation report sink |
-| `/api/admin/apk` | GET current live version |
-| `/api/admin/apk-upload` | Publish APK → Blob + version.json |
-| `/api/admin/apk-download` | Streams APK (`application/vnd.android.package-archive`) |
-| `/api/admin/apk-token` | Blob client-upload token (APK only) |
 
 ### Layered backend
 
@@ -287,22 +280,9 @@ Key services: `ai.service` (extraction pipeline), `upload.service` (lifecycle), 
 
 ## 8. Release & Update Flow
 
-```mermaid
-flowchart LR
-    TAG[Push git tag vX.Y.Z] --> WF[android-release.yml]
-    WF --> V[Derive versionName/versionCode]
-    V --> G[Update build.gradle + version.json]
-    G --> B[Next build → cap sync → Android release build]
-    B --> S[Sign APK - keystore secrets or debug fallback]
-    S --> R[GitHub Release + APK asset]
-    R --> C[Commit version files back to main]
-```
-
-- **CI** (`.github/workflows/ci.yml`): tsc → eslint → next build → cap sync → unsigned APK artifact. Runs on every push/PR to `main`.
-- **In-app update** (`src/features/updates/hooks/use-update.ts` + `src/lib/capacitor-plugins/in-app-update.ts`): native only; checks `version.json` on GitHub raw, then `downloadAndInstall(apkUrl)`.
-- `Warmup` pre-warms `/api/version` and `/api/admin/apk` on app start.
+- **CI** (`.github/workflows/ci.yml`): tsc → eslint → next build. Runs on every push/PR to `main`.
+- `Warmup` pre-warms `/api/version` on app start.
 - `version.json` (current: `1.4.2` / code `10402`) is mirrored to Blob as `releases/version.json` at publish time.
-- Current APKs live in `release/`; version history in `release/releases.json` + `apk/releases.json`.
 
 ---
 
@@ -321,7 +301,7 @@ flowchart LR
 |---|---|
 | User, sessions, schedules, classes, uploads, notifications, feedback, reminders | PostgreSQL (Prisma) |
 | Auth | better-auth (Prisma adapter) |
-| Uploaded images / APKs | Vercel Blob (local `public/uploads` fallback) |
+| Uploaded images | Vercel Blob (local `public/uploads` fallback) |
 | To-dos, notes | localStorage |
 | Music | IndexedDB (base64) |
 | Theme | localStorage + cookie |

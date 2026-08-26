@@ -1,5 +1,0 @@
-/build/*
-!/build/.npmkeep
-
-# Release signing key (DO NOT COMMIT)
-release-key.keystore

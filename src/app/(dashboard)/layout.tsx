@@ -3,8 +3,6 @@
 import { useEffect, useSyncExternalStore, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, ArrowLeft } from "lucide-react";
-import { Capacitor } from "@capacitor/core";
-import { StatusBar, Style } from "@capacitor/status-bar";
 import { Sidebar } from "@/components/sidebar";
 import { BottomNav } from "@/components/bottom-nav";
 import { OfflineBanner } from "@/components/offline-banner";
@@ -170,26 +168,22 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     }
   }, [needsOnboarding, needsEmailVerification, user, router]);
 
-  // Record what the user is running on (web, PWA on Android/iOS, or the
-  // Android APK) so the admin dashboard can show each user's device. Runs
-  // once per session per type, so it doesn't spam the database.
+  // Record what the user is running on (web, PWA on Android/iOS) so the admin
+  // dashboard can show each user's device. Runs once per session per type,
+  // so it doesn't spam the database.
   useEffect(() => {
     if (!user) return;
     let type: ClientType = "web";
     try {
-      if (Capacitor.isNativePlatform()) {
-        type = "apk";
-      } else {
-        const standalone =
-          (window.matchMedia?.("(display-mode: standalone)")?.matches ?? false) ||
-          (navigator as { standalone?: boolean }).standalone === true;
-        if (standalone) {
-          type =
-            /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-            (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-              ? "pwa-ios"
-              : "pwa-android";
-        }
+      const standalone =
+        (window.matchMedia?.("(display-mode: standalone)")?.matches ?? false) ||
+        (navigator as { standalone?: boolean }).standalone === true;
+      if (standalone) {
+        type =
+          /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+            ? "pwa-ios"
+            : "pwa-android";
       }
     } catch {
       type = "web";
@@ -237,15 +231,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [pathname]);
-
-  // Full-screen edge-to-edge on Android: the status bar stays visible but
-  // transparent, and the app adapts its safe-area padding around it.
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-    StatusBar.show().catch(() => {});
-    StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
-    StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
-  }, []);
 
   // The shell always renders: while the session loads, each page shows its
   // own skeletons instead of a full-screen loading state, so a refresh feels
