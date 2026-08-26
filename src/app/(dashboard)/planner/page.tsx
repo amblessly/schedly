@@ -325,7 +325,13 @@ export default function PlannerPage() {
             </div>
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-2">Type</p>
-              <Tabs value={type} onValueChange={(v) => { const opt = TYPE_OPTIONS.find((o) => o.value === v); if (opt) setType(opt.value); setColor(opt.color); }}>
+              <Tabs value={type} onValueChange={(v: string) => {
+                const opt = TYPE_OPTIONS.find((o) => o.value === v);
+                if (opt) {
+                  setType(opt.value);
+                  setColor(opt.color);
+                }
+              }}>
                 <TabsList variant="line">
                   {TYPE_OPTIONS.map((opt) => (
                     <TabsTrigger key={opt.value} value={opt.value}>
