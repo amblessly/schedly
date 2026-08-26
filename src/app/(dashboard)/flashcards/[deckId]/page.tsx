@@ -12,7 +12,7 @@ import {
 } from "../actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { TextField } from "@/components/ui/text-field";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
@@ -379,17 +379,17 @@ export default function DeckDetailPage({
             <DialogTitle>Edit Deck</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <FloatingLabelInput
+            <TextField
               label="Title"
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
             />
-            <FloatingLabelInput
+            <TextField
               label="Description"
               value={editDesc}
               onChange={(e) => setEditDesc(e.target.value)}
             />
-            <FloatingLabelInput
+            <TextField
               label="Subject"
               value={editSubject}
               onChange={(e) => setEditSubject(e.target.value)}

@@ -9,7 +9,7 @@ import { uploadAvatar, removeAvatar } from "@/app/(dashboard)/settings/actions";
 import { PermissionsStep } from "./permissions-step";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { TextField } from "@/components/ui/text-field";
 import { Spinner } from "@/components/ui/spinner";
 import { authFetch } from "@/lib/auth-fetch";
 import {
@@ -252,7 +252,7 @@ export default function OnboardingPage() {
                   <span className="pointer-events-none absolute left-3 top-1/2 z-[2] -translate-y-1/2 text-sm text-muted-foreground">
                     @
                   </span>
-                  <FloatingLabelInput
+                  <TextField
                     label="Username"
                     inputClassName="pl-7"
                     type="text"

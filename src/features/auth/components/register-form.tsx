@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { TextField } from "@/components/ui/text-field";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
@@ -185,7 +185,7 @@ export function RegisterForm() {
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <FloatingLabelInput
+                    <TextField
                       label="First name"
                       value={form.firstName}
                       onChange={(e) => update("firstName", e.target.value)}
@@ -195,7 +195,7 @@ export function RegisterForm() {
                     {errors.firstName && <p className="text-xs text-destructive">{errors.firstName}</p>}
                   </div>
                   <div className="space-y-2">
-                    <FloatingLabelInput
+                    <TextField
                       label="Last name"
                       value={form.lastName}
                       onChange={(e) => update("lastName", e.target.value)}
@@ -206,7 +206,7 @@ export function RegisterForm() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <FloatingLabelInput
+                  <TextField
                     label="Email"
                     type="email"
                     value={form.email}
@@ -225,7 +225,7 @@ export function RegisterForm() {
             {step === 2 && (
               <div className="space-y-3">
                 <div className="space-y-2">
-                  <FloatingLabelInput
+                  <TextField
                     label="School / University"
                     value={form.school}
                     onChange={(e) => update("school", e.target.value)}
@@ -233,7 +233,7 @@ export function RegisterForm() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <FloatingLabelInput
+                  <TextField
                     label="Course / Program"
                     value={form.course}
                     onChange={(e) => update("course", e.target.value)}
@@ -241,7 +241,7 @@ export function RegisterForm() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <FloatingLabelInput
+                  <TextField
                     label="Year Level"
                     value={form.year}
                     onChange={(e) => update("year", e.target.value)}
@@ -254,7 +254,7 @@ export function RegisterForm() {
             {step === 3 && (
               <div className="space-y-3">
                 <div className="space-y-2">
-                  <FloatingLabelInput
+                  <TextField
                     label="Password"
                     id="password"
                     type={showPasswords ? "text" : "password"}
@@ -284,7 +284,7 @@ export function RegisterForm() {
                   {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
                 </div>
                 <div className="space-y-2">
-                  <FloatingLabelInput
+                  <TextField
                     label="Confirm password"
                     id="confirmPassword"
                     type={showPasswords ? "text" : "password"}

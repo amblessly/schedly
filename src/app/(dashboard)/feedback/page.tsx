@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { TextField } from "@/components/ui/text-field";
 import { FloatingLabelTextarea } from "@/components/ui/floating-label-textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -152,7 +152,7 @@ export default function FeedbackPage() {
               </div>
             </div>
 
-            <FloatingLabelInput
+            <TextField
               label="Subject (optional)"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}

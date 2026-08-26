@@ -10,7 +10,8 @@ import {
 } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { TextField } from "@/components/ui/text-field";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
@@ -303,19 +304,19 @@ export default function PlannerPage() {
             <DialogTitle>{editEntry ? "Edit Entry" : "Add to Planner"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <FloatingLabelInput
+            <TextField
               label="Title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
             <div className="grid grid-cols-2 gap-3">
-              <FloatingLabelInput
+              <TextField
                 label="Start time"
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
               />
-              <FloatingLabelInput
+              <TextField
                 label="End time"
                 type="time"
                 value={endTime}
@@ -324,22 +325,16 @@ export default function PlannerPage() {
             </div>
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-2">Type</p>
-              <div className="flex gap-2">
-                {TYPE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => { setType(opt.value); setColor(opt.color); }}
-                    className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      type === opt.value
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "hover:bg-accent text-muted-foreground"
-                    }`}
-                  >
-                    <opt.icon className="h-3.5 w-3.5" />
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
+              <Tabs value={type} onValueChange={(v) => { const opt = TYPE_OPTIONS.find((o) => o.value === v); if (opt) setType(opt.value); setColor(opt.color); }}>
+                <TabsList variant="line">
+                  {TYPE_OPTIONS.map((opt) => (
+                    <TabsTrigger key={opt.value} value={opt.value}>
+                      <opt.icon className="h-3.5 w-3.5" />
+                      {opt.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
             </div>
           </div>
           <DialogFooter>

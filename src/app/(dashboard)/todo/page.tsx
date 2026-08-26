@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { TextField } from "@/components/ui/text-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Trash2, ListTodo, CircleDot, CalendarDays, CheckCircle2, Pencil, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTodos } from "@/features/todo/use-todos";
@@ -141,7 +142,7 @@ export default function TodoPage() {
         </CardHeader>
         <CardContent className="pt-1">
           <div className="flex gap-2">
-            <FloatingLabelInput
+            <TextField
               label="New task"
               className="flex-1"
               value={newText}
@@ -217,22 +218,13 @@ export default function TodoPage() {
 
       {/* Filters & Stats */}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="flex gap-1 rounded-lg bg-muted p-1">
-          {(["all", "active", "completed"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors",
-                filter === f
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
+        <Tabs value={filter} onValueChange={(v) => setFilter(v as FilterType)}>
+          <TabsList variant="line">
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="active">Active</TabsTrigger>
+            <TabsTrigger value="completed">Completed</TabsTrigger>
+          </TabsList>
+        </Tabs>
         <div className="flex gap-1 flex-wrap">
           {(["all", ...CATEGORY_OPTIONS.map((c) => c.value)] as const).map((c) => {
             const cat = CATEGORY_OPTIONS.find((opt) => opt.value === c);
@@ -301,7 +293,7 @@ export default function TodoPage() {
               >
                 {isEditing ? (
                   <div className="space-y-3">
-                    <FloatingLabelInput
+                    <TextField
                       label="Edit task"
                       value={editText}
                       onChange={(e) => setEditText(e.target.value)}

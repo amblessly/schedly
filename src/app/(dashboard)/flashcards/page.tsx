@@ -9,7 +9,7 @@ import {
 } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { TextField } from "@/components/ui/text-field";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
@@ -191,17 +191,17 @@ export default function FlashcardsPage() {
             <DialogTitle>New Flashcard Deck</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <FloatingLabelInput
+            <TextField
               label="Deck title"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
             />
-            <FloatingLabelInput
+            <TextField
               label="Description (optional)"
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
             />
-            <FloatingLabelInput
+            <TextField
               label="Subject (optional)"
               value={newSubject}
               onChange={(e) => setNewSubject(e.target.value)}

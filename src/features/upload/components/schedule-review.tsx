@@ -10,7 +10,7 @@ import { generateShortName } from "@/lib/abbreviations";
 import { saveDesignState } from "@/features/upload/lib/design-state";
 import { PALETTE } from "@/features/upload/lib/palette";
 import { Button } from "@/components/ui/button";
-import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { TextField } from "@/components/ui/text-field";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Plus, Trash2, Save, AlertCircle, ChevronDown, ChevronUp, AlertTriangle, XCircle, Paintbrush } from "lucide-react";
@@ -157,7 +157,7 @@ export function ScheduleReview({
         </div>
       )}
 
-      <FloatingLabelInput
+      <TextField
         id="schedule-title"
         label="Schedule Title *"
         value={title}
@@ -165,13 +165,13 @@ export function ScheduleReview({
       />
 
       <div className="grid grid-cols-2 gap-3">
-        <FloatingLabelInput
+        <TextField
           id="semester"
           label="Semester"
           value={semester}
           onChange={(e) => setSemester(e.target.value)}
         />
-        <FloatingLabelInput
+        <TextField
           id="year"
           label="Academic Year"
           value={academicYear}
@@ -296,13 +296,13 @@ export function ScheduleReview({
                       </div>
                     )}
                     <div className="grid grid-cols-2 gap-3">
-                      <FloatingLabelInput
+                      <TextField
                         id={`subject-${i}`}
                         label="Subject *"
                         value={cls.subject}
                         onChange={(e) => onUpdate(i, { ...cls, subject: e.target.value })}
                       />
-                      <FloatingLabelInput
+                      <TextField
                         label="Course Code"
                         value={cls.code ?? ""}
                         onChange={(e) => onUpdate(i, { ...cls, code: e.target.value || null })}
@@ -310,7 +310,7 @@ export function ScheduleReview({
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex gap-1.5">
-                        <FloatingLabelInput
+                        <TextField
                           label="Short Name"
                           className="min-w-0 flex-1"
                           value={cls.shortName ?? ""}
@@ -329,37 +329,37 @@ export function ScheduleReview({
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <FloatingLabelInput
+                      <TextField
                         label="Instructor"
                         value={cls.instructor ?? ""}
                         onChange={(e) => onUpdate(i, { ...cls, instructor: e.target.value || null })}
                       />
-                      <FloatingLabelInput
+                      <TextField
                         label="Room"
                         value={cls.room ?? ""}
                         onChange={(e) => onUpdate(i, { ...cls, room: e.target.value || null })}
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <FloatingLabelInput
+                      <TextField
                         label="Section"
                         value={cls.section ?? ""}
                         onChange={(e) => onUpdate(i, { ...cls, section: e.target.value || null })}
                       />
-                      <FloatingLabelInput
+                      <TextField
                         label="Block"
                         value={cls.block ?? ""}
                         onChange={(e) => onUpdate(i, { ...cls, block: e.target.value || null })}
                       />
                     </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <FloatingLabelInput
+                    <TextField
                       type="time"
                       label="Start Time *"
                       value={cls.startTime}
                       onChange={(e) => onUpdate(i, { ...cls, startTime: e.target.value })}
                     />
-                    <FloatingLabelInput
+                    <TextField
                       type="time"
                       label="End Time *"
                       value={cls.endTime}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { TextField } from "@/components/ui/text-field";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { loginSchema, type LoginInput } from "@/lib/validations";
 import { TurnstileWidget } from "@/components/turnstile";
@@ -105,7 +105,7 @@ export function LoginForm() {
       <CardContent className="space-y-3">
         <form onSubmit={handleSubmit} className="space-y-3" noValidate>
           <div className="space-y-2">
-            <FloatingLabelInput
+            <TextField
               label="Email"
               type="email"
               value={form.email}
@@ -118,7 +118,7 @@ export function LoginForm() {
             )}
           </div>
           <div className="space-y-2">
-            <FloatingLabelInput
+            <TextField
               label="Password"
               type="password"
               value={form.password}

@@ -13,7 +13,7 @@ import {
 } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { TextField } from "@/components/ui/text-field";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
@@ -359,7 +359,7 @@ export default function NotesPage() {
             <DialogTitle>{editingNote ? "Edit Note" : "New Note"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <FloatingLabelInput
+            <TextField
               label="Title"
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
@@ -389,7 +389,7 @@ export default function NotesPage() {
             <DialogTitle>New Folder</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <FloatingLabelInput
+            <TextField
               label="Folder name"
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}

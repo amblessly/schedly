@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { TextField } from "@/components/ui/text-field";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Play,
@@ -325,13 +325,13 @@ export default function PomodoroPage() {
               </div>
 
               <div className="grid w-full grid-cols-2 gap-3">
-                <FloatingLabelInput
+                <TextField
                   label="Focus (min)"
                   inputClassName="text-center"
                   type="number" min={1} max={MAX_FOCUS} value={focusMin}
                   onChange={(e) => applyFocus(Number(e.target.value))}
                 />
-                <FloatingLabelInput
+                <TextField
                   label="Break (min)"
                   inputClassName="text-center"
                   type="number" min={1} max={MAX_BREAK} value={breakMin}

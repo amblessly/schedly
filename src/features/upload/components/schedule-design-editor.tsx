@@ -5,7 +5,7 @@ import html2canvas from "html2canvas-pro";
 import type { ExtractedClass } from "@/features/upload/hooks/use-upload";
 import { PALETTE } from "@/features/upload/lib/palette";
 import { Button } from "@/components/ui/button";
-import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { TextField } from "@/components/ui/text-field";
 import {
   ArrowLeft, Download, ImageIcon, ImagePlus, RotateCcw,
   Undo2, Redo2, Copy, BringToFront, SendToBack, Eraser, Type,
@@ -874,7 +874,7 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
             {activeTool === "text" && (
               <>
                 <h3 className="text-sm font-semibold text-foreground">Add Text</h3>
-                <FloatingLabelInput
+                <TextField
                   label="Text"
                   className="mb-1"
                   value={textInput}

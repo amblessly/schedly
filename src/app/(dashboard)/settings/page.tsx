@@ -14,7 +14,7 @@ import { HeaderBack } from "@/components/header-back";
 import { NotificationBell } from "@/components/notification-bell";
 
 import { Button } from "@/components/ui/button";
-import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { TextField } from "@/components/ui/text-field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Skeleton as BoneSkeleton } from "boneyard-js/react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -282,12 +282,12 @@ function AccountTab({ u }: { u: UserWithExtras | null }) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FloatingLabelInput
+            <TextField
               label="First name"
               value={form.firstName}
               onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))}
             />
-            <FloatingLabelInput
+            <TextField
               label="Last name"
               value={form.lastName}
               onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))}
@@ -358,7 +358,7 @@ function DeleteAccountCard({ username }: { username: string }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <FloatingLabelInput
+          <TextField
             label="Type your username to confirm"
             value={phrase}
             onChange={(e) => setPhrase(e.target.value)}
@@ -434,21 +434,21 @@ function SecurityTab() {
         <CardDescription>Make sure your account stays secure.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <FloatingLabelInput
+        <TextField
           label="Current password"
           type="password"
           value={passwordForm.currentPassword}
           onChange={(e) => setPasswordForm((p) => ({ ...p, currentPassword: e.target.value }))}
           autoComplete="current-password"
         />
-        <FloatingLabelInput
+        <TextField
           label="New password"
           type="password"
           value={passwordForm.newPassword}
           onChange={(e) => setPasswordForm((p) => ({ ...p, newPassword: e.target.value }))}
           autoComplete="new-password"
         />
-        <FloatingLabelInput
+        <TextField
           label="Confirm new password"
           type="password"
           value={passwordForm.confirmPassword}

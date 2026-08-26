@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getAdminStats, getUsers, toggleAdminRole, sendBroadcastNotification } from "./actions";
 import { Button } from "@/components/ui/button";
-import { FloatingLabelInput } from "@/components/ui/floating-label-input";
+import { TextField } from "@/components/ui/text-field";
 import { FloatingLabelTextarea } from "@/components/ui/floating-label-textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Skeleton as BoneSkeleton } from "boneyard-js/react";
@@ -256,7 +256,7 @@ export default function AdminPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <FloatingLabelInput
+                  <TextField
                     label="Title (optional)"
                     value={broadcastTitle}
                     onChange={(e) => setBroadcastTitle(e.target.value)}
@@ -410,7 +410,7 @@ export default function AdminPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               Re-enter your password to authorize this admin action.
             </p>
-            <FloatingLabelInput
+            <TextField
               label="Your password"
               type="password"
               autoFocus
