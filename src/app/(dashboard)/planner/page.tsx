@@ -45,7 +45,6 @@ type Entry = {
 };
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const DAY_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const TYPE_OPTIONS = [
   { value: "task", label: "Task", icon: ListTodoIcon, color: "#3b82f6" },
   { value: "study", label: "Study", icon: BookOpenIcon, color: "#22c55e" },
@@ -223,7 +222,7 @@ export default function PlannerPage() {
                   <div className="flex items-center justify-between mb-2">
                     <div>
                       <p className={`text-xs font-medium ${isToday ? "text-primary" : "text-muted-foreground"}`}>
-                        {DAY_NAMES[i]}
+                        {DAY_NAMES[i] ?? ""}
                       </p>
                       <p className={`text-lg font-bold ${isToday ? "text-primary" : ""}`}>
                         {new Date(date + "T00:00:00").getDate()}
@@ -245,7 +244,6 @@ export default function PlannerPage() {
                       </p>
                     ) : (
                       dayEntries.map((entry) => {
-                        const typeInfo = TYPE_OPTIONS.find((t) => t.value === entry.type);
                         return (
                           <div
                             key={entry.id}

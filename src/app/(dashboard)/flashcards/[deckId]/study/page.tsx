@@ -201,7 +201,7 @@ export default function StudyPage({
                 QUESTION
               </p>
               <p className="text-xl font-medium leading-relaxed">
-                {current.front}
+                {current?.front}
               </p>
               <p className="mt-6 text-xs text-muted-foreground/60">
                 Tap to reveal answer
@@ -211,7 +211,7 @@ export default function StudyPage({
           <div className="absolute inset-0 flex items-center justify-center rounded-2xl border-2 border-primary/30 bg-primary/5 p-8 text-center shadow-lg [backface-visibility:hidden] [transform:rotateY(180deg)]">
             <div>
               <p className="text-xs font-medium text-primary mb-3">ANSWER</p>
-              <p className="text-xl font-medium leading-relaxed">{current.back}</p>
+              <p className="text-xl font-medium leading-relaxed">{current?.back}</p>
             </div>
           </div>
         </div>

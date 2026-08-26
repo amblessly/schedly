@@ -10,7 +10,7 @@ const TASK_XP = 5;
 
 function calcLevel(xp: number): number {
   for (let i = XP_PER_LEVEL.length - 1; i >= 1; i--) {
-    if (xp >= XP_PER_LEVEL[i]) return i + 1;
+    if (xp >= (XP_PER_LEVEL[i] ?? 0)) return i + 1;
   }
   return 1;
 }

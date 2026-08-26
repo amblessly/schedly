@@ -28,10 +28,7 @@ import {
   TrashIcon,
   PinIcon,
   SearchIcon,
-  FolderIcon,
-  FolderOpenIcon,
   StickyNoteIcon,
-  ChevronRightIcon,
   XIcon,
 } from "lucide-react";
 
@@ -60,13 +57,14 @@ export default function NotesPage() {
   const [loading, setLoading] = useState(true);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showEditor, setShowEditor] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [saving, setSaving] = useState(false);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
-  const [newFolderColor, setNewFolderColor] = useState(FOLDER_COLORS[0]);
+  const [newFolderColor, setNewFolderColor] = useState(FOLDER_COLORS[0] ?? "#3b82f6");
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [showMobileFolders, setShowMobileFolders] = useState(false);
 
@@ -104,12 +102,21 @@ export default function NotesPage() {
     setEditingNote(null);
     setEditTitle("");
     setEditContent("");
+    setShowEditor(true);
   }
 
   function openEditNote(note: Note) {
     setEditingNote(note);
     setEditTitle(note.title);
     setEditContent(note.content);
+    setShowEditor(true);
+  }
+
+  function closeEditor() {
+    setShowEditor(false);
+    setEditingNote(null);
+    setEditTitle("");
+    setEditContent("");
   }
 
   async function handleSave() {
@@ -120,7 +127,7 @@ export default function NotesPage() {
       setSaving(false);
       if (result.success) {
         toast.success("Note saved");
-        setEditingNote(null);
+        closeEditor();
         loadNotes();
       } else {
         toast.error(result.error);
@@ -130,6 +137,7 @@ export default function NotesPage() {
       setSaving(false);
       if (result.success) {
         toast.success("Note created");
+        closeEditor();
         loadNotes();
       } else {
         toast.error(result.error);
@@ -141,7 +149,7 @@ export default function NotesPage() {
     const result = await deleteNote(id);
     if (result.success) {
       toast.success("Note deleted");
-      if (editingNote?.id === id) setEditingNote(null);
+      if (editingNote?.id === id) closeEditor();
       loadNotes();
     }
   }
@@ -189,7 +197,7 @@ export default function NotesPage() {
             onClick={() => setShowMobileFolders(!showMobileFolders)}
             className="md:hidden"
           >
-            <FolderIcon className="h-4 w-4" />
+            <StickyNoteIcon className="h-4 w-4" />
           </Button>
           <Button onClick={openNewNote} size="sm">
             <PlusIcon className="mr-1.5 h-4 w-4" />
@@ -345,7 +353,7 @@ export default function NotesPage() {
         </div>
       </div>
 
-      <Dialog open={!!editingNote || editTitle !== "" || editContent !== ""} onOpenChange={(v) => { if (!v) { setEditingNote(null); setEditTitle(""); setEditContent(""); } }}>
+      <Dialog open={showEditor} onOpenChange={(v) => { if (!v) closeEditor(); }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{editingNote ? "Edit Note" : "New Note"}</DialogTitle>

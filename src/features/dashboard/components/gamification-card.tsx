@@ -9,7 +9,8 @@ const XP_PER_LEVEL = [0, 0, 50, 150, 300, 500, 750, 1050, 1400, 1800, 2250, 2750
 
 function getLevelProgress(xp: number, level: number) {
   const current = XP_PER_LEVEL[level - 1] ?? 0;
-  const next = XP_PER_LEVEL[level] ?? XP_PER_LEVEL[XP_PER_LEVEL.length - 1];
+  const next = XP_PER_LEVEL[level] ?? XP_PER_LEVEL[XP_PER_LEVEL.length - 1] ?? 0;
+  if (next === current) return 1;
   return Math.min(1, (xp - current) / (next - current));
 }
 
