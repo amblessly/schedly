@@ -35,6 +35,7 @@ import {
   TodayClassesCard,
   WeatherCard,
 } from "@/features/dashboard/components";
+import { UpdateAnnouncement } from "@/components/update-announcement";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -331,6 +332,7 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4 pt-8 md:pt-0 md:space-y-8">
+      <UpdateAnnouncement />
       <DashboardHeader greeting={greeting} username={username} />
 
       <div className="flex flex-col gap-6 md:flex-row md:items-start">
