@@ -15,51 +15,34 @@ const TextFieldArea = React.forwardRef<HTMLTextAreaElement, TextFieldAreaProps>(
     const inputId = id || React.useId();
 
     return (
-      <div className={cn("relative group", disabled && "opacity-50 pointer-events-none", className)}>
-        <div
+      <div className={cn("relative mb-5", disabled && "opacity-50 pointer-events-none", className)}>
+        <textarea
+          ref={ref}
+          id={inputId}
+          disabled={disabled}
+          placeholder=" "
           className={cn(
-            "relative rounded-xl border-[1.5px] border-input bg-transparent transition-colors duration-200",
-            "group-focus-within:border-primary",
-            error && "border-destructive group-focus-within:border-destructive",
-            disabled && "bg-muted/50"
+            "peer w-full rounded-lg border-2 border-input bg-transparent px-4 pt-6 pb-2 text-base font-normal outline-none resize-y min-h-[140px] transition-colors duration-300",
+            "focus:border-primary",
+            error && "border-destructive focus:border-destructive",
+            "disabled:cursor-not-allowed"
+          )}
+          aria-invalid={error || undefined}
+          {...props}
+        />
+        <label
+          htmlFor={inputId}
+          className={cn(
+            "absolute left-4 top-3 px-1 bg-background text-base text-muted-foreground font-normal transition-all duration-300 ease-out pointer-events-none z-[2]",
+            "peer-focus:-top-2 peer-focus:text-xs peer-focus:font-medium peer-focus:text-primary",
+            "peer-[:not(:placeholder-shown)]:-top-2 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:font-medium peer-[:not(:placeholder-shown)]:text-primary",
+            error && "peer-focus:text-destructive peer-[:not(:placeholder-shown)]:text-destructive"
           )}
         >
-          {/* Outlined border notch for floating label */}
-          <div
-            className={cn(
-              "absolute -top-2.5 left-3 px-1 max-w-[calc(100%-24px)]",
-              "bg-background text-xs font-normal text-muted-foreground",
-              "transition-all duration-200 ease-out",
-              "group-focus-within:text-primary",
-              error && "text-destructive group-focus-within:text-destructive"
-            )}
-            aria-hidden
-          >
-            <span className="truncate block">{label}</span>
-          </div>
-
-          <textarea
-            ref={ref}
-            id={inputId}
-            disabled={disabled}
-            placeholder=" "
-            className={cn(
-              "peer w-full bg-transparent px-4 pt-4 pb-2 text-base font-normal outline-none resize-y min-h-[120px]",
-              "placeholder:text-transparent",
-              "disabled:cursor-not-allowed"
-            )}
-            aria-invalid={error || undefined}
-            {...props}
-          />
-        </div>
-
+          {label}
+        </label>
         {helperText && (
-          <p
-            className={cn(
-              "mt-1 ml-4 text-xs font-normal",
-              error ? "text-destructive" : "text-muted-foreground"
-            )}
-          >
+          <p className={cn("mt-1 text-xs", error ? "text-destructive" : "text-muted-foreground")}>
             {helperText}
           </p>
         )}
