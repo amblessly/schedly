@@ -17,7 +17,15 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Megaphone, LayoutDashboard, Users, Radio, Globe, Smartphone, Apple, MessageSquare, Send, Search, Gauge, AlertTriangle, CheckCircle, type LucideIcon } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Megaphone, LayoutDashboard, Users, Radio, Globe, Smartphone, Apple, MessageSquare, Send, Search, Gauge, AlertTriangle, CheckCircle, Info, AlertCircle, Sparkles, Trash2, type LucideIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { HeaderBack } from "@/components/header-back";
 import { NotificationBell } from "@/components/notification-bell";
@@ -101,6 +109,7 @@ export default function AdminPage() {
   const [broadcasting, setBroadcasting] = useState(false);
   const [broadcastResult, setBroadcastResult] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const [openPopupId, setOpenPopupId] = useState<string | null>(null);
   const [limitsStats, setLimitsStats] = useState<LimitsStat[] | null>(null);
   const [limitsDate, setLimitsDate] = useState("");
   const [limitsLoading, setLimitsLoading] = useState(false);
@@ -280,6 +289,7 @@ export default function AdminPage() {
             { id: "broadcast", label: "Broadcast", icon: Radio },
             { id: "users", label: "Users", icon: Users },
             { id: "service-limits", label: "Service Limits", icon: Gauge },
+            { id: "popups", label: "Test Pop-ups", icon: Megaphone },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -617,6 +627,27 @@ export default function AdminPage() {
               )}
             </section>
           )}
+
+          {activeTab === "popups" && (
+            <section className="space-y-4">
+              <SectionHeader
+                icon={Megaphone}
+                title="Test Pop-ups"
+                description="Preview every modal and dialog used in the app — click a card to trigger it"
+              />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {POPUP_DEMOS.map((demo) => (
+                  <PopupPreviewCard
+                    key={demo.id}
+                    demo={demo}
+                    isOpen={openPopupId === demo.id}
+                    onOpen={() => setOpenPopupId(demo.id)}
+                    onClose={() => setOpenPopupId(null)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </div>
       </BoneSkeleton>
@@ -946,6 +977,804 @@ function StatCard({ label, value }: { label: string; value: number }) {
         <p className="mt-1 text-xs font-medium text-muted-foreground">{label}</p>
       </CardContent>
     </Card>
+  );
+}
+
+type PopupDemo = {
+  id: string;
+  label: string;
+  description: string;
+  badge?: string;
+  badgeVariant?: "default" | "destructive" | "outline";
+  accentColor?: string;
+  renderDialog: (close: () => void) => React.ReactNode;
+};
+
+const POPUP_DEMOS: PopupDemo[] = [
+  {
+    id: "basic-info",
+    label: "Basic Info",
+    description: "Simple dialog with title and description",
+    badge: "base",
+    badgeVariant: "outline",
+    accentColor: "bg-blue-500/10 text-blue-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>About Schedly</DialogTitle>
+            <DialogDescription>Schedly helps you manage your class schedule, assignments, and study sessions in one place. Built for students by students.</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end">
+            <Button onClick={() => close()}>Got it</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "success",
+    label: "Success",
+    description: "Confirmation dialog for successful action",
+    badge: "success",
+    badgeVariant: "default",
+    accentColor: "bg-emerald-500/10 text-emerald-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="max-w-sm">
+          <div className="flex flex-col items-center text-center gap-3 py-2">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
+              <CheckCircle className="h-6 w-6 text-emerald-600" />
+            </span>
+            <DialogHeader>
+              <DialogTitle>Schedule saved!</DialogTitle>
+              <DialogDescription>Your class schedule has been updated successfully. Changes will reflect immediately.</DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="flex gap-2">
+            <Button className="flex-1" onClick={() => close()}>View Schedule</Button>
+            <Button variant="outline" className="flex-1" onClick={() => close()}>Dismiss</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "warning",
+    label: "Warning",
+    description: "Alert dialog for important notices",
+    badge: "warning",
+    badgeVariant: "destructive",
+    accentColor: "bg-amber-500/10 text-amber-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="max-w-sm">
+          <div className="flex flex-col items-center text-center gap-3 py-2">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
+              <AlertTriangle className="h-6 w-6 text-amber-600" />
+            </span>
+            <DialogHeader>
+              <DialogTitle>Approaching limit</DialogTitle>
+              <DialogDescription>You&apos;ve used 87% of your daily AI generation limit. Consider slowing down or upgrading your plan.</DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="destructive" className="flex-1" onClick={() => close()}>Upgrade Plan</Button>
+            <Button variant="outline" className="flex-1" onClick={() => close()}>Dismiss</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "error",
+    label: "Error",
+    description: "Error dialog for failed actions",
+    badge: "error",
+    badgeVariant: "destructive",
+    accentColor: "bg-red-500/10 text-red-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="max-w-sm">
+          <div className="flex flex-col items-center text-center gap-3 py-2">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
+              <AlertCircle className="h-6 w-6 text-red-600" />
+            </span>
+            <DialogHeader>
+              <DialogTitle>Upload failed</DialogTitle>
+              <DialogDescription>The image could not be processed. Please check that the file is a clear photo of your class schedule and try again.</DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="destructive" className="flex-1" onClick={() => close()}>Try Again</Button>
+            <Button variant="outline" className="flex-1" onClick={() => close()}>Cancel</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "confirm-action",
+    label: "Confirm Action",
+    description: "Yes/No confirmation for critical actions",
+    badge: "confirm",
+    badgeVariant: "outline",
+    accentColor: "bg-violet-500/10 text-violet-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Mark all as read?</DialogTitle>
+            <DialogDescription>This will mark all {123} unread notifications as read. This action cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => close()}>Cancel</Button>
+            <Button className="flex-1" onClick={() => close()}>Confirm</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "destructive",
+    label: "Destructive",
+    description: "Delete confirmation with red danger styling",
+    badge: "danger",
+    badgeVariant: "destructive",
+    accentColor: "bg-red-500/10 text-red-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete schedule?</DialogTitle>
+            <DialogDescription>Permanently delete &ldquo;Mon-Wed-Fri Schedule&rdquo;? All associated classes and reminders will be removed. This cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => close()}>Keep it</Button>
+            <Button variant="destructive" className="flex-1" onClick={() => close()}>
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "with-input",
+    label: "With Input",
+    description: "Dialog with text field input",
+    badge: "input",
+    badgeVariant: "outline",
+    accentColor: "bg-cyan-500/10 text-cyan-600",
+    renderDialog: () => {
+      const [name, setName] = useState("");
+      return (
+        <Dialog open onOpenChange={(o) => { if (!o) { setName(""); close(); } }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Rename schedule</DialogTitle>
+              <DialogDescription>Enter a new name for your class schedule.</DialogDescription>
+            </DialogHeader>
+            <TextField
+              label="Schedule name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Mon-Wed-Fri"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => { setName(""); close(); }}>Cancel</Button>
+              <Button className="flex-1" disabled={!name.trim()} onClick={() => close()}>Save</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      );
+    },
+  },
+  {
+    id: "loading",
+    label: "Loading",
+    description: "Dialog with spinner — action in progress",
+    badge: "loading",
+    badgeVariant: "outline",
+    accentColor: "bg-orange-500/10 text-orange-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="max-w-sm">
+          <div className="flex flex-col items-center text-center gap-4 py-4">
+            <Spinner size={32} className="text-primary" />
+            <DialogHeader>
+              <DialogTitle>Generating flashcards…</DialogTitle>
+              <DialogDescription>AI is analyzing your notes and creating flashcards. This usually takes about 10–30 seconds.</DialogDescription>
+            </DialogHeader>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "wide-content",
+    label: "Wide Content",
+    description: "Wide dialog for rich content or tables",
+    badge: "wide",
+    badgeVariant: "outline",
+    accentColor: "bg-teal-500/10 text-teal-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Weekly Schedule</DialogTitle>
+            <DialogDescription>Your class schedule for the current week</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 text-sm">
+            {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map((day) => (
+              <div key={day} className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/30 px-4 py-3">
+                <span className="font-medium text-foreground">{day}</span>
+                <span className="text-muted-foreground">
+                  {day === "Monday" ? "Fund. of Prog. 9–12, Math 1–3" :
+                   day === "Tuesday" ? "Intr. to Comp. 1–6" :
+                   day === "Wednesday" ? "No classes scheduled" :
+                   day === "Thursday" ? "Fund. of Prog. 9–12, RPH 9–11" :
+                   "Prof. Deve. 7–9, VLSD 1–4"}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={() => close()}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "two-column",
+    label: "Two Column",
+    description: "Two-column layout for detailed forms",
+    badge: "2-col",
+    badgeVariant: "outline",
+    accentColor: "bg-indigo-500/10 text-indigo-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Class</DialogTitle>
+            <DialogDescription>Fill in the details below to add a new class to your schedule.</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <TextField label="Subject name" placeholder="e.g. Intr. to Comp." />
+            </div>
+            <TextField label="Short code" placeholder="ITC" />
+            <TextField label="Room" placeholder="Lab 101" />
+            <TextField label="Start time" placeholder="13:00" />
+            <TextField label="End time" placeholder="18:00" />
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => close()}>Cancel</Button>
+            <Button className="flex-1" onClick={() => close()}>Add Class</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+
+  // ─── Real dialogs from across the site ─────────────────────────
+  {
+    id: "profile-photo",
+    label: "Profile Photo",
+    description: "Onboarding — pick a profile photo",
+    badge: "onboarding",
+    badgeVariant: "outline",
+    accentColor: "bg-pink-500/10 text-pink-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Profile photo</DialogTitle>
+            <DialogDescription>Add a photo so your friends can recognize you.</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary/10 text-2xl font-semibold text-primary">
+              B
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => close()}>Skip</Button>
+            <Button className="flex-1" onClick={() => close()}>Upload</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "syllabus-upload",
+    label: "Syllabus Upload",
+    description: "Syllabus — multi-step upload flow",
+    badge: "syllabus",
+    badgeVariant: "outline",
+    accentColor: "bg-rose-500/10 text-rose-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add a Syllabus</DialogTitle>
+            <DialogDescription>Upload a photo or PDF of your syllabus and we&apos;ll extract the important dates and topics automatically.</DialogDescription>
+          </DialogHeader>
+          <div className="rounded-xl border-2 border-dashed border-border/60 bg-muted/20 p-8 text-center">
+            <p className="text-sm text-muted-foreground">Drop your syllabus here, or click to browse</p>
+            <p className="mt-1 text-xs text-muted-foreground">JPG, PNG, PDF — max 20MB</p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => close()}>Cancel</Button>
+            <Button onClick={() => close()}>Continue</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "support-schedly",
+    label: "Support Schedly",
+    description: "Settings — contact & feedback form",
+    badge: "support",
+    badgeVariant: "outline",
+    accentColor: "bg-cyan-500/10 text-cyan-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Support Schedly</DialogTitle>
+            <DialogDescription>Found a bug or have a suggestion? Let us know!</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <span className="text-xs font-medium text-foreground">Type</span>
+              <div className="mt-1 flex gap-1">
+                {["Bug", "Feedback", "Question"].map((t) => (
+                  <Button key={t} variant="outline" size="sm" className="flex-1">{t}</Button>
+                ))}
+              </div>
+            </div>
+            <TextField label="Subject" placeholder="Brief summary" />
+            <FloatingLabelTextarea label="Message" inputClassName="min-h-[100px] resize-y" />
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => close()}>Cancel</Button>
+            <Button className="flex-1" onClick={() => close()}>Send</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "edit-schedule",
+    label: "Edit Schedule",
+    description: "Dashboard — add / edit classes for the day",
+    badge: "edit",
+    badgeVariant: "outline",
+    accentColor: "bg-emerald-500/10 text-emerald-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Schedule</DialogTitle>
+            <DialogDescription>Add or update the classes for this schedule.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {[
+              { name: "Fund. of Prog.", code: "FOP", time: "7:00 AM – 9:00 AM" },
+              { name: "Math. in the Modern World", code: "MMW", time: "1:00 PM – 2:30 PM" },
+            ].map((c, i) => (
+              <div key={i} className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/30 px-3 py-2">
+                <div>
+                  <p className="text-sm font-medium text-foreground">{c.name}</p>
+                  <p className="text-xs text-muted-foreground">{c.code} · {c.time}</p>
+                </div>
+                <Button variant="ghost" size="sm">Edit</Button>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => close()}>Cancel</Button>
+            <Button onClick={() => close()}>Save changes</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "schedule-preview",
+    label: "Schedule Preview",
+    description: "Dashboard — class detail card with actions",
+    badge: "preview",
+    badgeVariant: "outline",
+    accentColor: "bg-violet-500/10 text-violet-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md overflow-hidden p-0">
+          <div className="border-b border-border/40 bg-primary/5 p-4">
+            <h2 className="text-base font-semibold text-foreground">Fund. of Prog.</h2>
+            <p className="text-xs text-muted-foreground">FOP · Mon · 7:00 AM – 9:00 AM</p>
+          </div>
+          <div className="space-y-2 p-4 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Room</span>
+              <span className="font-medium text-foreground">Lab 101</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Instructor</span>
+              <span className="font-medium text-foreground">Prof. Cruz</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Color</span>
+              <span className="h-4 w-4 rounded-full bg-blue-500" />
+            </div>
+          </div>
+          <div className="flex gap-2 border-t border-border/40 p-3">
+            <Button variant="outline" className="flex-1" onClick={() => close()}>Close</Button>
+            <Button className="flex-1" onClick={() => close()}>Edit class</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "add-card",
+    label: "Add Card",
+    description: "Flashcards deck — add or edit a card",
+    badge: "flashcards",
+    badgeVariant: "outline",
+    accentColor: "bg-fuchsia-500/10 text-fuchsia-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Card</DialogTitle>
+            <DialogDescription>Add a new flashcard to this deck.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <TextField label="Question (front)" placeholder="What is photosynthesis?" />
+            <FloatingLabelTextarea label="Answer (back)" inputClassName="min-h-[100px] resize-y" placeholder="The process by which plants…" />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => close()}>Cancel</Button>
+            <Button onClick={() => close()}>Add card</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "delete-card",
+    label: "Delete Card",
+    description: "Flashcards deck — confirm card delete",
+    badge: "danger",
+    badgeVariant: "destructive",
+    accentColor: "bg-red-500/10 text-red-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete card?</DialogTitle>
+            <DialogDescription>This card will be permanently removed from this deck. This action cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => close()}>Cancel</Button>
+            <Button variant="destructive" onClick={() => close()}>Delete</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "edit-deck",
+    label: "Edit Deck",
+    description: "Flashcards deck — edit deck name and settings",
+    badge: "flashcards",
+    badgeVariant: "outline",
+    accentColor: "bg-fuchsia-500/10 text-fuchsia-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Deck</DialogTitle>
+            <DialogDescription>Update the deck&apos;s name, subject, or description.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <TextField label="Deck name" defaultValue="Biology 101" />
+            <TextField label="Subject" defaultValue="Biology" />
+            <FloatingLabelTextarea label="Description (optional)" inputClassName="min-h-[80px] resize-y" />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => close()}>Cancel</Button>
+            <Button onClick={() => close()}>Save</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "new-deck",
+    label: "New Deck",
+    description: "Flashcards — generate deck from syllabus",
+    badge: "flashcards",
+    badgeVariant: "outline",
+    accentColor: "bg-fuchsia-500/10 text-fuchsia-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New Deck</DialogTitle>
+            <DialogDescription>Generate flashcards from a syllabus or your notes.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <TextField label="Deck name" placeholder="e.g. Biology 101" />
+            <TextField label="Subject (optional)" placeholder="Biology" />
+            <TextField label="Topic (optional)" placeholder="Cell structure" />
+            <div>
+              <span className="text-xs font-medium text-foreground">Number of cards</span>
+              <div className="mt-1 flex gap-1">
+                {[5, 10, 15, 20, 30].map((n) => (
+                  <Button key={n} variant={n === 10 ? "default" : "outline"} size="sm" className="flex-1">{n}</Button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => close()}>Cancel</Button>
+            <Button onClick={() => close()}>Generate</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "delete-deck",
+    label: "Delete Deck",
+    description: "Flashcards — confirm deck delete",
+    badge: "danger",
+    badgeVariant: "destructive",
+    accentColor: "bg-red-500/10 text-red-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete deck?</DialogTitle>
+            <DialogDescription>All {42} cards in this deck will be permanently deleted. This action cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => close()}>Cancel</Button>
+            <Button variant="destructive" onClick={() => close()}>Delete deck</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "add-planner",
+    label: "Add to Planner",
+    description: "Planner — add or edit a task / event",
+    badge: "planner",
+    badgeVariant: "outline",
+    accentColor: "bg-sky-500/10 text-sky-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add to Planner</DialogTitle>
+            <DialogDescription>Schedule a new task or event in your planner.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <TextField label="Title" placeholder="Review notes" />
+            <div className="grid grid-cols-2 gap-2">
+              <TextField label="Date" type="date" />
+              <TextField label="Time" type="time" />
+            </div>
+            <TextField label="Category" placeholder="Study" />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => close()}>Cancel</Button>
+            <Button onClick={() => close()}>Save</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "delete-planner",
+    label: "Delete Entry",
+    description: "Planner — confirm entry delete",
+    badge: "danger",
+    badgeVariant: "destructive",
+    accentColor: "bg-red-500/10 text-red-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete entry?</DialogTitle>
+            <DialogDescription>This planner entry will be permanently removed. This action cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => close()}>Cancel</Button>
+            <Button variant="destructive" onClick={() => close()}>Delete</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "push-help",
+    label: "Push Help",
+    description: "Notifications — troubleshooting steps",
+    badge: "notifications",
+    badgeVariant: "outline",
+    accentColor: "bg-amber-500/10 text-amber-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Couldn&apos;t enable class reminders</DialogTitle>
+            <DialogDescription>Notifications are blocked in your browser. Allow them in settings, then try again.</DialogDescription>
+          </DialogHeader>
+          <ol className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+            {[
+              "Refresh the page, then try the toggle again.",
+              "On Android, use the Chrome app — in-app browsers block push alerts.",
+              "Make sure you&apos;re online with a stable connection, then try again.",
+            ].map((step, i) => (
+              <li key={i} className="flex gap-2.5">
+                <span className="mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
+                  {i + 1}
+                </span>
+                <span>{step}</span>
+              </li>
+            ))}
+          </ol>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => close()}>Close</Button>
+            <Button onClick={() => close()}>Try again</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "new-note",
+    label: "New Note",
+    description: "Notes — create or edit a note",
+    badge: "notes",
+    badgeVariant: "outline",
+    accentColor: "bg-yellow-500/10 text-yellow-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>New Note</DialogTitle>
+            <DialogDescription>Capture a thought, lecture, or idea.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <TextField label="Title" placeholder="Lecture notes — Sept 15" />
+            <FloatingLabelTextarea label="Content" inputClassName="min-h-[180px] resize-y" placeholder="Start writing…" />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => close()}>Cancel</Button>
+            <Button onClick={() => close()}>Save note</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "new-folder",
+    label: "New Folder",
+    description: "Notes — create a folder to organize notes",
+    badge: "notes",
+    badgeVariant: "outline",
+    accentColor: "bg-yellow-500/10 text-yellow-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>New Folder</DialogTitle>
+            <DialogDescription>Group related notes together.</DialogDescription>
+          </DialogHeader>
+          <TextField label="Folder name" placeholder="e.g. Lecture notes" />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => close()}>Cancel</Button>
+            <Button onClick={() => close()}>Create</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "view-profile",
+    label: "View Profile Photo",
+    description: "Profile — full-screen view of avatar",
+    badge: "profile",
+    badgeVariant: "outline",
+    accentColor: "bg-pink-500/10 text-pink-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="sm:max-w-md">
+          <div className="flex justify-center">
+            <div className="flex h-48 w-48 items-center justify-center rounded-full bg-primary/10 text-6xl font-semibold text-primary ring-4 ring-border/40">
+              B
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={() => close()}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+  {
+    id: "update-announcement",
+    label: "Update Announcement",
+    description: "Dashboard — one-time popup on app open",
+    badge: "system",
+    badgeVariant: "default",
+    accentColor: "bg-indigo-500/10 text-indigo-600",
+    renderDialog: (close) => (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent showCloseButton={false}>
+          <div className="flex flex-col items-center text-center gap-3 py-2">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <Sparkles className="h-6 w-6 text-primary" />
+            </span>
+            <DialogHeader>
+              <DialogTitle>We&apos;re back!</DialogTitle>
+              <DialogDescription>Schedly is back online after a quick maintenance break. Sorry for the interruption — everything&apos;s good to go now.</DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={() => close()}>Got it</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ),
+  },
+];
+
+function PopupPreviewCard({ demo, isOpen, onOpen, onClose }: {
+  demo: PopupDemo;
+  isOpen: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="group flex flex-col items-start gap-2 rounded-xl border border-border/40 bg-card/60 p-4 text-left transition-all hover:border-primary/30 hover:bg-muted/30 hover:shadow-sm"
+      >
+        <div className="flex w-full items-center justify-between">
+          <span className={cn("flex h-9 w-9 items-center justify-center rounded-lg", demo.accentColor ?? "bg-muted text-muted-foreground")}>
+            {demo.badge === "success" ? <CheckCircle className="h-4 w-4" /> :
+             demo.badge === "error" ? <AlertCircle className="h-4 w-4" /> :
+             demo.badge === "warning" ? <AlertTriangle className="h-4 w-4" /> :
+             demo.badge === "destructive" ? <Trash2 className="h-4 w-4" /> :
+             demo.badge === "loading" ? <Sparkles className="h-4 w-4" /> :
+             <Info className="h-4 w-4" />}
+          </span>
+          {demo.badge && (
+            <Badge variant={demo.badgeVariant as "default" | "destructive" | "outline"} className="text-[10px]">
+              {demo.badge}
+            </Badge>
+          )}
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-foreground">{demo.label}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{demo.description}</p>
+        </div>
+      </button>
+
+      {isOpen && demo.renderDialog(onClose)}
+    </>
   );
 }
 

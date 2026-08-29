@@ -43,14 +43,6 @@ export const navGroups: NavGroup[] = [
       { label: "GWA Calculator", href: "/gwa", icon: "graduation-cap" },
     ],
   },
-  {
-    title: "Admin",
-    adminOnly: true,
-    items: [
-      { label: "Admin Dashboard", href: "/admin", icon: "shield", adminOnly: true },
-      { label: "Service Limits", href: "/admin/limits", icon: "gauge", adminOnly: true },
-    ],
-  },
 ];
 
 // Flattened, deduped list of every sidebar destination. navGroups[0] is
