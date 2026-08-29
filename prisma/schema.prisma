@@ -72,11 +72,13 @@ model User {
   pushSubscriptions PushSubscription[]
   fcmTokens        FCMToken[]
   flashcardDecks   FlashcardDeck[]
+  flashcardProgress FlashcardProgress[]
   focusSessions    FocusSession[]
   userProfile      UserProfile?
   noteFolders      NoteFolder[]
   notes            Note[]
   plannerEntries   PlannerEntry[]
+  syllabi          Syllabus[]
 
   @@map("users")
 }
@@ -185,19 +187,24 @@ model Reminder {
 }
 
 model Todo {
-  id          String    @id @default(uuid())
-  userId      String    @map("user_id")
-  text        String
-  completed   Boolean   @default(false)
-  priority    String    @default("medium")
-  category    String?   @default("general")
-  dueDate     String?   @map("due_date")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  completedAt DateTime? @map("completed_at")
+  id                   String    @id @default(uuid())
+  userId               String    @map("user_id")
+  text                 String
+  completed            Boolean   @default(false)
+  priority             String    @default("medium")
+  category             String?   @default("general")
+  dueDate              String?   @map("due_date")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  completedAt          DateTime? @map("completed_at")
+  syllabusId           String?   @map("syllabus_id")
+  syllabusRequirementId String?  @map("syllabus_requirement_id")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syllabusRequirements SyllabusRequirement[]
 
   @@index([userId])
+  @@index([syllabusId])
+  @@index([syllabusRequirementId])
   @@map("todos")
 }
 
@@ -210,30 +217,53 @@ model FlashcardDeck {
   cardCount   Int      @default(0) @map("card_count")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
+  syllabusId  String?  @map("syllabus_id")
 
   user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   cards Flashcard[]
 
   @@index([userId])
+  @@index([syllabusId])
   @@map("flashcard_decks")
 }
 
 model Flashcard {
-  id           String    @id @default(uuid())
-  deckId       String    @map("deck_id")
+  id           String             @id @default(uuid())
+  deckId       String             @map("deck_id")
   front        String
   back         String
-  difficulty   Int       @default(0)
-  lastReviewed DateTime? @map("last_reviewed")
-  nextReview   DateTime? @map("next_review")
-  streak       Int       @default(0)
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  difficulty   Int                @default(0)
+  lastReviewed DateTime?          @map("last_reviewed")
+  nextReview   DateTime?          @map("next_review")
+  streak       Int                @default(0)
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
 
-  deck FlashcardDeck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  deck      FlashcardDeck        @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  progress  FlashcardProgress[]
 
   @@index([deckId])
   @@map("flashcards")
+}
+
+model FlashcardProgress {
+  id            String    @id @default(uuid())
+  cardId        String    @map("card_id")
+  userId        String    @map("user_id")
+  status        String    @default("new") // new, learning, reviewing, mastered
+  studyCount    Int       @default(0) @map("study_count")
+  correctCount  Int       @default(0) @map("correct_count")
+  wrongCount    Int       @default(0) @map("wrong_count")
+  lastStudiedAt DateTime? @map("last_studied_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  card Flashcard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cardId, userId])
+  @@index([userId])
+  @@map("flashcard_progress")
 }
 
 model FocusSession {
@@ -303,23 +333,26 @@ model Note {
 }
 
 model PlannerEntry {
-  id        String    @id @default(uuid())
-  userId    String    @map("user_id")
-  title     String
-  date      String
-  startTime String?   @map("start_time")
-  endTime   String?   @map("end_time")
-  type      String    @default("task")
-  color     String    @default("#3b82f6")
-  completed Boolean   @default(false)
-  todoId    String?   @map("todo_id")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
+  id                    String    @id @default(uuid())
+  userId                String    @map("user_id")
+  title                 String
+  date                  String
+  startTime             String?   @map("start_time")
+  endTime               String?   @map("end_time")
+  type                  String    @default("task")
+  color                 String    @default("#3b82f6")
+  completed             Boolean   @default(false)
+  todoId                String?   @map("todo_id")
+  syllabusRequirementId String?   @map("syllabus_requirement_id")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syllabusRequirements SyllabusRequirement[]
 
   @@index([userId])
   @@index([date])
+  @@index([syllabusRequirementId])
   @@map("planner_entries")
 }
 
@@ -459,4 +492,60 @@ model LimitSnapshot {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("limit_snapshots")
+}
+
+model Syllabus {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  courseName   String   @map("course_name")
+  courseCode   String?  @map("course_code")
+  section      String?  @map("section")
+  instructor   String?  @map("instructor")
+  semester     String?  @map("semester")
+  schoolYear   String?  @map("school_year")
+  department   String?  @map("department")
+  units        String?  @map("units")
+  description  String?  @map("description")
+  fileId       String?  @map("file_id")
+  fileName     String?  @map("file_name")
+  extractedAt  DateTime @default(now()) @map("extracted_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requirements SyllabusRequirement[]
+
+  @@index([userId])
+  @@map("syllabi")
+}
+
+model SyllabusRequirement {
+  id              String   @id @default(uuid())
+  syllabusId      String   @map("syllabus_id")
+  title           String
+  description     String?  @map("description")
+  type            String   @default("other")
+  date            String?  @map("date")
+  startDate       String?  @map("start_date")
+  endDate         String?  @map("end_date")
+  week            Int?     @map("week")
+  datePrecision   String   @default("unspecified") @map("date_precision")
+  sourceText      String?  @map("source_text")
+  status          String   @default("pending")
+  addToDo         Boolean  @default(true) @map("add_to_do")
+  addReminder     Boolean  @default(false) @map("add_reminder")
+  reminderMinutes Int      @default(1440) @map("reminder_minutes")
+  todoId          String?  @map("todo_id")
+  plannerEntryId  String?  @map("planner_entry_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  syllabus Syllabus @relation(fields: [syllabusId], references: [id], onDelete: Cascade)
+  todo     Todo?       @relation(fields: [todoId], references: [id], onDelete: SetNull)
+  plannerEntry PlannerEntry? @relation(fields: [plannerEntryId], references: [id], onDelete: SetNull)
+
+  @@index([syllabusId])
+  @@index([todoId])
+  @@index([plannerEntryId])
+  @@map("syllabus_requirements")
 }

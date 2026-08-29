@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,16 +13,16 @@ import { Button } from "@/components/ui/button";
 
 const SEEN_KEY = "schedly-update-announcement-seen";
 
-export function UpdateAnnouncement() {
-  const [open, setOpen] = useState(false);
+function hasSeenAnnouncement(): boolean {
+  try {
+    return localStorage.getItem(SEEN_KEY) !== null;
+  } catch {
+    return true;
+  }
+}
 
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(SEEN_KEY)) {
-        setOpen(true);
-      }
-    } catch {}
-  }, []);
+export function UpdateAnnouncement() {
+  const [open, setOpen] = useState(() => !hasSeenAnnouncement());
 
   function dismiss() {
     try {
@@ -35,7 +35,7 @@ export function UpdateAnnouncement() {
     <Dialog open={open} onOpenChange={(v) => { if (!v) dismiss(); }}>
       <DialogContent showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>We're back!</DialogTitle>
+          <DialogTitle>We&apos;re back!</DialogTitle>
           <DialogDescription>
             Schedly was temporarily offline while we rolled out some updates.
             Everything should be working normally now — thanks for bearing with us!

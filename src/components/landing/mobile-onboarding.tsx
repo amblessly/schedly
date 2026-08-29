@@ -1,9 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft,
   Bell,
   CalendarDays,
   Camera,
@@ -109,9 +109,9 @@ function Mascot({ variant = "wave", size = "lg" }: { variant?: MascotVariant; si
   return (
     <div className={`relative flex items-center justify-center ${box}`}>
       <div
-        className={`flex items-center justify-center overflow-hidden rounded-[32%] bg-secondary ring-1 ring-border ${box} ${anim}`}
+        className={`relative flex items-center justify-center overflow-hidden rounded-[32%] bg-secondary ring-1 ring-border ${box} ${anim}`}
       >
-        <img src="/images/logo.jpg" alt="" aria-hidden className="h-full w-full object-cover" />
+        <Image src="/images/logo.jpg" alt="" aria-hidden fill className="object-cover" />
       </div>
     </div>
   );

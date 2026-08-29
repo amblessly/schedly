@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { AtSign, BellRing, Camera, MapPin, Sparkles } from "lucide-react";
+import { BellRing, Camera, Sparkles } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { authClient } from "@/lib/auth-client";
 import { uploadAvatar, removeAvatar } from "@/app/(dashboard)/settings/actions";
@@ -39,6 +40,12 @@ export default function OnboardingPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>((u?.image as string) || (u?.avatarUrl as string) || null);
   const [avatarError, setAvatarError] = useState(false);
   const displayAvatar = avatarError ? null : avatarUrl;
+  // Determine if the avatar is a remote URL that next/image can optimize.
+  // Vercel Blob URLs and absolute https URLs are supported.
+  // data: URLs and blob: URLs must use <img> directly.
+  const isRemoteAvatar =
+    displayAvatar && displayAvatar.startsWith("http") && !displayAvatar.startsWith("data:") && !displayAvatar.startsWith("blob:");
+
   const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
@@ -47,7 +54,6 @@ export default function OnboardingPage() {
   const [usernameError, setUsernameError] = useState("");
 
   const firstName = u?.firstName || "User";
-  const lastName = u?.lastName || "";
   const initials = firstName.charAt(0).toUpperCase();
 
   const markComplete = async () => {
@@ -177,7 +183,7 @@ export default function OnboardingPage() {
         {/* Top bar: logo */}
         <div className="mb-8 flex items-center">
           <div className="flex items-center gap-2.5">
-            <img src="/images/logo.jpg" alt="" aria-hidden className="h-10 w-10 rounded-xl object-cover" />
+            <Image src="/images/logo.jpg" alt="" aria-hidden width={40} height={40} className="h-10 w-10 rounded-xl object-cover" />
             <span className="text-lg font-bold tracking-tight text-foreground">Schedly</span>
           </div>
         </div>
@@ -215,7 +221,15 @@ export default function OnboardingPage() {
                   disabled={uploading}
                   className="group relative h-24 w-24 overflow-hidden rounded-full ring-2 ring-border/40 transition-shadow hover:ring-primary/40"
                 >
-                  {displayAvatar ? (
+                  {displayAvatar ? isRemoteAvatar ? (
+                    <Image
+                      src={displayAvatar}
+                      alt="Profile avatar"
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={displayAvatar} alt="Profile avatar" onError={() => setAvatarError(true)} className="h-full w-full object-cover" />
                   ) : (
                     <span className="flex h-full w-full items-center justify-center bg-primary/10 text-3xl font-semibold text-primary">
@@ -319,7 +333,16 @@ export default function OnboardingPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col items-center gap-4">
-              {avatarUrl ? (
+              {avatarUrl ? isRemoteDialogAvatar ? (
+                <Image
+                  src={avatarUrl}
+                  alt="Profile avatar"
+                  width={144}
+                  height={144}
+                  className="h-36 w-36 rounded-full object-cover ring-2 ring-border/40"
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={avatarUrl}
                   alt="Profile avatar"

@@ -150,6 +150,23 @@ export function useAuth() {
     router.push("/login");
   }, [router]);
 
+  const forgotPassword = useCallback(
+    async (email: string) => {
+      try {
+        const result = await authClient.forgetPassword({
+          email,
+          redirectTo: "/reset-password",
+        });
+        return result;
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error ? err.message : "Something went wrong.";
+        return { data: null, error: { message } };
+      }
+    },
+    []
+  );
+
   return {
     user: user ?? null,
     session: resolvedSession ?? null,
@@ -163,5 +180,6 @@ export function useAuth() {
     signIn,
     signInSocial,
     signOut,
+    forgotPassword,
   };
 }

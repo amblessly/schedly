@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
 import { Spinner } from "@/components/ui/spinner";
+import { AppNavPanel } from "@/components/app-nav-panel";
 import {
   Dialog,
   DialogContent,
@@ -82,12 +83,25 @@ export default function NotesPage() {
   }, [selectedFolder]);
 
   useEffect(() => {
-    loadFolders();
+    let cancelled = false;
+    void (async () => {
+      if (cancelled) return;
+      await loadFolders();
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [loadFolders]);
 
   useEffect(() => {
-    setLoading(true);
-    loadNotes();
+    let cancelled = false;
+    void (async () => {
+      if (cancelled) return;
+      await loadNotes();
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [loadNotes]);
 
   const filtered = searchQuery
@@ -182,7 +196,9 @@ export default function NotesPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl pt-8 pb-24 md:pt-0 md:pb-8">
+    <div className="flex flex-col gap-6 md:flex-row md:items-start pt-8 pb-24 md:pt-0 md:pb-8">
+      <AppNavPanel />
+      <div className="min-w-0 flex-1 mx-auto w-full max-w-6xl space-y-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Notes</h1>
@@ -213,7 +229,7 @@ export default function NotesPage() {
           } md:block md:w-56 shrink-0 space-y-2`}
         >
           <button
-            onClick={() => { setSelectedFolder(null); setShowMobileFolders(false); }}
+            onClick={() => { setSelectedFolder(null); setLoading(true); setShowMobileFolders(false); }}
             className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
               selectedFolder === null
                 ? "bg-primary text-primary-foreground"
@@ -228,7 +244,7 @@ export default function NotesPage() {
           {folders.map((folder) => (
             <div key={folder.id} className="group flex items-center">
               <button
-                onClick={() => { setSelectedFolder(folder.id); setShowMobileFolders(false); }}
+                onClick={() => { setSelectedFolder(folder.id); setLoading(true); setShowMobileFolders(false); }}
                 className={`flex-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
                   selectedFolder === folder.id
                     ? "bg-primary text-primary-foreground"
@@ -421,6 +437,7 @@ export default function NotesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

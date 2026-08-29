@@ -1,0 +1,435 @@
+================================================================
+  SCHEDLY — COMPLETE USER GUIDE
+  Lahat ng tabs at kung paano gamitin ang bawat isa
+================================================================
+
+Basahin mo ito para makapagsimula: mula sa pag-set up ng iyong
+class schedule hanggang sa pagsubaybay ng iyong mga requirements,
+deadlines, at productivity stats — lahat nasa isang app.
+
+
+
+================================================================
+1. DASHBOARD  (/dashboard)
+================================================================
+Ang "home" ng Schedly. Ito ang summary ng iyong academic life
+sa isang tingin.
+
+Ano ang makikita:
+- Greeting header — bumabati ayon sa oras ng araw, kasama ang iyong
+  username at avatar.
+- Today's Classes — ang mga klase mo para sa araw na ito (galing sa
+  /schedule). Minamarkahan kung alin ang kasalukuyang klase, susunod,
+  o natapos na, may countdown pa. Sa ibaba, ipinapakita rin ang
+  unang klase sa susunod na araw (kung wala na ngang klase ngayon).
+- Weather — ang lagay ng panahon sa iyong lokasyon. Gumagamit ito ng
+  iyong location permission; kung wala, nag-fallback sa iyong IP.
+  May refresh button kung gustong i-update.
+- Free Time Today — ang mga libreng oras mo ngayong araw, at ang
+  pinakamahabang free time mo para makapag-aral o makapagpahinga.
+- Your Schedule — ang buong weekly timetable mo. Pwedeng i-flip sa
+  iba't ibang saved schedules gamit ang arrows, i-download bilang
+  image (PNG), o i-edit ang mga klase.
+- Update announcement — minsang may lalabas na popup para sa mga
+  bagong update (lalabas lang minsan, may "Got it" na button).
+
+Paano gamitin:
+- Una, i-set up ang iyong class schedule sa /schedule (Classes) para
+  magkaroon ng laman ang Today's Classes at Your Schedule.
+- Kung wala pang schedule, may "Upload Schedule" na button sa
+  Dashboard na magdadala sa iyo sa /schedule.
+- Gamitin ang sidebar (desktop) o bottom navigation (mobile) para
+  lumipat sa iba pang mga page.
+
+
+
+================================================================
+2. CLASSES / SCHEDULE  (/schedule)   — TAB: Classes
+================================================================
+Ito ang iyong FIXED na class timetable — ang mga oras ng klase mo
+bawat linggo na paulit-ulit (recurring).
+
+May dalawang paraan para magkaroon ng schedule:
+
+A) Auto (AI extraction mula sa photo):
+   - Pindutin ang "Upload Schedule" → may "Take Photo" (camera) at
+     "Choose Image" (mula sa gallery).
+   - Tandaan: IMAGE lang ang tinatanggap dito (JPG, PNG, GIF, WebP,
+     BMP), maximum 20MB. Hindi supported ang PDF para dito.
+   - Pagkatapos pumili, pindutin ang "Extract Schedule" —
+     awtomatikong babasahin ng AI ang mga subjects, oras, room, at
+     instructor mula sa larawan.
+   - I-review muna ang lumabas na classes (pwedeng i-edit o burahin
+     ang bawat isa), tapos i-save.
+
+B) Manual:
+   - Sa halip na mag-upload, pwedeng pindutin ang "Create manually
+     instead" at ilagay mo nang isa-isa ang mga klase.
+
+Pagkatapos mag-save:
+- Pwede kang magkaroon ng MARAMING saved schedules — halimbawa,
+  isa para sa bawat semester o school year.
+- Sa /schedule, may month calendar. Pwedeng i-filter kung lahat ng
+  schedules ang ipapakita o isa lang (gamit ang chips sa itaas).
+- I-click ang isang araw sa calendar para makita ang mga klase sa
+  araw na iyon.
+- May "view" (tingnan ang buong timetable) at "delete" (burahin ang
+  isang schedule) para sa bawat schedule.
+- Sa Dashboard, makikita mo ang timetable ng iyong schedule; kung
+  marami kang schedules, gumamit ng arrows para lumipat. Pwedeng
+  i-download ang timetable bilang image, o i-edit ang mga klase
+  (subject, oras, at mga araw) gamit ang edit button.
+- Kapag na-save ang isang schedule, awtomatikong gumagawa ang Schedly
+  ng reminder/notification para sa bawat klase. Makikita at
+  mako-control ito sa Notifications page (i-click ang bell icon).
+
+
+
+================================================================
+3. TO-DO LIST  (/todo)   — TAB: To-Do List
+================================================================
+Ang iyong task list — kung saan mo sinusulat ang mga kailangan mong
+gawin, na may mga filter, priority, at kategorya.
+
+Paano gamitin:
+- Mag-type sa "New task" field, tapos pindutin ang "Add" (o i-Enter).
+- I-set ang detalye ng task bago/during i-add:
+    - Priority: Low (berde), Medium (dilaw), High (pula) — gamit
+      ang colored dots.
+    - Due date: ang deadline ng task.
+    - Category: General, School, Personal, Work (may kulay bawat isa).
+- Checkbox: i-tap para i-mark as complete (may strikethrough agad).
+  Minamarkahan din ang mga Overdue na may deadline.
+- Filter tabs: All / Active / Completed para i-filter ang listahan.
+- Category pills: para lang sa isang kategorya tingnan.
+- Sa itaas makikita ang bilang ng "active" at "done" na tasks.
+- Bawat task ay may buttons: edit (pencil) para baguhin, delete
+  (trash) para burahin.
+- "Clear done" — isang pindot para burahin ang lahat ng natapos.
+
+Alamin (Todo ↔ Syllabus):
+- Kapag nag-upload ka ng syllabus (tingnan ang section 8), may mga
+  task na awtomatikong nalilikha mula sa mga requirements nito.
+  Naka-link ang mga ito sa requirement — kapag in-check mo ang task,
+  nag-a-update rin ang status nito sa Syllabus page.
+- Kapag binura mo ang isang syllabus o requirement, ang mga
+  naka-link na task dito ay karaniwang nawawala rin. Ang mga task na
+  ikaw mismo ang gumawa ay mananatili.
+
+
+
+================================================================
+4. POMODORO  (/pomodoro)   — TAB: Pomodoro
+================================================================
+Ang pahinang "Focus Timer" — timer para sa pag-aaral gamit ang
+Pomodoro technique, may kasama pang gamification para manatiling
+motivated.
+
+Paano gamitin:
+- Focus duration (default 25 min) at Break duration (default 5 min) —
+  pwedeng baguhin. Ang focus ay hanggang 240 min, ang break hanggang
+  120 min.
+- Play: simulan ang focus session.
+- Pag natapos ang focus, awtomatikong lilipat ito sa break
+  (at vice-versa).
+- Pause: i-pause ang timer. Reset: simulan ulit. Skip: laktawan
+  papunta sa kabilang phase.
+- Habang nag-fo-focus, may virtual na TREE na tumutubo ayon sa
+  progress mo:
+    Seed → Sprout → Sapling → Tree → Full Tree
+
+Gamification (XP, Level, Streak):
+- Bawat COMPLETED focus session ay nagbibigay ng XP (humigit-kumulang
+  1 XP kada minutong na-focus).
+- May XP popup pagkatapos matapos ang isang session.
+- Tumataas ang level mo habang nag-iipon ka ng XP — mas mataas ang
+  XP, mas mataas ang level. Hindi bumababa ang level dahil sa
+  pag-iipon ng XP.
+- May streak na sinusubaybayan (mga sunod-sunod na araw na ika'y
+  aktibo), pati ang kabuuang focus time mo.
+- Ang lahat ng stats na ito (XP, Level + progress bar, streak, total
+  focus time) ay makikita sa profile bar sa mismong Pomodoro page.
+
+
+
+================================================================
+5. NOTES  (/notes)   — TAB: Notes
+================================================================
+Lugar para sa iyong mga study notes, may folders at search.
+
+Paano gamitin:
+- Folders: gumawa ng folder (may pangalan at kulay) para i-grupo ang
+  mga notes — halimbawa, "Math", "Biology", "Reviewer".
+- New Note (+): maglagay ng title at content ng note.
+- Pumili ng folder kung saan ilalagay ang note, o iwanang walang
+  folder (lalabas sa "All Notes").
+- Pin: i-pin ang mga importanteng notes para nasa itaas sila lagi.
+- Search bar: maghanap ayon sa title o content ng note.
+- I-click ang isang note para i-edit; may delete button para burahin.
+- I-click ang isang folder sa gilid para sa mga notes ng folder na
+  iyon lang tingnan.
+
+
+
+================================================================
+6. FLASHCARDS  (/flashcards)   — TAB: Flashcards
+================================================================
+Para sa pagsasaulo — gumawa ng deck at mag-practice gamit ang
+study mode.
+
+Paano gamitin:
+- DECK: gumawa ng deck (title, description, at subject) — parang
+  isang set ng cards (halimbawa, "Bio Terms", "French Vocab").
+  Pwedeng burahin ang isang deck.
+- Sa loob ng isang deck, magdagdag ng CARDS: front (tanong/term) at
+  back (sagot/definition). Pwede ring i-edit o burahin ang bawat card.
+- Sa listahan ng cards, makikita ang tamang-sagot streak ng bawat
+  card (🔥), na tumataas kapag sunod-sunod mong nasasagot nang tama.
+
+STUDY MODE (pindutin ang "Study" sa isang deck):
+- I-tap ang card para i-FLIP at makita ang sagot (front → back).
+- I-rate kung alam mo ba: "Got It" (tama) o "Still Learning" (mali).
+- Gumagalaw sa susunod/naunang card gamit ang arrows.
+- May progress bar ng buong deck at live na session stats (ilan ang
+  tama at mali sa session na ito).
+- Sa dulo, makikita ang resulta/isang score ng session.
+- May per-card tracking pa rin: tumataas ang streak kapag tama,
+  nagre-reset kapag mali, at nag-a-update ang difficulty habang
+  nag-aaral ka.
+
+
+
+================================================================
+7. PLANNER  (/planner)   — TAB: Planner
+================================================================
+Ang sarili mong pang-araw-araw na pagpaplano — ang mga plano, task,
+study session, at events na ikaw mismo ang gagawa.
+
+IMPORTANTENG PAGKAKAIBA:
+- Classes / Schedule = ang fixed mong class timetable (kailan ang
+  klase).
+- Planner = ang sarili mong plano (kailan at ano ang gagawin mo,
+  sa paligid ng klase).
+
+Views (Week / Month / Day):
+- Pill buttons sa itaas para pumili ng view:
+    Week  = 7 araw na cards (Lunes hanggang Linggo)
+    Month = buong buwan na calendar grid
+    Day   = detalyadong listahan ng isang araw
+- Navigation (arrows < > at "Today"): pumunta sa nakaraan/susunod na
+  linggo, buwan, o araw. Ang "Today" ay bumabalik sa ngayon.
+
+Pagdaragdag ng ENTRY (Task / Study / Event / Personal):
+- Week view: i-click ang "+" sa isang day card.
+- Day view: i-click ang "+ Add Entry".
+- Month view: i-click ang isang araw → mapupunta sa Day view →
+  "+ Add Entry".
+- Form: Title (kinakailangan), start/end time, Type (Task, Study,
+  Event, o Personal — may kulay bawat isa), at color.
+
+Pamamahala ng entries:
+- Check icon: mark as complete (mawawala agad, may strikethrough).
+- I-click ang isang entry: i-edit ang detalye nito.
+- Trash icon: burahin ang entry (may confirmation dialog).
+
+CLASSES CONTEXT (hindi mo ito ina-edit dito):
+- Ipinapakita rin ng Planner ang iyong mga klase bilang reference
+  (galing sa iyong class schedule) — ito ay READ-ONLY.
+- Sa WEEK view: may maliliit na colored chips sa bawat araw para sa
+  mga klase mo sa araw na iyon.
+- Sa DAY view: may hiwalay na "Classes" section sa itaas (mula sa
+  "From your class schedule"), tapos ang "Your plans" section sa
+  ibaba para sa sarili mong entries.
+- Dahil dito, hindi mo kailangang magbukas pa ng /schedule para
+  makita kung kailan ka libre — makikita mo na agad kung saan ka
+  makakapag-plan.
+- Upang baguhin ang mga klase (oras, araw, subject), pumunta sa
+  Classes / Schedule — hindi sa Planner.
+
+TANDAAN:
+- Ang mga dated requirement mula sa Syllabus (section 8) ay
+  awtomatikong lumalabas din dito bilang mga task/entry.
+
+Buod ng workflow:
+    /schedule (Classes)  = kailan ang klase
+    /planner             = kailan at ano ang gagawin mo (sa paligid ng klase)
+
+
+
+================================================================
+8. SYLLABUS  (/syllabus)   — TAB: Syllabus
+================================================================
+Inorganisa dito ang lahat ng iyong academic requirements per
+subject — mula sa AI extraction ng iyong syllabus file.
+
+Paano gamitin:
+
+1. UPLOAD:
+   - Pindutin ang "Add Syllabus".
+   - Pumili ng file: PDF o image (JPG, JPEG, PNG, WebP, GIF),
+     maximum 20MB.
+   - Pindutin ang "Extract Syllabus" — a-analyze ng AI ang file.
+   - I-review ang "Review Extracted Syllabus" (course info at ang mga
+     requirements) bago i-save. Pwede mong i-edit o burahin ang mga
+     requirements dito, at i-on/off ang "Todo" checkbox bawat isa.
+
+2. LISTAHAN:
+   - Makikita ang isang CARD para sa bawat subject: pangalan ng course,
+     course code, instructor, bilang ng requirements, kung ilan ang
+     upcoming, at kung ilan ang tapos na.
+
+3. DETALYE (i-click ang isang card) :
+   - Ang buong listahan ng requirements (assignments, quizzes, exams,
+     projects, activities, presentations, atbp.).
+   - FILTER: All / Upcoming / Dated / Undated / Completed.
+   - EDIT (pencil) = baguhin ang requirement.
+   - DELETE (trash) = burahin ang isang requirement.
+   - ADD REQUIREMENT = magdagdag nang manu-mano ng bagong requirement.
+   - DELETE SYLLABUS = burahin ang buong subject at ang mga kaugnay
+     nitong task.
+
+4. AUTOMATION (Syllabus → To-Do List → Planner):
+   - Kapag naka-ON ang "Todo" (default ito), awtomatikong gumagawa
+     ang bawat requirement ng task sa iyong To-Do List (format:
+     "[Course] Requirement title"), na may due date kung may petsa.
+     (Ang exams at projects ay naka-high priority; ang iba ay medium;
+     category ay School.)
+   - Ang mga requirement na may petsa ay awtomatikong lumalabas din
+     sa Planner bilang task sa araw ng deadline.
+   - Kapag in-check mo ang task sa To-Do List, na-update din ang
+     status ng requirement sa Syllabus (Completed).
+   - Kaya ang syllabi ang magandang pinagmumulan ng iyong daily plan:
+     i-upload mo lang, at may laman na agad ang To-Do at Planner.
+
+
+
+================================================================
+9. GWA CALCULATOR  (/gwa)   — TAB: GWA Calculator
+================================================================
+Kalkulahin ang iyong GWA (General Weighted Average) batay sa units
+at grades ng iyong mga subjects.
+
+Paano gamitin:
+- Piliin ang GRADING SCALE (sa dropdown sa itaas):
+    - Philippine 1.00–5.00 — mas mababang numero = mas mataas na
+      grade (ang 1.00 ang pinakamataas, 5.00 ang bagsak).
+    - US 4.0 (A–F) — mas mataas = mas maganda (A+ = 4.0, F = 0).
+    - Numeric 4.0 — 4.0 ang pinakamataas hanggang 1.0.
+- Idagdag ang mga COURSE:
+    - Course name (pangalan ng subject)
+    - Units (bilang ng units)
+    - Grade (piliin ang marka). Ang INC, DRP, at FA ay walang grade
+      points, kaya hindi sila nakakaapekto sa computation.
+- "Add Course": magdagdag ng isa pang subject.
+- Trash icon: alisin ang isang course.
+- "Reset": i-clear ang lahat ng nilagay.
+
+Results (ipinapakita sa itaas ng listahan):
+- Semester GWA — ang GWA ng semester na ito:
+      GWA = (kabuuan ng units × grade points) ÷ kabuuang units
+- Cumulative GWA — ang running/updated GWA kapag isinama ang nakaraan.
+- Target GWA — ilagay ang gusto mong GWA; kung may nilagay ka ring
+  previous GWA, ipapakita ang "Needed GWA this sem" para maabot
+  ito (o sasabihin kung "Already achieved" o "Not possible").
+
+Cumulative GWA (para maipaliwanag nang malinaw):
+- Sa "Previous Semester (Optional)", ilagay ang iyong dating GWA at
+  ang kabuuang units na nakuha mo na sa nakaraang mga semesters.
+- Pagsasamahin sila ng app sa mga grades ngayong semester para makuha
+  ang bago mong running / updated GWA — ang pinagsamang luma at
+  bagong mga units at grade points.
+
+
+
+================================================================
+10. SETTINGS  (/settings)   — TAB: (avatar o account menu)
+================================================================
+Ang iyong account at app preferences. Naka-left-nav ito na may apat
+na section (pill buttons sa kaliwa).
+
+A) ACCOUNT
+   - Personal Information: i-edit ang iyong First name at Last name,
+     tapos i-save ("Save changes").
+   - Delete Account: burahin ang iyong account (kailangang i-type ang
+     iyong username para kumpirmahin). Mag-ingat — permanente ito.
+   - Ang iyong avatar, username, at email verification status ay
+     makikita sa PROFILE page — i-click ang iyong avatar sa header.
+
+B) SECURITY
+   - Change Password: baguhin ang iyong password (kailangan ang
+     kasalukuyang password; minimum 8 characters ang bago, at
+     kailangang magkapareho sa confirm password).
+
+C) THEME
+   - Piliin ang accent color ng buong app — gamitin ang mga
+     preset/swatch na may kulay.
+
+D) SUPPORT
+   - Help & Feedback: mag-ulat ng issue o magbahagi ng suggestions
+     (dadala sa /feedback).
+   - Support Schedly: kung gusto mong suportahan ang app (may GCash
+     number na pwedeng i-copy).
+
+Paano gamitin:
+- I-click ang isang section sa kaliwang nav para lumipat.
+- Sa bawat section, gawin ang iyong mga edits at i-save.
+
+
+
+================================================================
+QUICK REFERENCE (summary table)
+================================================================
+  TAB               ROUTE           ANO ANG GINAGAWA
+  ----------------  --------------  ----------------------------------------
+  Dashboard         /dashboard      Home overview: weather, klase ngayon,
+                                    free time, at ang buong schedule
+                                    timetable (may download/edit).
+  Classes           /schedule       Fixed class timetable — mula sa photo
+                                    upload (image) o manual na paglagay.
+                                    Pwede ang maraming saved schedules.
+  To-Do List        /todo           Daily tasks na may filter/priority/
+                                    category; linked sa Syllabus.
+  Pomodoro          /pomodoro       Focus timer (Focus Timer) + tree,
+                                    XP, level, at streak.
+  Notes             /notes          Study notes na may folders, pin, at
+                                    search.
+  Flashcards        /flashcards     Flashcards decks + study mode (flip,
+                                    correct/wrong, streaks).
+  Planner           /planner        Sarili mong plans/tasks/events
+                                    (Week/Month/Day), may read-only na
+                                    class context galing sa schedule.
+  Syllabus          /syllabus       Subject requirements/deadlines via AI
+                                    extraction (PDF o image); gumagawa ng
+                                    To-Do at Planner entries.
+  GWA Calculator    /gwa            Compute semester at cumulative GWA;
+                                    may target GWA calculator.
+  Settings          /settings       Account, Security, Theme, Support.
+
+
+
+================================================================
+KARANIWANG MGA TIP
+================================================================
+- Mag-set up muna ng schedule sa Classes (/schedule). Kapag wala
+  nito, walang laman ang Today's Classes, Free Time, at ang class
+  context ng Planner.
+- CLASSES vs PLANNER: ang /schedule ay para sa fixed na klase;
+  /planner ay para sa sarili mong plano. Nakikita mo rin ang mga
+  klase sa Planner bilang reference, pero hindi ito ine-edit doon.
+- SYLLABUS vs TO-DO LIST: ang /syllabus ay ang mga academic
+  requirements ng bawat subject; ang /todo ay ang mga aktwal mong
+  tasks. Kapag may na-upload na syllabus, awtomatikong gumagawa
+  ito ng tasks sa To-Do (at entries sa Planner). Makakatipid ka ng
+  oras kung dito mo simulan ang pag-organize.
+- POMODORO vs PLANNER: ang /pomodoro ay ang focus timer at session
+  tracker; ang /planner ay ang pag-iiskedyul ng iyong mga gagawin.
+  Magkasama silang mahusay: mag-plan sa Planner, tapos i-focus ito
+  sa Pomodoro at kumita ng XP.
+- Kung hindi lumalabas ang iyong tree, XP, o streak, siguraduhing
+  naka-log-in ka — ang stats na ito ay naka-save sa iyong account.
+- Para sa class reminders at push notifications, i-enable ang
+  notification permission at i-check ang Notifications page
+  (bell icon) para i-on/off ang mga reminder per class.
+================================================================
+(end of guide)
+================================================================

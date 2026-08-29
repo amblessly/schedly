@@ -30,6 +30,12 @@ export async function proxy(request: NextRequest) {
   const sessionCookie = getSessionCookie(request);
 
   if (!sessionCookie && !isPublic && !isVerification) {
+    if (pathname.startsWith("/api/")) {
+      return new NextResponse(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

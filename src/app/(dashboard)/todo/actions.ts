@@ -36,7 +36,9 @@ export async function addTodoAction(
   text: string,
   priority: string,
   dueDate?: string,
-  category?: string
+  category?: string,
+  syllabusId?: string,
+  syllabusRequirementId?: string
 ): Promise<AddTodoResult> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return { success: false, error: "Unauthorized" };
@@ -56,6 +58,8 @@ export async function addTodoAction(
         priority,
         dueDate: dueDate || undefined,
         category: cat,
+        syllabusId: syllabusId || undefined,
+        syllabusRequirementId: syllabusRequirementId || undefined,
       },
     });
     return { success: true };
@@ -72,10 +76,20 @@ export async function toggleTodoAction(todoId: string): Promise<{ success: boole
   try {
     const todo = await db.todo.findFirst({ where: { id: todoId, userId: session.user.id } });
     if (!todo) return { success: false };
+    const newCompleted = !todo.completed;
     await db.todo.update({
       where: { id: todoId },
-      data: { completed: !todo.completed, completedAt: !todo.completed ? new Date() : null },
+      data: { completed: newCompleted, completedAt: newCompleted ? new Date() : null },
     });
+
+    // Sync back to syllabus requirement if linked
+    if (todo.syllabusRequirementId) {
+      await db.syllabusRequirement.update({
+        where: { id: todo.syllabusRequirementId },
+        data: { status: newCompleted ? "completed" : "pending" },
+      });
+    }
+
     return { success: true };
   } catch (err) {
     console.error("[TOGGLE_TODO]", err);
@@ -109,6 +123,21 @@ export async function editTodoAction(
       where: { id: todoId },
       data: { text: clean, priority, dueDate: dueDate || null, ...(cat ? { category: cat } : {}) },
     });
+
+    // Sync back to syllabus requirement if linked
+    if (existing.syllabusRequirementId) {
+      const updateData: Record<string, unknown> = {};
+      if (dueDate !== undefined) {
+        updateData.dueDate = DUE_DATE_RE.test(dueDate || "") ? dueDate : null;
+      }
+      if (Object.keys(updateData).length > 0) {
+        await db.syllabusRequirement.update({
+          where: { id: existing.syllabusRequirementId },
+          data: updateData,
+        });
+      }
+    }
+
     return { success: true };
   } catch (err) {
     console.error("[EDIT_TODO]", err);
@@ -145,4 +174,24 @@ export async function clearCompletedAction(): Promise<{ success: boolean }> {
     console.error("[CLEAR_TODOS]", err);
     return { success: false };
   }
+}
+
+export async function getTodosBySyllabus(syllabusId: string) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return [];
+
+  return db.todo.findMany({
+    where: { userId: session.user.id, syllabusId },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function getTodosByRequirement(requirementId: string) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return [];
+
+  return db.todo.findMany({
+    where: { userId: session.user.id, syllabusRequirementId: requirementId },
+    orderBy: { createdAt: "desc" },
+  });
 }

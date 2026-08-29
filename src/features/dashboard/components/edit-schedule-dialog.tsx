@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { updateClasses, type ClassEditInput } from "@/app/(dashboard)/schedule/actions";
+import { updateClasses, type ClassEditInput } from "@/app/(dashboard)/classes/actions";
 import type { ClassData } from "@/features/dashboard/lib/types";
 
 type Props = {

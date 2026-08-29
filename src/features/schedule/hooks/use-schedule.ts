@@ -1,6 +1,6 @@
 "use client";
 
-export function useSchedule(_id?: string) {
+export function useSchedule() {
   return {
     schedule: null,
     isLoading: true,

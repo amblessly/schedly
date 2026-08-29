@@ -11,12 +11,13 @@ export interface NavItem {
 export interface NavGroup {
   title: string;
   items: NavItem[];
+  adminOnly?: boolean;
 }
 
 /** Primary destinations — shown in the Bottom Navigation (mobile). */
 export const primaryNav: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: "layout-dashboard", primary: true },
-  { label: "Calendar", href: "/schedule", icon: "calendar", primary: true },
+  { label: "Classes", href: "/classes", icon: "calendar", primary: true },
   { label: "To-Do List", href: "/todo", icon: "check-square", primary: true },
   { label: "Pomodoro", href: "/pomodoro", icon: "timer", primary: true },
 ];
@@ -38,7 +39,16 @@ export const navGroups: NavGroup[] = [
       { label: "Notes", href: "/notes", icon: "sticky-note" },
       { label: "Flashcards", href: "/flashcards", icon: "brain" },
       { label: "Planner", href: "/planner", icon: "calendar-check" },
+      { label: "Syllabus", href: "/syllabus", icon: "book-open" },
       { label: "GWA Calculator", href: "/gwa", icon: "graduation-cap" },
+    ],
+  },
+  {
+    title: "Admin",
+    adminOnly: true,
+    items: [
+      { label: "Admin Dashboard", href: "/admin", icon: "shield", adminOnly: true },
+      { label: "Service Limits", href: "/admin/limits", icon: "gauge", adminOnly: true },
     ],
   },
 ];

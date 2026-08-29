@@ -221,14 +221,14 @@ async function deliverPushToUser(
   if (subs.length > 0 && isVapidConfigured()) {
     await Promise.all(
       subs.map(async (sub) => {
-        const result = await sendPush(sub, { title, body, url: "/schedule" });
+        const result = await sendPush(sub, { title, body, url: "/classes" });
         if (result.stale) stale.push(sub.endpoint);
       })
     );
     return stale;
   }
   if (isFcmConfigured()) {
-    await sendFCMPush({ userId, title, body, url: "/schedule" });
+    await sendFCMPush({ userId, title, body, url: "/classes" });
   }
   return stale;
 }

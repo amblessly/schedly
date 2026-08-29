@@ -39,7 +39,6 @@ export interface QualityAnalysis {
 }
 
 export async function analyzeImageQuality(input: Buffer): Promise<QualityAnalysis> {
- const meta = await sharp(input).metadata();
  const stats = await sharp(input).stats();
 
  const channels = stats.channels;
@@ -245,7 +244,6 @@ async function stepPerspectiveCorrection(input: Buffer): Promise<Buffer> {
   }
 
   // Cleanup intermediate mats
-  kernel;
   (kernel as { delete(): void }).delete?.();
   dilated.delete();
   edges.delete();

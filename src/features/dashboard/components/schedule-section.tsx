@@ -89,7 +89,7 @@ export function ScheduleSection({
             Upload a photo of your class schedule and your timetable will appear here
             automatically.
           </p>
-          <Button className="mt-5" onClick={() => (window.location.href = "/schedule")}>
+          <Button className="mt-5" onClick={() => (window.location.href = "/classes")}>
             Upload Schedule
           </Button>
         </div>

@@ -110,7 +110,15 @@ export async function listenForForegroundMessages(): Promise<void> {
     const config = getFcmConfig();
     if (!config.apiKey) return;
     if (getApps().length === 0) initializeApp(config);
-    const messaging = getMessaging(getApps()[0]!);
+
+    let messaging;
+    try {
+      messaging = getMessaging(getApps()[0]!);
+    } catch {
+      // messaging/unsupported-browser: isSupported() passed but getMessaging() still
+      // throws on some browsers (iOS Safari, embedded WebViews, etc.).
+      return;
+    }
 
     onMessage(messaging, (payload) => {
       const data = payload.data || {};
@@ -187,7 +195,16 @@ export async function subscribeToPush(): Promise<PushResult> {
     }
     if (getApps().length === 0) initializeApp(config);
     const app = getApps()[0]!;
-    const messaging = getMessaging(app);
+
+    let messaging;
+    try {
+      messaging = getMessaging(app);
+    } catch {
+      return {
+        ok: false,
+        reason: "Push alerts aren't supported on this browser/device. Use Chrome on Android or install the PWA.",
+      };
+    }
 
     const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
     if (!vapidKey) {

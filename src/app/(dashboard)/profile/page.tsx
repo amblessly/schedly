@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { Check, Save } from "lucide-react";
+import Image from "next/image";
+import { useState, useEffect, useRef } from "react";
+import { Check, Save, Flame, Brain, Timer, Layers } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { authClient } from "@/lib/auth-client";
 import { uploadAvatar } from "@/app/(dashboard)/settings/actions";
+import { getGamificationProfile } from "@/app/(dashboard)/pomodoro/gamification-actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Skeleton as BoneSkeleton } from "boneyard-js/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,6 +49,21 @@ export default function ProfilePage() {
   const [savingUsername, setSavingUsername] = useState(false);
   const [usernameSaved, setUsernameSaved] = useState(false);
   const [usernameError, setUsernameError] = useState("");
+
+  // Gamification profile
+  const [gamification, setGamification] = useState<{
+    xp: number;
+    level: number;
+    currentStreak: number;
+    longestStreak: number;
+    totalFocusMinutes: number;
+  } | null>(null);
+
+  useEffect(() => {
+    getGamificationProfile().then((p) => {
+      if (p) setGamification(p);
+    });
+  }, []);
 
   async function handleSaveUsername() {
     const value = username.trim().replace(/^@/, "");
@@ -93,9 +110,23 @@ export default function ProfilePage() {
   const avatarUrl = imgError ? null : resolvedAvatar;
 
   // Reset the error flag when the user uploads/previews a new photo.
-  useEffect(() => {
-    if (pendingUrl) setImgError(false);
-  }, [pendingUrl]);
+  // Done during render (React's documented "adjust state when props change"
+  // pattern) instead of in an effect.
+  const [lastResetPreview, setLastResetPreview] = useState<string | null>(pendingUrl);
+  if (pendingUrl && pendingUrl !== lastResetPreview) {
+    setLastResetPreview(pendingUrl);
+    setImgError(false);
+  }
+
+  // Determine if the avatar is a remote URL that next/image can optimize.
+  // Vercel Blob URLs and absolute https URLs are supported.
+  // data: URLs, blob: URLs, and local upload API URLs must use <img> directly.
+  const isRemoteAvatar =
+    avatarUrl &&
+    avatarUrl.startsWith("https") &&
+    !avatarUrl.startsWith("data:") &&
+    !avatarUrl.startsWith("blob:") &&
+    !avatarUrl.includes("/api/upload/");
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -129,22 +160,58 @@ export default function ProfilePage() {
         loading={isLoading}
         fallback={
           <>
-            <div className="flex flex-col items-center gap-4">
-              <Skeleton className="h-20 w-20 rounded-full" />
-              <Skeleton className="h-6 w-40" />
-              <Skeleton className="h-4 w-56" />
+            <div className="mb-6 flex flex-wrap items-start justify-between gap-3 sm:mb-8">
+              <div className="flex items-start gap-3">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <div>
+                  <Skeleton className="h-7 w-32" />
+                  <Skeleton className="h-4 w-48 mt-1.5" />
+                </div>
+              </div>
+              <Skeleton className="h-8 w-8 rounded-full" />
             </div>
             <Card className="mt-6 border-border/50">
+              <CardContent className="pt-6">
+                <div className="flex flex-col items-center gap-4 sm:flex-row">
+                  <Skeleton className="h-20 w-20 rounded-full shrink-0" />
+                  <div className="flex min-w-0 flex-1 flex-col items-center gap-2 sm:items-start">
+                    <Skeleton className="h-6 w-40" />
+                    <Skeleton className="h-4 w-32" />
+                    <div className="flex gap-2 pt-1">
+                      <Skeleton className="h-8 w-20 rounded-lg" />
+                      <Skeleton className="h-8 w-20 rounded-lg" />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="mt-4 border-border/50">
               <CardHeader>
                 <Skeleton className="h-5 w-32" />
               </CardHeader>
               <CardContent className="space-y-3">
-                {[1, 2, 3, 4, 5].map((i) => (
+                {[1, 2, 3, 4].map((i) => (
                   <div key={i} className="flex items-center justify-between py-2 border-b border-border/40">
                     <Skeleton className="h-4 w-24" />
                     <Skeleton className="h-4 w-28" />
                   </div>
                 ))}
+              </CardContent>
+            </Card>
+            <Card className="mt-4 border-border/50">
+              <CardHeader>
+                <Skeleton className="h-5 w-32" />
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-7 w-24" />
+                  <Skeleton className="h-7 w-20" />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <Skeleton className="h-20 w-full rounded-lg" />
+                  <Skeleton className="h-20 w-full rounded-lg" />
+                  <Skeleton className="h-20 w-full rounded-lg" />
+                </div>
               </CardContent>
             </Card>
           </>
@@ -171,7 +238,16 @@ export default function ProfilePage() {
             <div className="flex flex-col items-center gap-4 sm:flex-row">
               <Dialog open={viewOpen} onOpenChange={setViewOpen}>
                 <DialogTrigger className="group relative shrink-0 cursor-pointer">
-                  {avatarUrl ? (
+                  {avatarUrl ? isRemoteAvatar ? (
+                    <Image
+                      src={avatarUrl}
+                      alt={displayName}
+                      width={80}
+                      height={80}
+                      className="h-20 w-20 rounded-full object-cover ring-2 ring-border/40 transition-shadow group-hover:ring-primary/40"
+                    />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={avatarUrl}
                       alt={displayName}
@@ -195,7 +271,14 @@ export default function ProfilePage() {
                     <DialogTitle>{displayName}</DialogTitle>
                   </DialogHeader>
                   <div className="flex items-center justify-center p-4">
-                    {avatarUrl ? (
+                    {avatarUrl ? isRemoteAvatar ? (
+                      <Image
+                        src={avatarUrl}
+                        alt={displayName}
+                        className="max-h-[70vh] max-w-full rounded-xl object-contain"
+                      />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={avatarUrl} alt={displayName} onError={() => setImgError(true)} className="max-h-[70vh] max-w-full rounded-xl object-contain" />
                     ) : (
                       <div className="flex h-40 w-40 items-center justify-center rounded-full bg-primary/10 text-5xl font-semibold text-primary">
@@ -259,6 +342,47 @@ export default function ProfilePage() {
             </div>
           </CardContent>
         </Card>
+
+        {gamification && (
+          <Card className="border-border/50">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Layers className="h-4 w-4 text-primary" />
+                Your Progress
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-2xl font-bold text-foreground">{gamification.xp}</span>
+                  <span className="text-sm text-muted-foreground ml-1">XP</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-muted-foreground">Level</span>
+                  <span className="text-2xl font-bold text-primary">{gamification.level}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div className="flex flex-col items-center rounded-lg bg-muted/50 py-3 px-2">
+                  <Flame className="h-5 w-5 text-orange-500 mb-1" />
+                  <span className="text-lg font-bold text-foreground">{gamification.currentStreak}</span>
+                  <span className="text-[10px] text-muted-foreground">Day Streak</span>
+                </div>
+                <div className="flex flex-col items-center rounded-lg bg-muted/50 py-3 px-2">
+                  <Flame className="h-5 w-5 text-red-500 mb-1" />
+                  <span className="text-lg font-bold text-foreground">{gamification.longestStreak}</span>
+                  <span className="text-[10px] text-muted-foreground">Longest</span>
+                </div>
+                <div className="flex flex-col items-center rounded-lg bg-muted/50 py-3 px-2">
+                  <Timer className="h-5 w-5 text-green-500 mb-1" />
+                  <span className="text-lg font-bold text-foreground">{Math.floor(gamification.totalFocusMinutes / 60)}h</span>
+                  <span className="text-[10px] text-muted-foreground">Focused</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="border-border/50">
           <CardHeader>

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@/server/lib/auth";
 import { uploadRepository } from "@/server/repositories/upload.repository";
+import { friendlyError } from "@/server/lib/friendly-error";
 
 export async function GET(
   request: NextRequest,
@@ -33,7 +34,7 @@ export async function GET(
       upload = await uploadRepository.updateStatus(
         upload.id,
         "failed",
-        "Processing timed out. Please try again."
+        friendlyError("Processing timed out", "schedule")
       );
     }
   }
@@ -42,7 +43,7 @@ export async function GET(
     uploadId: upload.id,
     status: upload.status,
     fileUrl: upload.fileUrl,
-    errorMessage: upload.errorMessage,
+    errorMessage: upload.status === "failed" ? friendlyError(upload.errorMessage, "schedule") : undefined,
     classes: (upload.aiResult as Record<string, unknown> | null)?.classes ?? [],
     metadata: (upload.aiResult as Record<string, unknown> | null)?.metadata ?? {
       totalClasses: 0,

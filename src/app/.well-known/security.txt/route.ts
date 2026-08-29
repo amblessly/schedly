@@ -1,8 +1,8 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 export const runtime = "edge";
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const contact = process.env.SECURITY_CONTACT || "https://github.com/sairwhat/project-schedly/security/advisories/new";
   const text = [
     "Contact: " + contact,

@@ -254,6 +254,16 @@ body {
   50% { transform: translateY(-4px); opacity: 1; }
 }
 
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(0.6); opacity: 0.3; }
+  50% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes indeterminate-bar {
+  0% { left: -33%; }
+  100% { left: 100%; }
+}
+
 @layer utilities {
   .animate-shimmer {
     animation: shimmer 1.5s ease-in-out infinite;

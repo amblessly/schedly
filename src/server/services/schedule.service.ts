@@ -1,6 +1,5 @@
 import { scheduleRepository } from "@/server/repositories/schedule.repository";
-import { classRepository, type CreateClassData } from "@/server/repositories/class.repository";
-import { uploadRepository } from "@/server/repositories/upload.repository";
+import { type CreateClassData } from "@/server/repositories/class.repository";
 import { db } from "@/server/db/client";
 import { generateShortName } from "@/lib/abbreviations";
 import type { DayOfWeek } from "@/generated/prisma/client";

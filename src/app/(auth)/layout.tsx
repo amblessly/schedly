@@ -1,3 +1,6 @@
+"use client";
+
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -11,7 +14,7 @@ export default function AuthLayout({
       <div className="relative z-10 flex min-h-screen">
         <div className="hidden lg:flex lg:w-1/2 lg:flex-col lg:items-end lg:justify-between lg:pl-12 lg:pr-6 text-neutral-900">
           <Link href="/" className="flex items-center gap-3 lg:w-full lg:max-w-md lg:mt-8">
-            <img src="/images/logo.jpg" alt="" aria-hidden className="h-10 w-10 rounded-xl object-cover" />
+            <Image src="/images/logo.jpg" alt="" aria-hidden width={40} height={40} className="h-10 w-10 rounded-xl object-cover" />
             <span className="text-2xl font-bold tracking-tight">Schedly</span>
           </Link>
           <div className="space-y-6 lg:my-auto lg:w-full lg:max-w-md">

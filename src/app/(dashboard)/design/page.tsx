@@ -27,7 +27,7 @@ export default function DesignPage() {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
         <p className="text-sm text-muted-foreground">Nothing to design yet.</p>
-        <Button onClick={() => router.push("/schedule")}>Go to Schedule</Button>
+        <Button onClick={() => router.push("/classes")}>Go to Classes</Button>
       </div>
     );
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { ExtractedClass } from "@/features/upload/hooks/use-upload";
 import { PALETTE } from "@/features/upload/lib/palette";
@@ -637,6 +638,7 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
           style={bgDims && bgSize ? { width: `${bgSize.w}px`, height: `${bgSize.h}px` } : undefined}
         >
           {backgroundUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={backgroundUrl}
               alt="Schedule design background"
@@ -941,6 +943,7 @@ export function ScheduleDesignEditor({ classes, imageUrl, onClose }: Props) {
                 {/* Current background preview — shows the whole image */}
                 {(backgroundUrl || imageUrl) && (
                   <div className="relative h-24 w-full shrink-0 overflow-hidden rounded-lg border border-border/50 bg-muted/40 md:h-32">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={backgroundUrl || imageUrl!}
                       alt="Current background"

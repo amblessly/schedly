@@ -22,6 +22,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { friendlyError } from "@/server/lib/friendly-error";
 import {
   PlusIcon,
   TrashIcon,
@@ -29,6 +30,9 @@ import {
   ArrowLeftIcon,
   BookOpenIcon,
   MoreVerticalIcon,
+  MessageSquareIcon,
+  CheckCircleIcon,
+  FlameIcon,
 } from "lucide-react";
 
 type CardType = {
@@ -85,7 +89,14 @@ export default function DeckDetailPage({
   }, [deckId]);
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    void (async () => {
+      if (cancelled) return;
+      await load();
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
   function openAddCard() {
@@ -114,7 +125,7 @@ export default function DeckDetailPage({
         setShowAddCard(false);
         load();
       } else {
-        toast.error(result.error);
+        toast.error(friendlyError(result.error, "flashcard"));
       }
     } else {
       const result = await addCard(deckId, front, back);
@@ -125,7 +136,7 @@ export default function DeckDetailPage({
         setBack("");
         load();
       } else {
-        toast.error(result.error);
+        toast.error(friendlyError(result.error, "flashcard"));
       }
     }
   }
@@ -161,7 +172,7 @@ export default function DeckDetailPage({
       setShowEditDeck(false);
       load();
     } else {
-      toast.error(result.error);
+      toast.error(friendlyError(result.error, "save"));
     }
   }
 
@@ -270,40 +281,57 @@ export default function DeckDetailPage({
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-2">
-          {deck.cards.map((card) => (
-            <Card key={card.id} className="group">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex-1 min-w-0 grid grid-cols-2 gap-4">
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground mb-0.5">Front</p>
-                    <p className="text-sm font-medium truncate">{card.front}</p>
+        <div className="space-y-3">
+          {deck.cards.map((card, index) => (
+            <Card key={card.id} className="group transition-colors hover:border-primary/30">
+              <CardContent className="p-5">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary text-sm font-semibold">
+                    {index + 1}
                   </div>
-                  <div className="min-w-0 border-l pl-4">
-                    <p className="text-xs text-muted-foreground mb-0.5">Back</p>
-                    <p className="text-sm truncate">{card.back}</p>
+
+                  <div className="flex-1 min-w-0 space-y-3">
+                    <div className="flex items-start gap-2.5">
+                      <MessageSquareIcon className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                      <p className="text-sm font-medium leading-relaxed text-foreground">
+                        {card.front}
+                      </p>
+                    </div>
+
+                    <div className="flex items-start gap-2.5 pl-0 border-l-2 border-primary/30 pl-3">
+                      <CheckCircleIcon className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        {card.back}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {card.streak > 0 && (
-                    <span className="text-xs text-muted-foreground mr-2">
-                      🔥 {card.streak}
-                    </span>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => openEditCard(card)}
-                  >
-                    <EditIcon className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setDeleteCardId(card.id)}
-                  >
-                    <TrashIcon className="h-3.5 w-3.5 text-destructive" />
-                  </Button>
+
+                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                    {card.streak > 0 && (
+                      <span className="flex items-center gap-1 text-xs font-medium text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-full">
+                        <FlameIcon className="h-3 w-3" />
+                        {card.streak}
+                      </span>
+                    )}
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => openEditCard(card)}
+                        title="Edit"
+                      >
+                        <EditIcon className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => setDeleteCardId(card.id)}
+                        title="Delete"
+                      >
+                        <TrashIcon className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

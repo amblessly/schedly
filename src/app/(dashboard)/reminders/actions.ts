@@ -11,7 +11,11 @@ import { dispatchTodoDeadlines } from "@/server/services/todo-deadline-reminder.
 export async function getUserReminders() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return [];
-  return reminderService.getByUser(session.user.id);
+  try {
+    return await reminderService.getByUser(session.user.id);
+  } catch {
+    return [];
+  }
 }
 
 /** Re-schedule exact-time QStash reminders for the signed-in user. Called

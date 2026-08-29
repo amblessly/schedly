@@ -82,6 +82,29 @@ export const auth = betterAuth({
           requireEmailVerification: true,
         }
       : {}),
+    sendResetPassword: async ({ user, token }) => {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const resetUrl = `${appUrl}/reset-password?token=${token}`;
+      await sendEmail({
+        to: user.email,
+        subject: "Reset your Schedly password",
+        html: `
+          <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+            <h2 style="margin-bottom: 16px;">Reset your password</h2>
+            <p style="margin-bottom: 24px; color: #555;">
+              Hi ${user.name || "there"},<br/><br/>
+              We received a request to reset your password. Click below to set a new one:
+            </p>
+            <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: #6366f1; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
+              Reset Password
+            </a>
+            <p style="margin-top: 24px; color: #999; font-size: 13px;">
+              If you didn't request this, you can safely ignore this email. Link expires in 1 hour.
+            </p>
+          </div>
+        `,
+      });
+    },
     password: {
       hash: async (password) => {
         const bcrypt = await import("bcryptjs");

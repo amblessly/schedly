@@ -190,7 +190,7 @@ export default function AdminLimitsPage() {
         if (!cancelled) setLoading(false);
       }
     })();
-    const interval = setInterval(() => void load(true), 30_000);
+    const interval = setInterval(() => void load(true), 300_000);
     return () => {
       cancelled = true;
       clearInterval(interval);
@@ -210,7 +210,7 @@ export default function AdminLimitsPage() {
       <div>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-start gap-3">
-            <HeaderBack to="/settings?tab=support" />
+            <HeaderBack to="/admin" />
             <div>
               <h1 className="text-xl font-bold text-foreground">Service Limits</h1>
               <p className="mt-1 text-sm text-muted-foreground">

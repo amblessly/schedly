@@ -27,8 +27,9 @@ for (let i = 0; i < 2; i++) {
       webpush: { headers: { Urgency: "high" } },
     });
     console.log(`SENT [${i + 1}] →`, res, "| marker:", marker);
-  } catch (e: any) {
-    console.log(`[${i + 1}] FAILED →`, e.code || e.message);
+  } catch (e: unknown) {
+    const err = e as { code?: string; message?: string };
+    console.log(`[${i + 1}] FAILED →`, err.code || err.message);
   }
   await new Promise((r) => setTimeout(r, 500));
 }

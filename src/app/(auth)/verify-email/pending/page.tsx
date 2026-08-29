@@ -74,7 +74,7 @@ function PendingContent() {
       } catch {
         // keep polling
       }
-    }, 3000);
+    }, 8000);
 
     return () => {
       clearInterval(pollRef.current);

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
@@ -7,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { navGroups, type NavItem } from "@/config/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { ThemePicker } from "@/components/theme-picker";
+import { SidebarGamification } from "@/components/sidebar-gamification";
 import {
   Calendar,
   ArrowUp,
@@ -26,6 +28,14 @@ import {
   User,
   Settings,
   LogOut,
+  BookOpen,
+  Brain,
+  CalendarCheck,
+  Zap,
+  Flame,
+  TreePine,
+  Shield,
+  Gauge,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -45,6 +55,14 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   info: Info,
   user: User,
   settings: Settings,
+  "book-open": BookOpen,
+  brain: Brain,
+  "calendar-check": CalendarCheck,
+  zap: Zap,
+  flame: Flame,
+  "tree-pine": TreePine,
+  shield: Shield,
+  gauge: Gauge,
 };
 
 function NavItemLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
@@ -113,16 +131,18 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   const isSettings = pathname === "/settings";
 
   // On mobile the primary destinations live in the Bottom Navigation,
-  // so the drawer only shows secondary tools/account items.
+  // so the drawer only shows secondary tools/account items + admin (for admins).
   const visibleGroups = isDesktop
     ? navGroups
-    : navGroups.filter((g) => g.title !== "Main");
+    : navGroups.filter(
+        (g) => g.title === "Tools" || (g.adminOnly && u?.isAdmin)
+      );
 
   return (
     <aside className="flex h-full w-full flex-col overflow-hidden rounded-3xl bg-sidebar/95 shadow-[0_8px_40px_rgba(0,0,0,0.12)]">
       {/* Brand */}
       <div className="flex h-16 items-center gap-2.5 px-5">
-        <img src="/images/logo.jpg" alt="" aria-hidden className="h-9 w-9 shrink-0 rounded-xl object-cover" />
+        <Image src="/images/logo.jpg" alt="" aria-hidden width={36} height={36} className="h-9 w-9 shrink-0 rounded-xl object-cover" />
         <span className="text-lg font-bold tracking-tight text-sidebar-foreground">
           Schedly
         </span>
@@ -141,9 +161,11 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         {visibleGroups.map((group) => (
           <div key={group.title} className="mb-4">
-            <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
-              {group.title}
-            </p>
+            {(group.adminOnly ? u?.isAdmin : true) && (
+              <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
+                {group.title}
+              </p>
+            )}
             <div className="space-y-0.5">
               {group.items
                 .filter((item) => !item.adminOnly || u?.isAdmin)
@@ -157,6 +179,11 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
 
       {/* Theme Picker */}
       <ThemePicker />
+
+      {/* Progress */}
+      <div className="px-3">
+        <SidebarGamification />
+      </div>
 
       {/* User */}
       <div className="px-4 pb-4 space-y-1.5">

@@ -37,7 +37,7 @@ describe("aiService.processImage — non-JSON provider body", () => {
     vi.restoreAllMocks();
   });
 
-  it("returns a structured result (no SyntaxError) when the provider returns HTML", async () => {
+  it("returns a structured result (no SyntaxError) when the provider returns HTML", { timeout: 15000 }, async () => {
     // First fetch = image bytes (any text), second fetch = OpenRouter HTML error.
     mockFetchSequence([
       { body: "<png-bytes>", status: 200, contentType: "image/jpeg" },

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import type { ExtractedClass } from "@/features/upload/hooks/use-upload";
 import type { ValidationIssue } from "@/server/services/validation.service";
-import { saveSchedule, type SaveScheduleResult } from "@/app/(dashboard)/schedule/actions";
+import { saveSchedule, type SaveScheduleResult } from "@/app/(dashboard)/classes/actions";
 import { generateShortName } from "@/lib/abbreviations";
 import { saveDesignState } from "@/features/upload/lib/design-state";
 import { PALETTE } from "@/features/upload/lib/palette";

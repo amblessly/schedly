@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
+import { getUserSchedules } from "@/app/(dashboard)/classes/actions";
 import {
   getUserNotifications,
   markNotificationRead,
@@ -147,7 +147,7 @@ function typeLabel(n: { type: Notification["type"]; title: string }): string {
   return n.type.replace("_", " ");
 }
 
-/** Small pill switch — the app doesn't have a Switch component. */
+/** Small pill switch ΓÇö the app doesn't have a Switch component. */
 function Toggle({
   checked,
   onChange,
@@ -183,8 +183,8 @@ function Toggle({
 function buildPushHelpSteps(code: PushErrorCode): string[] {
   if (isIosPwa()) {
     return [
-      "Make sure Schedly was installed from your Home Screen — push alerts don't work in Safari tabs.",
-      "Open iOS Settings → Schedly → Notifications and allow alerts.",
+      "Make sure Schedly was installed from your Home Screen ΓÇö push alerts don't work in Safari tabs.",
+      "Open iOS Settings ΓåÆ Schedly ΓåÆ Notifications and allow alerts.",
       "Come back to the app, refresh the page, and turn the toggle on again.",
     ];
   }
@@ -196,7 +196,7 @@ function buildPushHelpSteps(code: PushErrorCode): string[] {
   }
   return [
     "Refresh the page, then try the toggle again.",
-    "On Android, use the Chrome app — in-app browsers (like Facebook or Messenger) block push alerts.",
+    "On Android, use the Chrome app ΓÇö in-app browsers (like Facebook or Messenger) block push alerts.",
     "Make sure you're online with a stable connection, then try again.",
     "If it still fails, check your browser settings and confirm notifications for Schedly aren't blocked.",
   ];
@@ -293,7 +293,7 @@ export function NotificationsPage() {
     };
   }, []);
 
-  // Restore push subscription state — defaults to OFF unless this device is
+  // Restore push subscription state ΓÇö defaults to OFF unless this device is
   // actually subscribed through the current VAPID key.
   useEffect(() => {
     if (!isPushSupported()) return;
@@ -468,7 +468,7 @@ export function NotificationsPage() {
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {unreadCount > 0
-                ? `${unreadCount} unread — stay on top of your schedule.`
+                ? `${unreadCount} unread ΓÇö stay on top of your schedule.`
                 : "You're all caught up."}
             </p>
           </div>
@@ -577,11 +577,11 @@ export function NotificationsPage() {
               </p>
               <p className="mt-1 max-w-xs text-xs text-muted-foreground">
                 {filter === "unread"
-                  ? "Nice — you've read everything."
+                  ? "Nice ΓÇö you've read everything."
                   : "Upload a schedule photo and you'll see its updates here."}
               </p>
               {filter !== "unread" && (
-                <Button className="mt-5" onClick={() => router.push("/schedule")}>
+                <Button className="mt-5" onClick={() => router.push("/classes")}>
                   <Camera className="mr-1.5 h-4 w-4" />
                   Upload Schedule
                 </Button>
@@ -624,7 +624,7 @@ export function NotificationsPage() {
                         {notification.body}
                       </p>
                     </div>
-                    {/* Actions — visible on touch, hover-revealed on desktop */}
+                    {/* Actions ΓÇö visible on touch, hover-revealed on desktop */}
                     <div className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                       {unread ? (
                         <Button
@@ -696,7 +696,7 @@ export function NotificationsPage() {
                 </p>
                 {!pushEnabled && !isPushSupported() && (
                   <p className="mt-1 text-[11px] text-destructive">
-                    {pushUnsupportedReasons().join(" · ")}
+                    {pushUnsupportedReasons().join(" ┬╖ ")}
                   </p>
                 )}
               </div>
@@ -720,7 +720,7 @@ export function NotificationsPage() {
             <p className="flex items-start gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-600 dark:text-amber-500">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               {isIosPwa()
-                ? "Notifications are blocked in iOS Settings. Go to Settings → Schedly → Notifications and allow them, then toggle this back on."
+                ? "Notifications are blocked in iOS Settings. Go to Settings ΓåÆ Schedly ΓåÆ Notifications and allow them, then toggle this back on."
                 : "Notifications are blocked in your browser or device settings. Allow Schedly to send notifications there, then toggle this back on."}
             </p>
           )}
@@ -780,7 +780,7 @@ export function NotificationsPage() {
                 Upload a photo of your class schedule and we&rsquo;ll automatically
                 create a reminder for each class.
               </p>
-              <Button className="mt-5" onClick={() => router.push("/schedule")}>
+              <Button className="mt-5" onClick={() => router.push("/classes")}>
                 <Camera className="mr-1.5 h-4 w-4" />
                 Upload Schedule
               </Button>
@@ -864,7 +864,7 @@ export function NotificationsPage() {
               {pushEnabled && (
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Info className="h-3.5 w-3.5 shrink-0" />
-                  Reminders fire exactly on your class times — even when the app
+                  Reminders fire exactly on your class times ΓÇö even when the app
                   is closed.
                 </p>
               )}
@@ -971,7 +971,7 @@ function NotificationDetail({
           </Button>
         </div>
 
-        {/* Message body — centered tall floating card reading pane */}
+        {/* Message body ΓÇö centered tall floating card reading pane */}
         <div className="flex-1 overflow-y-auto px-5 pb-10">
           <div className="mx-auto mt-2 max-w-2xl">
             <div className="flex items-start gap-4 rounded-2xl border border-border/30 bg-card/30 px-5 py-4">

@@ -92,10 +92,17 @@ async function fetchAndPreprocessImage(imageUrl: string) {
   PipelineLogger.info(stage, "Fetching image", { imageUrl });
 
   const t0 = performance.now();
-  const response = await fetch(imageUrl);
-  if (!response.ok) {
-    PipelineLogger.error(stage, "Failed to fetch image", { imageUrl, status: response.status });
-    throw new Error(`Failed to fetch image: ${response.status}`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch(imageUrl, { signal: controller.signal });
+    if (!response.ok) {
+      PipelineLogger.error(stage, "Failed to fetch image", { imageUrl, status: response.status });
+      throw new Error(`Failed to fetch image: ${response.status}`);
+    }
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   const contentType = response.headers.get("content-type") || "image/jpeg";
@@ -128,21 +135,29 @@ async function callOpenRouter(
 ) {
   if (!apiKey) throw new Error("No OpenRouter API key configured");
 
-  const response = await fetch(OPENROUTER_API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-      "X-Title": "Schedly",
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature,
-      max_tokens: 2048,
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
+  let response: Response;
+  try {
+    response = await fetch(OPENROUTER_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+        "X-Title": "Schedly",
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature,
+        max_tokens: 2048,
+      }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   // Persist the provider-side rate-limit snapshot (free-model daily cap) so the
   // admin Limits dashboard shows the real number even for failed attempts.
@@ -220,19 +235,27 @@ async function callGemini(
 ): Promise<Record<string, unknown>> {
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
 
-  const response = await fetch(`${GEMINI_GENERATE_URL}?key=${apiKey}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: opts.prompt }] },
-      contents: [{ role: "user", parts }],
-      generationConfig: {
-        temperature: opts.temperature ?? 0.1,
-        maxOutputTokens: opts.maxOutputTokens ?? 8192,
-        responseMimeType: "application/json",
-      },
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
+  let response: Response;
+  try {
+    response = await fetch(`${GEMINI_GENERATE_URL}?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: opts.prompt }] },
+        contents: [{ role: "user", parts }],
+        generationConfig: {
+          temperature: opts.temperature ?? 0.1,
+          maxOutputTokens: opts.maxOutputTokens ?? 8192,
+          responseMimeType: "application/json",
+        },
+      }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   // Track Gemini daily usage per key (cap dashboard). Counted on ANY provider
   // response because Google charges quota for failed requests too (429/503).

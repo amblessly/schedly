@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/text-field";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { loginSchema, type LoginInput } from "@/lib/validations";
 import { TurnstileWidget } from "@/components/turnstile";
@@ -60,6 +61,7 @@ export function LoginForm() {
 
       if (signInResult.error) {
         const msg = signInResult.error.message || "";
+        setFailedAttempts((prev) => prev + 1);
         if (
           msg.toLowerCase().includes("email not verified") ||
           msg.toLowerCase().includes("verify your email")
@@ -91,12 +93,7 @@ export function LoginForm() {
   return (
     <Card className="border-border/50 shadow-lg shadow-primary/5">
       <CardHeader className="pb-4 text-center">
-        <img
-          src="/images/logo.jpg"
-          alt=""
-          aria-hidden
-          className="mx-auto mb-2 h-10 w-10 rounded-lg object-cover shadow-md shadow-primary/20"
-        />
+        <Image src="/images/logo.jpg" alt="" aria-hidden width={40} height={40} className="mx-auto mb-2 h-10 w-10 rounded-lg object-cover shadow-md shadow-primary/20" />
         <CardTitle className="text-xl font-bold tracking-tight sm:text-2xl">Welcome back</CardTitle>
         <p className="text-sm text-muted-foreground">
           Sign in to your Schedly account
@@ -154,6 +151,11 @@ export function LoginForm() {
             )}
           </Button>
         </form>
+        <div className="text-center text-sm">
+          <Link href="/forgot-password" className="text-muted-foreground hover:text-foreground transition-colors">
+            Forgot your password?
+          </Link>
+        </div>
         <div className="pt-4 border-t border-border/50 text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}
           <Link href="/register" className="font-medium text-primary hover:text-primary/80 transition-colors">

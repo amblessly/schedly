@@ -9,7 +9,7 @@ export default function robots(): MetadataRoute.Robots {
       disallow: [
         "/api/",
         "/dashboard",
-        "/schedule",
+        "/classes",
         "/capture",
         "/todo",
         "/notifications",

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Droplets, RefreshCw, Sun, Wind } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -78,9 +79,11 @@ export function WeatherCard({ weather, loading, error, onRefresh }: WeatherCardP
                     {weather.description}
                   </span>
                 </div>
-                <img
+                <Image
                   src={weather.icon}
                   alt={weather.description}
+                  width={40}
+                  height={40}
                   className="h-10 w-10 shrink-0"
                   onError={(e) => {
                     (e.currentTarget as HTMLImageElement).style.display = "none";

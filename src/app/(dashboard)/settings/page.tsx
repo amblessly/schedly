@@ -53,40 +53,55 @@ export default function SettingsPage() {
         loading={isLoading}
         fallback={
           <div className="space-y-6">
-            <div>
-              <Skeleton className="h-8 w-48" />
-              <Skeleton className="h-4 w-64 mt-2" />
-            </div>
-            <Skeleton className="h-10 w-full rounded-lg" />
-            <Card className="border-border/50">
-              <CardContent className="pt-6">
-                <div className="flex flex-col items-center gap-4 sm:flex-row">
-                  <Skeleton className="h-20 w-20 rounded-full" />
-                  <div className="space-y-2">
-                    <Skeleton className="h-5 w-32" />
-                    <Skeleton className="h-4 w-48" />
-                    <Skeleton className="h-3 w-24" />
-                    <div className="flex gap-2 pt-1">
-                      <Skeleton className="h-8 w-16 rounded-lg" />
-                      <Skeleton className="h-8 w-20 rounded-lg" />
-                    </div>
-                  </div>
+            <div className="mb-6 flex flex-wrap items-start justify-between gap-3 sm:mb-8">
+              <div className="flex items-start gap-3">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <div>
+                  <Skeleton className="h-7 w-32" />
+                  <Skeleton className="h-4 w-64 mt-1.5" />
                 </div>
-              </CardContent>
-            </Card>
-            <Card className="border-border/50">
-              <CardHeader>
-                <Skeleton className="h-5 w-32" />
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-border/40">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-4 w-28" />
-                  </div>
+              </div>
+              <Skeleton className="h-8 w-8 rounded-full" />
+            </div>
+            <div className="flex flex-col gap-6 md:flex-row md:items-start">
+              <nav className="flex shrink-0 gap-1 overflow-x-auto md:w-48 md:flex-col md:overflow-visible md:rounded-2xl md:border md:border-border/60 md:bg-card/80 md:p-2 md:backdrop-blur-sm">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-9 w-full rounded-xl" />
                 ))}
-              </CardContent>
-            </Card>
+              </nav>
+              <div className="min-w-0 flex-1 space-y-4">
+                <Skeleton className="h-10 w-full rounded-lg" />
+                <Card className="border-border/50">
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col items-center gap-4 sm:flex-row">
+                      <Skeleton className="h-20 w-20 rounded-full shrink-0" />
+                      <div className="space-y-2 flex-1">
+                        <Skeleton className="h-5 w-32" />
+                        <Skeleton className="h-4 w-48" />
+                        <Skeleton className="h-3 w-24" />
+                        <div className="flex gap-2 pt-1">
+                          <Skeleton className="h-8 w-16 rounded-lg" />
+                          <Skeleton className="h-8 w-20 rounded-lg" />
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/50">
+                  <CardHeader>
+                    <Skeleton className="h-5 w-32" />
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="flex items-center justify-between py-2 border-b border-border/40">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-4 w-28" />
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </div>
         }
       >

@@ -5,6 +5,7 @@ import { retry } from "@/lib/retry";
 import { generateShortName } from "@/lib/abbreviations";
 import { authFetch } from "@/lib/auth-fetch";
 import { toast } from "sonner";
+import { friendlyError } from "@/server/lib/friendly-error";
 
 export type ExtractedClass = {
   subject: string;
@@ -64,7 +65,7 @@ export function useUpload() {
   };
 
   const settleFailed = (err: unknown, prefix = "") => {
-    const msg = err instanceof Error ? err.message : "Upload failed";
+    const msg = friendlyError(err, "schedule");
     setUpload((prev) => prev ? {
       ...prev,
       status: "failed" as const,
@@ -128,7 +129,7 @@ export function useUpload() {
             reject(err);
           }
         }
-      }, 1000);
+      }, 3000);
 
       setTimeout(() => {
         clearInterval(interval);
@@ -220,7 +221,7 @@ export function useUpload() {
           try {
             const err = JSON.parse(xhr.responseText);
             friendly = (typeof err?.error === "string" && err.error) || friendly;
-          } catch (e) {
+          } catch {
             // Non-JSON body — keep the friendly message above.
           }
           setUpload((prev) => prev ? { ...prev, status: "failed", error: friendly } : null);

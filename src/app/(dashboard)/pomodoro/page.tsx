@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Play,
   Pause,
@@ -17,6 +16,8 @@ import {
 import { AppNavPanel } from "@/components/app-nav-panel";
 import { HeaderAvatar } from "@/components/header-avatar";
 import { NotificationBell } from "@/components/notification-bell";
+import { toast } from "sonner";
+import { friendlyError } from "@/server/lib/friendly-error";
 import {
   getGamificationProfile,
   logFocusSession,
@@ -86,7 +87,14 @@ export default function PomodoroPage() {
   }, []);
 
   useEffect(() => {
-    loadProfile();
+    let cancelled = false;
+    void (async () => {
+      if (cancelled) return;
+      await loadProfile();
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [loadProfile]);
 
   useEffect(() => {
@@ -118,6 +126,8 @@ export default function PomodoroPage() {
               setXpPopup(res.xpEarned);
               setTimeout(() => setXpPopup(null), 3000);
               loadProfile();
+            } else if (!res.success && res.error) {
+              toast.error(friendlyError(res.error, "gamification"));
             }
           });
           sessionStartRef.current = null;
@@ -227,7 +237,7 @@ export default function PomodoroPage() {
               </div>
               <div className="flex items-center gap-1.5">
                 <TreePineIcon className="h-4 w-4 text-green-500" />
-                <span className="text-sm font-medium">Lv.{profile.level}</span>
+                <span className="text-sm font-medium">Lv {profile.level}</span>
               </div>
               <div className="flex-1">
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">

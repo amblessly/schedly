@@ -1,7 +1,7 @@
 import { classRepository } from "@/server/repositories/class.repository";
 import type { DayOfWeek } from "@/generated/prisma/client";
 import type { Result } from "@/server/lib/errors";
-import { ok, fail, notFound } from "@/server/lib/errors";
+import { ok, notFound } from "@/server/lib/errors";
 
 export interface UpdateClassInput {
   subject?: string;

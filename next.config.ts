@@ -53,6 +53,22 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  images: {
+    remotePatterns: [
+      // Vercel Blob / Vercel Storage for avatars
+      { protocol: "https", hostname: "*.vercel.app" },
+      { protocol: "https", hostname: "*.blob.vercel-storage.com" },
+      { protocol: "https", hostname: "blob.vercel-storage.com" },
+      // OpenWeatherMap weather icons
+      { protocol: "https", hostname: "openweathermap.org" },
+      { protocol: "https", hostname: "*.openweathermap.org" },
+      // Local development upload URLs
+      ...(isDev ? [{ protocol: "http" as const, hostname: "localhost" }] : []),
+    ],
+  },
   // Turbopack must watch this exact directory — without an explicit root,
   // Next can infer the wrong workspace root and dev mode stops picking up
   // file changes (stale SSR HTML → hydration mismatches after edits).

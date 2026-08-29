@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 
@@ -24,6 +25,15 @@ export function HeaderAvatar() {
     rawAvatar.startsWith("/")
       ? `${typeof window !== "undefined" ? window.location.origin : ""}${rawAvatar}`
       : rawAvatar;
+  // Determine if the avatar is a remote URL that next/image can optimize.
+  // Vercel Blob URLs and absolute https URLs are supported.
+  // data: URLs, relative paths, blob: URLs, and local upload API URLs must use <img> directly.
+  const isRemoteAvatar =
+    avatar &&
+    avatar.startsWith("https") &&
+    !avatar.startsWith("data:") &&
+    !avatar.startsWith("blob:") &&
+    !avatar.includes("/api/upload/");
 
   return (
     <button
@@ -32,7 +42,16 @@ export function HeaderAvatar() {
       aria-label="Open profile"
       className="hidden shrink-0 transition-transform duration-200 hover:scale-105 md:block"
     >
-      {avatar ? (
+      {avatar ? isRemoteAvatar ? (
+        <Image
+          src={avatar}
+          alt={initials}
+          width={40}
+          height={40}
+          className="h-10 w-10 rounded-full object-cover ring-2 ring-border/40"
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={avatar}
           alt={initials}

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -150,12 +151,7 @@ export function RegisterForm() {
   return (
     <Card className="border-border/50 shadow-lg shadow-primary/5 overflow-hidden">
       <CardHeader className="space-y-1 pb-4 text-center">
-        <img
-          src="/images/logo.jpg"
-          alt=""
-          aria-hidden
-          className="mx-auto mb-3 h-12 w-12 rounded-xl object-cover shadow-lg shadow-primary/20"
-        />
+        <Image src="/images/logo.jpg" alt="" aria-hidden width={48} height={48} className="mx-auto mb-3 h-12 w-12 rounded-xl object-cover shadow-lg shadow-primary/20" />
         <div className="flex items-center justify-between">
           <CardTitle className="text-2xl font-bold tracking-tight">Create an account</CardTitle>
           <span className="text-xs font-medium text-muted-foreground">

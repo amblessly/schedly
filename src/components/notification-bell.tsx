@@ -6,7 +6,7 @@ import { Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getUnreadNotificationCount } from "@/app/(dashboard)/notifications/actions";
 
-const POLL_INTERVAL = 30_000;
+const POLL_INTERVAL = 60_000;
 
 /** Bell icon with a live unread-count badge. Polls the unread count every 30s,
  *  refreshes on window focus, and refreshes again on every navigation (e.g.

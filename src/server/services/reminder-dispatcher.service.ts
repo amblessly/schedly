@@ -181,14 +181,14 @@ export async function dispatchDueReminders(now: Date = new Date(), userId?: stri
     if (subs.length > 0) {
       await Promise.all(
         subs.map(async (sub) => {
-          const result = await sendPush(sub, { title, body, url: "/schedule" });
+          const result = await sendPush(sub, { title, body, url: "/classes" });
           if (result.stale) stale.push(sub.endpoint);
         })
       );
       return stale;
     }
     if ((fcmTokensByUser.get(reminderUserId) ?? 0) > 0) {
-      await sendFCMPush({ userId: reminderUserId, title, body, url: "/schedule" });
+      await sendFCMPush({ userId: reminderUserId, title, body, url: "/classes" });
     }
     return stale;
   };

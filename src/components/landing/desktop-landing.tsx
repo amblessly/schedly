@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -7,7 +8,7 @@ export function DesktopLanding() {
       <header className="sticky top-0 z-50 border-b border-border/40 bg-background/95">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
             <Link href="/" className="flex items-center gap-2.5">
-              <img src="/images/logo.jpg" alt="" aria-hidden className="h-8 w-8 rounded-lg object-cover" />
+              <Image src="/images/logo.jpg" alt="" aria-hidden width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
               <span className="text-lg font-bold tracking-tight text-foreground">Schedly</span>
             </Link>
           <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
@@ -220,7 +221,7 @@ export function DesktopLanding() {
       <footer className="border-t border-border/40 py-8">
         <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-4 md:flex-row md:px-6">
           <div className="flex items-center gap-2">
-            <img src="/images/logo.jpg" alt="" aria-hidden className="h-6 w-6 rounded-md object-cover" />
+            <Image src="/images/logo.jpg" alt="" aria-hidden width={24} height={24} className="h-6 w-6 rounded-md object-cover" />
             <span className="text-sm font-semibold text-foreground">Schedly</span>
           </div>
           <div className="flex items-center gap-5 text-sm text-muted-foreground">

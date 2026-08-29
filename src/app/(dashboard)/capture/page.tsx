@@ -10,12 +10,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { HeaderAvatar } from "@/components/header-avatar";
 import { NotificationBell } from "@/components/notification-bell";
 import {
-  Camera, Image, AlertCircle, CheckCircle, ArrowLeft,
+  Camera, Image as ImageIcon, AlertCircle, CheckCircle, ArrowLeft,
   Calendar, Upload, X, Plus,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { compressImage } from "@/lib/image-compress";
 import { validateExtractedClasses, type ValidationIssue } from "@/server/services/validation.service";
+import { friendlyError } from "@/server/lib/friendly-error";
+import { toast } from "sonner";
 import {
   getReviewState,
   getReviewImage,
@@ -137,7 +139,7 @@ export default function CapturePage() {
 
   const handleFileSelect = async (file: File) => {
     if (!file.type.startsWith("image/")) {
-      alert("Please select an image file");
+      toast.error("Please choose an image file to upload.");
       return;
     }
     // Big phone photos can exceed the server's request-body limit, which makes
@@ -186,10 +188,11 @@ export default function CapturePage() {
       }
     } catch (err) {
       console.error(err);
+      toast.error(friendlyError(err, "schedule"));
     }
   };
 
-  const handleSaved = async (_scheduleId: string) => {
+  const handleSaved = async () => {
     // Leave the review phase FIRST so the localStorage persist effect
     // (reviewReady -> false) can never re-save the review after we clear it.
     setValidationIssues([]);
@@ -197,7 +200,7 @@ export default function CapturePage() {
     clearReviewState(userId);
     clearUploadState(userId);
     clearProcessingStarted(userId);
-    router.push("/schedule");
+    router.push("/classes");
   };
 
   const handleBackToSelect = () => {
@@ -222,7 +225,7 @@ export default function CapturePage() {
     removeFile();
     setValidationIssues([]);
     clearReviewState(userId);
-    router.push("/schedule");
+    router.push("/classes");
   };
 
   // Extraction continues in the background and the client polls for status
@@ -289,7 +292,7 @@ export default function CapturePage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <HeaderAvatar />
-                <Button variant="ghost" size="icon-sm" onClick={handleBackToCalendar} aria-label="Back to calendar">
+                <Button variant="ghost" size="icon-sm" onClick={handleBackToCalendar} aria-label="Back to classes">
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
@@ -324,6 +327,7 @@ export default function CapturePage() {
         <div className="mx-auto max-w-2xl space-y-4">
           {previewUrl && (
             <div className="relative overflow-hidden rounded-xl bg-card ring-1 ring-border/50">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={previewUrl}
                 alt="Uploaded schedule"
@@ -362,7 +366,7 @@ export default function CapturePage() {
                   <Camera className="mr-2 h-4 w-4" /> Take Photo
                 </Button>
                 <Button variant="outline" className="flex-1 h-11 px-6 font-medium" onClick={() => document.getElementById("upload-file")?.click()}>
-                  <Image className="mr-2 h-4 w-4" /> Choose File
+                  <ImageIcon className="mr-2 h-4 w-4" /> Choose File
                 </Button>
                 <input id="upload-camera" type="file" accept="image/*" capture="environment" className="hidden"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); }} />
@@ -382,6 +386,7 @@ export default function CapturePage() {
               <div className="relative w-full overflow-hidden rounded-xl bg-muted">
                 {previewUrl ? (
                   <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={previewUrl} alt="Schedule preview" className="mx-auto h-auto max-h-[70vh] w-auto max-w-full object-contain" />
                     {(isUploading || isProcessing) && (
                       <div className="pointer-events-none absolute inset-0">
@@ -406,7 +411,7 @@ export default function CapturePage() {
               </div>
               <div className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-muted/40 px-3 py-2.5">
                 <div className="flex min-w-0 items-center gap-2">
-                  <Image className="h-4 w-4 shrink-0 text-primary" />
+                  <ImageIcon className="h-4 w-4 shrink-0 text-primary" />
                   <p className="truncate text-sm font-medium text-foreground">{selectedFile.name}</p>
                 </div>
                 <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-primary">

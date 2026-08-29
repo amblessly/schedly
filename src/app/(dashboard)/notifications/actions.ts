@@ -9,15 +9,23 @@ import { auditLog } from "@/server/lib/audit";
 export async function getUserNotifications() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return [];
-  // Tidy class-reminder floods (legacy duplicates / per-title backlog).
-  await cleanupClassReminderList(session.user.id);
-  return notificationService.getByUser(session.user.id);
+  try {
+    // Tidy class-reminder floods (legacy duplicates / per-title backlog).
+    await cleanupClassReminderList(session.user.id);
+    return await notificationService.getByUser(session.user.id);
+  } catch {
+    return [];
+  }
 }
 
 export async function getUnreadNotificationCount(): Promise<number> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return 0;
-  return notificationService.countUnread(session.user.id);
+  try {
+    return await notificationService.countUnread(session.user.id);
+  } catch {
+    return 0;
+  }
 }
 
 export async function markNotificationRead(id: string): Promise<{ success: boolean }> {

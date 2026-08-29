@@ -4,8 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { AppNavPanel } from "@/components/app-nav-panel";
-import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
-import { getAiInsights } from "@/app/(dashboard)/dashboard/actions";
+import { getUserSchedules } from "@/app/(dashboard)/classes/actions";
 import {
   getWeatherByCoords,
   getWeatherByIp,
@@ -17,10 +16,7 @@ import { cachedAction } from "@/lib/server-action-cache";
 import { useMounted } from "@/lib/use-mounted";
 import {
   getFreeTimeToday,
-  computeScheduleInsights,
   DAY_ORDER,
-  DAY_FULL,
-  minutesToHoursLabel,
   type InsightItem,
   type FreePeriod,
 } from "@/features/insights/compute-insights";
@@ -35,16 +31,11 @@ import {
   WeatherCard,
 } from "@/features/dashboard/components";
 import { UpdateAnnouncement } from "@/components/update-announcement";
-import { GamificationCard } from "@/features/dashboard/components/gamification-card";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [schedules, setSchedules] = useState<ScheduleData[] | null>(null);
   const [downloading, setDownloading] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [aiSuggestions, setAiSuggestions] = useState<string[] | null>(null);
-  const [aiVisible, setAiVisible] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherError, setWeatherError] = useState<string | null>(null);
@@ -217,7 +208,6 @@ export default function DashboardPage() {
     startMinutes: toMin(c.startTime),
     endMinutes: toMin(c.endTime),
   }));
-  const weeklyInsights = computeScheduleInsights(insightItems);
   const todayDay = DAY_ORDER[(new Date().getDay() + 6) % 7] ?? "monday";
   const freeToday = getFreeTimeToday(insightItems, todayDay);
 
@@ -240,41 +230,11 @@ export default function DashboardPage() {
     return null;
   })();
 
-  const busyDay = weeklyInsights.busiestDay;
-  const weeklyInsightText = busyDay
-    ? `${DAY_FULL[busyDay.day]} is your busiest day`
-    : "Your week looks balanced";
-  const weeklyInsightSub = busyDay
-    ? `${minutesToHoursLabel(busyDay.busyMinutes)} of classes · ${weeklyInsights.freeHours}h free this week`
-    : `${weeklyInsights.freeHours}h free across ${weeklyInsights.activeDayCount} class day${
-        weeklyInsights.activeDayCount !== 1 ? "s" : ""
-      }`;
-
   // The longest free window today — the practical answer to "when can I study / rest?"
   const longestBreakToday = freeToday.freePeriods.reduce<FreePeriod | null>(
     (best, p) => (best === null || p.durationMinutes > best.durationMinutes ? p : best),
     null
   );
-
-  const handleGenerateInsights = async () => {
-    if (aiLoading) return;
-    setAiLoading(true);
-    setAiError(null);
-    const payload = insightItems.map((it) => ({
-      subject: it.subject,
-      days: it.days,
-      startTime: `${String(Math.floor(it.startMinutes / 60)).padStart(2, "0")}:${String(it.startMinutes % 60).padStart(2, "0")}`,
-      endTime: `${String(Math.floor(it.endMinutes / 60)).padStart(2, "0")}:${String(it.endMinutes % 60).padStart(2, "0")}`,
-    }));
-    const res = await getAiInsights(payload);
-    setAiLoading(false);
-    if (res.success) {
-      setAiSuggestions(res.suggestions);
-      setAiVisible(true);
-    } else {
-      setAiError(res.error);
-    }
-  };
 
   const handleDownload = async () => {
     // Download exactly what the user sees: capture the visible timetable
@@ -358,7 +318,6 @@ export default function DashboardPage() {
               freeToday={freeToday}
               longestBreak={longestBreakToday}
             />
-            <GamificationCard />
           </BentoGrid>
 
           <ScheduleSection
