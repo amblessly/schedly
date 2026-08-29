@@ -9,6 +9,7 @@ import { DevSwCleanup } from "@/components/dev-sw-cleanup";
 import { ThemeProvider } from "@/features/theme";
 import { Toaster } from "sonner";
 import "ldrs/react/JellyTriangle.css";
+import "ldrs/react/ChaoticOrbit.css";
 import "../bones/registry";
 import "./globals.css";
 

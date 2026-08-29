@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ArcTracer } from "@/components/arc-tracer";
 import { RotatingLoadingTips } from "@/components/rotating-loading-tips";
+import { ChaoticOrbit } from "ldrs/react";
 import { compressImage } from "@/lib/image-compress";
 import { validateExtractedClasses, type ValidationIssue } from "@/server/services/validation.service";
 import { friendlyError } from "@/server/lib/friendly-error";
@@ -424,7 +425,11 @@ export default function CapturePage() {
               {isUploading || isProcessing ? (
                 <div key={isAiWorking ? "reading" : "uploading"} className="space-y-3">
                   <div className="flex flex-col items-center gap-2 pt-2">
-                    <ArcTracer size={40} className="shrink-0" />
+                    <ChaoticOrbit
+                      size="40"
+                      speed="1.5"
+                      color="var(--primary)"
+                    />
                     <span className="text-sm font-medium text-foreground">
                       {isAiWorking ? "Reading your schedule" : "Uploading your schedule"}
                     </span>
