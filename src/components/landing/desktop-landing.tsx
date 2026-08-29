@@ -39,11 +39,11 @@ export function DesktopLanding() {
 
         {/* ── BENTO HERO ── */}
         <section className="container mx-auto max-w-6xl px-6 pt-10 pb-8">
-          <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(12, 1fr)" }}>
+          <div className="grid items-start gap-4" style={{ gridTemplateColumns: "repeat(12, 1fr)" }}>
 
             {/* ── HERO TEXT — 7 cols ── */}
             <div style={{ gridColumn: "span 7" }}>
-              <div className="rounded-3xl border p-7 md:p-8 h-full" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+              <div className="rounded-3xl border p-7 md:p-8" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
                 <h1 className="font-bold tracking-tight leading-[1.05]" style={{ fontSize: "clamp(2rem, 4vw, 3rem)", color: "var(--foreground)" }}>
                   Your class schedule,<br />made simple.
                 </h1>
