@@ -3,6 +3,7 @@
 import { auth } from "@/server/lib/auth";
 import { headers } from "next/headers";
 import { adminService } from "@/server/services/admin.service";
+import { userRepository } from "@/server/repositories/user.repository";
 import { auditLog } from "@/server/lib/audit";
 import { db } from "@/server/db/client";
 import { getLimitsStats } from "@/server/services/limits.service";
@@ -40,6 +41,12 @@ export async function getLimitsStatsAction() {
 export async function getUsers() {
   await requireAdmin();
   return adminService.getUsers();
+}
+
+export async function getOnlineUsers() {
+  await requireAdmin();
+  // "Online" = active within the last 5 minutes
+  return userRepository.findOnlineUsers(5 * 60 * 1000);
 }
 
 export async function getFeedbacks() {

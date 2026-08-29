@@ -23,6 +23,10 @@ export const adminService = {
     return userRepository.findAllUsers();
   },
 
+  async getOnlineUsers(withinMs: number) {
+    return userRepository.findOnlineUsers(withinMs);
+  },
+
   async getFeedbacks() {
     return db.feedback.findMany({
       orderBy: { createdAt: "desc" },

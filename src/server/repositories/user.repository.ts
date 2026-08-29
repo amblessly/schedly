@@ -36,8 +36,29 @@ export const userRepository = {
         clientType: true,
         lastSeenAt: true,
         createdAt: true,
+        avatarUrl: true,
       },
       orderBy: { createdAt: "desc" },
+    });
+  },
+
+  findOnlineUsers(withinMs: number) {
+    const since = new Date(Date.now() - withinMs);
+    return db.user.findMany({
+      where: { lastSeenAt: { gte: since } },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        username: true,
+        email: true,
+        isAdmin: true,
+        clientType: true,
+        lastSeenAt: true,
+        avatarUrl: true,
+      },
+      orderBy: { lastSeenAt: "desc" },
+      take: 24,
     });
   },
 

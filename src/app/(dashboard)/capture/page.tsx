@@ -13,7 +13,8 @@ import {
   Camera, Image as ImageIcon, AlertCircle, CheckCircle, ArrowLeft,
   Calendar, Upload, X, Plus,
 } from "lucide-react";
-import { Spinner } from "@/components/ui/spinner";
+import { ArcTracer } from "@/components/arc-tracer";
+import { RotatingLoadingTips } from "@/components/rotating-loading-tips";
 import { compressImage } from "@/lib/image-compress";
 import { validateExtractedClasses, type ValidationIssue } from "@/server/services/validation.service";
 import { friendlyError } from "@/server/lib/friendly-error";
@@ -422,13 +423,9 @@ export default function CapturePage() {
 
               {isUploading || isProcessing ? (
                 <div key={isAiWorking ? "reading" : "uploading"} className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
-                      {isAiWorking ? (
-                        <Spinner size={16} color="var(--primary)" />
-                      ) : (
-                        <Upload className="h-4 w-4 animate-pulse text-primary" />
-                      )}
+                  <div className="flex flex-col items-center gap-2 pt-2">
+                    <ArcTracer size={40} className="shrink-0" />
+                    <span className="text-sm font-medium text-foreground">
                       {isAiWorking ? "Reading your schedule" : "Uploading your schedule"}
                     </span>
                     <span className="text-xs font-semibold tabular-nums text-muted-foreground">
@@ -441,6 +438,10 @@ export default function CapturePage() {
                       style={{ width: `${displayProgress}%` }}
                     />
                   </div>
+                  <RotatingLoadingTips
+                    isLoading={isAiWorking}
+                    className="pt-1"
+                  />
                 </div>
               ) : (
                 <div className="flex gap-3">

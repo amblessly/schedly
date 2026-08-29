@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAdminStats, getUsers, getFeedbacks, toggleAdminRole, sendBroadcastNotification, sendThankYouNotification, getLimitsStatsAction } from "./actions";
+import { getAdminStats, getUsers, getOnlineUsers, getFeedbacks, toggleAdminRole, sendBroadcastNotification, sendThankYouNotification, getLimitsStatsAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/text-field";
 import { FloatingLabelTextarea } from "@/components/ui/floating-label-textarea";
@@ -43,6 +43,7 @@ type AdminUser = {
   clientType: string | null;
   lastSeenAt: Date | null;
   createdAt: Date;
+  avatarUrl?: string | null;
 };
 
 type FeedbackWithUser = {
@@ -62,6 +63,18 @@ type FeedbackWithUser = {
     username: string;
     email: string;
   };
+};
+
+type OnlineUser = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  username: string;
+  email: string;
+  isAdmin: boolean;
+  clientType: string | null;
+  lastSeenAt: Date;
+  avatarUrl: string | null;
 };
 
 type LimitsStat = {
@@ -116,6 +129,31 @@ export default function AdminPage() {
   const [limitsError, setLimitsError] = useState("");
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [now, setNow] = useState<Date>(() => new Date());
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
+  const [onlineLoading, setOnlineLoading] = useState(false);
+  const [showOnlineList, setShowOnlineList] = useState(false);
+
+  async function loadOnlineUsers() {
+    setOnlineLoading(true);
+    try {
+      const data = (await getOnlineUsers()) as OnlineUser[];
+      setOnlineUsers(data);
+    } catch {
+      // ignore — admin will see stale data on next refresh
+    } finally {
+      setOnlineLoading(false);
+    }
+  }
+
+  // Refresh online users every 60s while overview tab is shown.
+  useEffect(() => {
+    void loadOnlineUsers();
+    const t = setInterval(() => {
+      if (activeTab === "overview") void loadOnlineUsers();
+    }, 60_000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -325,6 +363,72 @@ export default function AdminPage() {
                   <StatCard label="Feedback" value={stats.feedback} />
                 </div>
               )}
+
+              {/* Online Users */}
+              <Card className="border-border/50">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <span className="flex h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+                      Online Users
+                    </CardTitle>
+                    <CardDescription className="mt-0.5 text-xs">
+                      Active in the last 5 minutes
+                    </CardDescription>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowOnlineList(!showOnlineList)}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    {showOnlineList ? "Hide" : "Show list"}
+                  </button>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {onlineLoading ? (
+                    <div className="flex -space-x-2">
+                      {[1, 2, 3, 4].map((i) => (
+                        <Skeleton key={i} className="h-10 w-10 rounded-full" />
+                      ))}
+                    </div>
+                  ) : onlineUsers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-2">No users online right now.</p>
+                  ) : (
+                    <>
+                      <div className="flex -space-x-2">
+                        {onlineUsers.slice(0, 8).map((u, i) => (
+                          <OnlineAvatar
+                            key={u.id}
+                            user={u}
+                            style={{ zIndex: 8 - i }}
+                          />
+                        ))}
+                        {onlineUsers.length > 8 && (
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground ring-2 ring-background">
+                            +{onlineUsers.length - 8}
+                          </div>
+                        )}
+                      </div>
+                      {showOnlineList && (
+                        <div className="mt-3 space-y-1">
+                          {onlineUsers.map((u) => (
+                            <div key={u.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted/40">
+                              <OnlineAvatar user={u} size="sm" />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-foreground truncate">
+                                  {u.firstName || u.lastName ? `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() : `@${u.username}`}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground truncate">{u.email}</p>
+                              </div>
+                              <span className="flex h-2 w-2 rounded-full bg-emerald-500 shrink-0" title="Online" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
             </section>
           )}
 
@@ -977,6 +1081,47 @@ function StatCard({ label, value }: { label: string; value: number }) {
         <p className="mt-1 text-xs font-medium text-muted-foreground">{label}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function OnlineAvatar({ user, size = "md", style }: {
+  user: OnlineUser;
+  size?: "sm" | "md";
+  style?: React.CSSProperties;
+}) {
+  const initials = ((user.firstName?.[0] ?? user.username?.[0] ?? "?")).toUpperCase();
+  const name = user.firstName || user.lastName
+    ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
+    : `@${user.username}`;
+  const avatarSize = size === "sm" ? "h-7 w-7 text-[11px]" : "h-10 w-10 text-sm";
+  const isRemote = user.avatarUrl?.startsWith("https");
+
+  return (
+    <div
+      title={`${name} — ${user.email}`}
+      style={style}
+      className={cn(
+        "group relative shrink-0 rounded-full bg-primary/10 ring-2 ring-background flex items-center justify-center overflow-hidden",
+        avatarSize,
+      )}
+    >
+      {user.avatarUrl ? (
+        isRemote ? (
+          <img
+            src={user.avatarUrl}
+            alt={name}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary font-semibold text-xs">
+            {initials}
+          </div>
+        )
+      ) : (
+        <span className="font-semibold text-primary">{initials}</span>
+      )}
+      <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500" />
+    </div>
   );
 }
 
