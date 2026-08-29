@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -17,7 +16,6 @@ import {
 } from "@/lib/validations";
 import { TurnstileWidget } from "@/components/turnstile";
 import { verifyCaptcha } from "@/app/actions";
-import { isPasswordBreached } from "@/lib/hibp";
 import Link from "next/link";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -40,8 +38,6 @@ export function RegisterForm() {
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
-  const [breachedCount, setBreachedCount] = useState(0);
-  const [checkingBreach, setCheckingBreach] = useState(false);
   const [showPasswords, setShowPasswords] = useState(false);
   const { signUp } = useAuth();
   const router = useRouter();
@@ -51,7 +47,6 @@ export function RegisterForm() {
     setForm((prev) => ({ ...prev, [field]: processed }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
     if (serverError) setServerError("");
-    if (field === "password") setBreachedCount(0);
   }
 
   function validateStep(s: number): boolean {
@@ -99,15 +94,6 @@ export function RegisterForm() {
     setLoading(true);
 
     try {
-      setCheckingBreach(true);
-      const breachCount = await isPasswordBreached(form.password).catch(() => 0);
-      setCheckingBreach(false);
-      if (breachCount > 0) {
-        setBreachedCount(breachCount);
-        setLoading(false);
-        return;
-      }
-
       const captchaResult = await verifyCaptcha(turnstileToken);
       if (!captchaResult.success) {
         setServerError("Bot verification failed. Please try again.");
@@ -133,16 +119,6 @@ export function RegisterForm() {
     }
   }
 
-  const passwordStrength = form.password
-    ? [
-        form.password.length >= 10,
-        /[A-Z]/.test(form.password),
-        /[a-z]/.test(form.password),
-        /\d/.test(form.password),
-        /[!@#$%^&*()_\-+=<>?/{}~|]/.test(form.password),
-      ].filter(Boolean).length
-    : 0;
-
   const slideClass =
     direction === "next"
       ? "animate-in fade-in-0 slide-in-from-right-4"
@@ -151,7 +127,6 @@ export function RegisterForm() {
   return (
     <Card className="border-border/50 shadow-lg shadow-primary/5 overflow-hidden">
       <CardHeader className="space-y-1 pb-4 text-center">
-        <Image src="/images/logo.jpg" alt="" aria-hidden width={48} height={48} className="mx-auto mb-3 h-12 w-12 rounded-xl object-cover shadow-lg shadow-primary/20" />
         <div className="flex items-center justify-between">
           <CardTitle className="text-2xl font-bold tracking-tight">Create an account</CardTitle>
           <span className="text-xs font-medium text-muted-foreground">
@@ -259,24 +234,6 @@ export function RegisterForm() {
                     aria-invalid={!!errors.password}
                     autoComplete="new-password"
                   />
-                  {form.password && (
-                    <div className="flex gap-1.5 pt-1">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className={`h-1 flex-1 rounded-full transition-colors ${
-                            i < passwordStrength
-                              ? passwordStrength <= 2
-                                ? "bg-destructive"
-                                : passwordStrength === 3
-                                  ? "bg-yellow-500"
-                                  : "bg-green-500"
-                              : "bg-muted"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  )}
                   {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
                 </div>
                 <div className="space-y-2">
@@ -305,18 +262,6 @@ export function RegisterForm() {
                   )}
                   {showPasswords ? "Hide passwords" : "Show passwords"}
                 </button>
-                {checkingBreach && (
-                  <p className="text-xs text-muted-foreground">Checking password against known breaches...</p>
-                )}
-                {breachedCount > 0 && (
-                  <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3">
-                    <p className="text-xs text-yellow-700">
-                      This password has appeared in {breachedCount.toLocaleString()} known data breaches. 
-                      Using a compromised password significantly increases the risk of account takeover. 
-                      Please choose a different password.
-                    </p>
-                  </div>
-                )}
               </div>
             )}
           </div>
