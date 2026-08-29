@@ -424,13 +424,13 @@ export default function CapturePage() {
 
               {isUploading || isProcessing ? (
                 <div key={isAiWorking ? "reading" : "uploading"} className="space-y-3">
-                  <div className="flex flex-col items-center gap-2 pt-2">
+                  <div className="flex items-center gap-3 pt-2">
                     <ChaoticOrbit
-                      size="40"
+                      size="32"
                       speed="1.5"
                       color="var(--primary)"
                     />
-                    <span className="text-sm font-medium text-foreground">
+                    <span className="flex-1 text-sm font-medium text-foreground">
                       {isAiWorking ? "Reading your schedule" : "Uploading your schedule"}
                     </span>
                     <span className="text-xs font-semibold tabular-nums text-muted-foreground">

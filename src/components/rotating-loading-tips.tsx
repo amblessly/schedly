@@ -9,22 +9,18 @@ export interface LoadingTip {
 }
 
 const DEFAULT_TIPS: LoadingTip[] = [
-  { category: "STUDY TIP", text: "Reviewing information at spaced intervals can help improve long-term retention." },
   { category: "SCHEDLY TIP", text: "Keep your schedule updated so your daily classes stay organized." },
   { category: "PRODUCTIVITY", text: "Focus on your most important task before moving on to less urgent tasks." },
   { category: "STUDY FACT", text: "The human brain can hold about 7 items in short-term memory at once." },
   { category: "MOTIVATION", text: "Consistent small effort beats sporadic bursts of intense work." },
-  { category: "STUDY TIP", text: "Active recall — testing yourself — is more effective than passive rereading." },
   { category: "SCHEDLY TIP", text: "Use the syllabus review feature to preview your subjects before the semester starts." },
   { category: "PRODUCTIVITY", text: "Time-blocking your calendar reduces decision fatigue and increases focus." },
   { category: "STUDY FACT", text: "Reading aloud to yourself can improve memory encoding compared to silent reading." },
   { category: "MOTIVATION", text: "Progress, not perfection, is what builds momentum over time." },
-  { category: "STUDY TIP", text: "Break large tasks into smaller, manageable steps to stay on track." },
   { category: "SCHEDLY TIP", text: "Set reminders for assignments so nothing slips through the cracks." },
 ];
 
 const CATEGORY_LABELS: Record<string, string> = {
-  "STUDY TIP": "Study Tip",
   "SCHEDLY TIP": "Schedly Tip",
   "PRODUCTIVITY": "Productivity",
   "STUDY FACT": "Study Fact",
