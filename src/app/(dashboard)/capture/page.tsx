@@ -17,6 +17,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { compressImage } from "@/lib/image-compress";
 import { validateExtractedClasses, type ValidationIssue } from "@/server/services/validation.service";
 import { friendlyError } from "@/server/lib/friendly-error";
+import { ReportErrorButton } from "@/components/report-error-dialog";
 import { toast } from "sonner";
 import {
   getReviewState,
@@ -453,9 +454,17 @@ export default function CapturePage() {
               )}
 
               {upload?.error && (
-                <p className="flex items-center gap-1 text-sm text-red-500">
-                  <AlertCircle className="h-4 w-4" /> {upload.error}
-                </p>
+                <div className="flex flex-col gap-1 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                  <p className="flex items-center gap-1.5 text-sm font-medium text-destructive">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    {upload.error}
+                  </p>
+                  <ReportErrorButton
+                    context="Schedule upload / extraction"
+                    errorMessage={upload.error ?? ""}
+                    page="/capture"
+                  />
+                </div>
               )}
             </div>
           )}

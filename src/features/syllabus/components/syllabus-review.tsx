@@ -15,6 +15,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { saveSyllabus } from "@/app/(dashboard)/syllabus/actions";
+import { ReportErrorButton } from "@/components/report-error-dialog";
 
 type ExtractionData = {
   course: Record<string, unknown>;
@@ -393,9 +394,16 @@ export function SyllabusReview({ extraction, fileId, fileName, onSaved, onCancel
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg p-3">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          {error}
+        <div className="flex flex-col gap-1 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-destructive">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {error}
+          </div>
+          <ReportErrorButton
+            context="Syllabus review / save"
+            errorMessage={error ?? ""}
+            page="/syllabus"
+          />
         </div>
       )}
 

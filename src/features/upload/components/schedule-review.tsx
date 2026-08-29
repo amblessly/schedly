@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Plus, Trash2, Save, AlertCircle, ChevronDown, ChevronUp, AlertTriangle, XCircle, Paintbrush } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { ReportErrorButton } from "@/components/report-error-dialog";
 
 const DAYS = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"] as const;
 const DAY_LABELS: Record<string, string> = {
@@ -409,9 +410,16 @@ export function ScheduleReview({
       </div>
 
       {saveError && (
-        <p className="text-sm text-red-500 flex items-center gap-1">
-          <AlertCircle className="h-4 w-4" /> {saveError}
-        </p>
+        <div className="flex flex-col gap-1 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+          <p className="flex items-center gap-1.5 text-sm font-medium text-destructive">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {saveError}
+          </p>
+          <ReportErrorButton
+            context="Schedule review / save"
+            errorMessage={saveError ?? ""}
+          />
+        </div>
       )}
 
       <div className="flex gap-3 pt-2">

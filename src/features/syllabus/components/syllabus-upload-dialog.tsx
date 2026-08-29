@@ -19,6 +19,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { SyllabusReview } from "./syllabus-review";
+import { ReportErrorButton } from "@/components/report-error-dialog";
 
 type ExtractionData = {
   course: Record<string, unknown>;
@@ -266,9 +267,16 @@ export function SyllabusUploadDialog({ open, onOpenChange, onSaved }: Props) {
             )}
 
             {error && (
-              <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg p-3">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                {error}
+              <div className="flex flex-col gap-1 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-destructive">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {error}
+                </div>
+                <ReportErrorButton
+                  context="Syllabus upload / extraction"
+                  errorMessage={error ?? ""}
+                  page="/syllabus"
+                />
               </div>
             )}
 
