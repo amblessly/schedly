@@ -3,10 +3,9 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowLeft, Lock, Loader2, CheckCircle2, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { authClient } from "@/lib/auth-client";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -53,20 +52,9 @@ export default function ResetPasswordPage() {
   if (!token) {
     return (
       <Card className="border-border/50 shadow-lg shadow-primary/5">
-        <CardHeader className="pb-4 text-center">
-          <Image
-            src="/images/logo.jpg"
-            alt=""
-            aria-hidden
-            width={48}
-            height={48}
-            className="mx-auto mb-3 h-12 w-12 rounded-xl object-cover shadow-lg shadow-primary/20"
-          />
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10">
-            <AlertCircle className="h-7 w-7 text-destructive" />
-          </div>
-          <h1 className="mt-3 text-xl font-bold">Invalid reset link</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
+        <CardHeader className="space-y-1 pb-4 text-center">
+          <CardTitle className="text-2xl font-bold tracking-tight">Invalid reset link</CardTitle>
+          <p className="text-sm text-muted-foreground">
             This password reset link is invalid or missing a token.
             Please request a new one.
           </p>
@@ -92,20 +80,12 @@ export default function ResetPasswordPage() {
   if (success) {
     return (
       <Card className="border-border/50 shadow-lg shadow-primary/5">
-        <CardHeader className="pb-4 text-center">
-          <Image
-            src="/images/logo.jpg"
-            alt=""
-            aria-hidden
-            width={48}
-            height={48}
-            className="mx-auto mb-3 h-12 w-12 rounded-xl object-cover shadow-lg shadow-primary/20"
-          />
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
-            <CheckCircle2 className="h-7 w-7 text-green-600" />
+        <CardHeader className="space-y-1 pb-4 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+            <CheckCircle2 className="h-6 w-6 text-green-600" />
           </div>
-          <h1 className="mt-3 text-xl font-bold">Password reset!</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
+          <CardTitle className="text-2xl font-bold tracking-tight">Password reset!</CardTitle>
+          <p className="text-sm text-muted-foreground">
             Your password has been updated. You can now sign in with your new password.
           </p>
         </CardHeader>
@@ -129,20 +109,9 @@ export default function ResetPasswordPage() {
 
   return (
     <Card className="border-border/50 shadow-lg shadow-primary/5">
-      <CardHeader className="pb-4 text-center">
-        <Image
-          src="/images/logo.jpg"
-          alt=""
-          aria-hidden
-          width={48}
-          height={48}
-          className="mx-auto mb-3 h-12 w-12 rounded-xl object-cover shadow-lg shadow-primary/20"
-        />
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-          <Lock className="h-7 w-7 text-primary" />
-        </div>
-        <h1 className="mt-3 text-xl font-bold">Set new password</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
+      <CardHeader className="space-y-1 pb-4 text-center">
+        <CardTitle className="text-2xl font-bold tracking-tight">Set new password</CardTitle>
+        <p className="text-sm text-muted-foreground">
           Enter your new password below.
         </p>
       </CardHeader>
@@ -172,9 +141,14 @@ export default function ResetPasswordPage() {
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? (
-                  <EyeOff className="h-4 w-4" />
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0 1 12 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 0 1 8.582-4.693c1.304-1.052 2.843-1.75 4.375-2.07M9.225 9.225A3 3 0 0 0 9 10.5c0 .828.336 1.578.878 2.121M9.225 9.225A3 3 0 0 1 12 10.5c0 1.312.424 2.514 1.12 3.416" />
+                  </svg>
                 ) : (
-                  <Eye className="h-4 w-4" />
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.543 7-1.275 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.543-7Z" />
+                  </svg>
                 )}
               </button>
             </div>
@@ -209,9 +183,14 @@ export default function ResetPasswordPage() {
                 aria-label={showConfirm ? "Hide password" : "Show password"}
               >
                 {showConfirm ? (
-                  <EyeOff className="h-4 w-4" />
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0 1 12 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 0 1 8.582-4.693c1.304-1.052 2.843-1.75 4.375-2.07M9.225 9.225A3 3 0 0 0 9 10.5c0 .828.336 1.578.878 2.121M9.225 9.225A3 3 0 0 1 12 10.5c0 1.312.424 2.514 1.12 3.416" />
+                  </svg>
                 ) : (
-                  <Eye className="h-4 w-4" />
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.543 7-1.275 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.543-7Z" />
+                  </svg>
                 )}
               </button>
             </div>

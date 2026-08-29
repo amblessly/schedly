@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowLeft, Mail, CheckCircle2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/text-field";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -41,20 +40,9 @@ export default function ForgotPasswordPage() {
   if (sent) {
     return (
       <Card className="border-border/50 shadow-lg shadow-primary/5">
-        <CardHeader className="pb-4 text-center">
-          <Image
-            src="/images/logo.jpg"
-            alt=""
-            aria-hidden
-            width={48}
-            height={48}
-            className="mx-auto mb-3 h-12 w-12 rounded-xl object-cover shadow-lg shadow-primary/20"
-          />
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
-            <CheckCircle2 className="h-7 w-7 text-green-600" />
-          </div>
-          <h1 className="mt-3 text-xl font-bold">Check your email</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
+        <CardHeader className="space-y-1 pb-4 text-center">
+          <CardTitle className="text-2xl font-bold tracking-tight">Check your email</CardTitle>
+          <p className="text-sm text-muted-foreground">
             We sent a password reset link to <strong>{email}</strong>.
             Click the link in your inbox to set a new password.
           </p>
@@ -85,20 +73,9 @@ export default function ForgotPasswordPage() {
 
   return (
     <Card className="border-border/50 shadow-lg shadow-primary/5">
-      <CardHeader className="pb-4 text-center">
-        <Image
-          src="/images/logo.jpg"
-          alt=""
-          aria-hidden
-          width={48}
-          height={48}
-          className="mx-auto mb-3 h-12 w-12 rounded-xl object-cover shadow-lg shadow-primary/20"
-        />
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-          <Mail className="h-7 w-7 text-primary" />
-        </div>
-        <h1 className="mt-3 text-xl font-bold">Forgot your password?</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
+      <CardHeader className="space-y-1 pb-4 text-center">
+        <CardTitle className="text-2xl font-bold tracking-tight">Forgot your password?</CardTitle>
+        <p className="text-sm text-muted-foreground">
           Enter your email and we&apos;ll send you a link to reset your password.
         </p>
       </CardHeader>

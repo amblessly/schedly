@@ -7,13 +7,17 @@ export function TurnstileWidget({ onToken }: { onToken: (token: string) => void 
   if (!siteKey) return null;
 
   return (
-    <Turnstile
-      siteKey={siteKey}
-      onSuccess={onToken}
-      options={{
-        theme: "light",
-        size: "normal",
-      }}
-    />
+    <div className="pointer-events-none relative">
+      <div className="pointer-events-auto">
+        <Turnstile
+          siteKey={siteKey}
+          onSuccess={onToken}
+          options={{
+            theme: "light",
+            size: "normal",
+          }}
+        />
+      </div>
+    </div>
   );
 }

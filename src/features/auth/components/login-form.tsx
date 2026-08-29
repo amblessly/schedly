@@ -151,8 +151,12 @@ export function LoginForm() {
             )}
           </Button>
         </form>
-        <div className="text-center text-sm">
-          <Link href="/forgot-password" className="text-muted-foreground hover:text-foreground transition-colors">
+        <div className="relative z-20 -mt-2 text-center text-sm">
+          <Link
+            href="/forgot-password"
+            prefetch={false}
+            className="relative z-20 inline-block text-muted-foreground underline-offset-4 hover:text-foreground hover:underline transition-colors"
+          >
             Forgot your password?
           </Link>
         </div>
