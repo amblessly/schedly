@@ -207,7 +207,7 @@ export async function generateFlashcardsFromText(
       return await generateFlashcardsViaOpenRouter(truncated);
     } catch (orErr) {
       console.error("[FLASHCARD_AI] OpenRouter fallback failed:", orErr);
-      throw orErr;
+      throw new Error("Generation failed. Please try again later.");
     }
   }
 }
