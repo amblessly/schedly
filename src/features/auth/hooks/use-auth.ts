@@ -153,7 +153,7 @@ export function useAuth() {
   const forgotPassword = useCallback(
     async (email: string) => {
       try {
-        const result = await authClient.forgetPassword({
+        const result = await authClient.requestPasswordReset({
           email,
           redirectTo: "/reset-password",
         });

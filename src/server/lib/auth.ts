@@ -84,7 +84,7 @@ export const auth = betterAuth({
       : {}),
     sendResetPassword: async ({ user, token }) => {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-      const resetUrl = `${appUrl}/reset-password?token=${token}`;
+      const resetCallbackUrl = `${appUrl}/api/auth/reset-password/${token}?callbackURL=${encodeURIComponent(`${appUrl}/reset-password?token=${token}`)}`;
       await sendEmail({
         to: user.email,
         subject: "Reset your Schedly password",
@@ -95,7 +95,7 @@ export const auth = betterAuth({
               Hi ${user.name || "there"},<br/><br/>
               We received a request to reset your password. Click below to set a new one:
             </p>
-            <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: #6366f1; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
+            <a href="${resetCallbackUrl}" style="display: inline-block; padding: 12px 24px; background: #6366f1; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
               Reset Password
             </a>
             <p style="margin-top: 24px; color: #999; font-size: 13px;">
