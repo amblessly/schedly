@@ -6,29 +6,40 @@ export function DesktopLanding() {
   return (
     <div className="flex flex-col min-h-screen" style={{ background: "#09090b", color: "#fff" }}>
 
-      {/* NAV */}
-      <header className="sticky top-0 z-50 border-b" style={{ borderColor: "rgba(255,255,255,0.07)", background: "rgba(9,9,11,0.85)", backdropFilter: "blur(20px)" }}>
-        <div className="container mx-auto flex h-16 items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2.5">
-            <Image src="/images/logo.jpg" alt="" aria-hidden width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
-            <span className="text-lg font-bold tracking-tight text-white">Schedly</span>
-          </Link>
-          <nav className="hidden md:flex items-center gap-8 text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
-            <a href="#features" className="hover:text-white transition-colors">Features</a>
-            <a href="#how-it-works" className="hover:text-white transition-colors">How it works</a>
-          </nav>
-          <div className="flex items-center gap-2">
-            <Link href="/login">
-              <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">Sign in</Button>
+      {/* FLOATING NAV — centered pill */}
+      <div className="sticky top-0 z-50 pt-4 pointer-events-none">
+        <div className="container mx-auto max-w-6xl px-6">
+          <header
+            className="pointer-events-auto flex h-14 items-center justify-between rounded-full border px-4 md:px-6"
+            style={{
+              background: "rgba(9,9,11,0.75)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              borderColor: "rgba(255,255,255,0.1)",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+            }}
+          >
+            <Link href="/" className="flex items-center gap-2.5">
+              <Image src="/images/logo.jpg" alt="" aria-hidden width={28} height={28} className="h-7 w-7 rounded-lg object-cover" />
+              <span className="text-base font-bold tracking-tight text-white">Schedly</span>
             </Link>
-            <Link href="/register">
-              <Button size="sm" className="rounded-full font-semibold px-4" style={{ background: "#fff", color: "#09090b" }}>
-                Get started
-              </Button>
-            </Link>
-          </div>
+            <nav className="hidden md:flex items-center gap-8 text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
+              <a href="#features" className="hover:text-white transition-colors">Features</a>
+              <a href="#how-it-works" className="hover:text-white transition-colors">How it works</a>
+            </nav>
+            <div className="flex items-center gap-2">
+              <Link href="/login">
+                <Button variant="ghost" size="sm" className="rounded-full text-white/80 hover:bg-white/10 hover:text-white">Sign in</Button>
+              </Link>
+              <Link href="/register">
+                <Button size="sm" className="rounded-full font-semibold px-4" style={{ background: "#fff", color: "#09090b" }}>
+                  Get started
+                </Button>
+              </Link>
+            </div>
+          </header>
         </div>
-      </header>
+      </div>
 
       <main className="flex-1">
 
