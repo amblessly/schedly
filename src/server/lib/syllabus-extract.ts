@@ -1,4 +1,5 @@
 import { GEMINI_KEYS, geminiServiceFor } from "./gemini-keys";
+import { OPENROUTER_KEYS, openRouterServiceFor, isOpenRouterEnabled } from "./openrouter-keys";
 import { incrementUsage } from "./usage-counter";
 
 const GEMINI_GENERATE_URL =
@@ -283,7 +284,7 @@ export async function extractSyllabusFromText(
 
   const truncated = textContent.slice(0, 15000);
 
-  // Try Gemini keys first
+  // Try Gemini keys first (key 1 -> ... -> key N)
   for (const apiKey of GEMINI_KEYS) {
     try {
       const raw = await callGeminiExtract(
@@ -292,19 +293,22 @@ export async function extractSyllabusFromText(
       );
       return dedupRequirements(normalizeResult(raw));
     } catch (err) {
-      console.error("[SYLLABUS_AI] Gemini failed, trying next key:", err);
+      console.error("[SYLLABUS_AI] Gemini key failed:", err);
     }
   }
 
-  // Fallback to OpenRouter
-  const openRouterKey = process.env.OPENROUTER_API_KEY;
-  if (openRouterKey) {
-    try {
-      const raw = await callOpenRouterExtract(truncated, openRouterKey);
-      return dedupRequirements(normalizeResult(raw));
-    } catch (err) {
-      console.error("[SYLLABUS_AI] OpenRouter failed:", err);
+  // Fallback to OpenRouter (all keys, key 1 -> ... -> key N)
+  if ((await isOpenRouterEnabled()) && OPENROUTER_KEYS.length > 0) {
+    for (const apiKey of OPENROUTER_KEYS) {
+      try {
+        const raw = await callOpenRouterExtract(truncated, apiKey);
+        return dedupRequirements(normalizeResult(raw));
+      } catch (err) {
+        console.error("[SYLLABUS_AI] OpenRouter key failed:", err);
+      }
     }
+  } else {
+    console.error("[SYLLABUS_AI] OpenRouter disabled or no keys configured");
   }
 
   throw new Error("All AI providers failed. Please try again later.");

@@ -1,4 +1,5 @@
 import { GEMINI_KEYS, geminiServiceFor } from "./gemini-keys";
+import { generateFlashcardsViaOpenRouter } from "./openrouter-flashcard";
 import { incrementUsage } from "./usage-counter";
 
 const GEMINI_GENERATE_URL =
@@ -197,7 +198,18 @@ export async function generateFlashcardsFromText(
   
   const finalPrompt = `${prompt}\n\nGenerate ${count} flashcards.\n\nStudy material:\n${truncated}`;
 
-  return tryGeminiKeys([{ text: truncated }], finalPrompt);
+  // Gemini first (multi-key rotation), OpenRouter as fallback
+  try {
+    return await tryGeminiKeys([{ text: truncated }], finalPrompt);
+  } catch (err) {
+    console.error("[FLASHCARD_AI] All Gemini keys failed — falling back to OpenRouter:", err);
+    try {
+      return await generateFlashcardsViaOpenRouter(truncated);
+    } catch (orErr) {
+      console.error("[FLASHCARD_AI] OpenRouter fallback failed:", orErr);
+      throw orErr;
+    }
+  }
 }
 
 /**
@@ -212,29 +224,25 @@ export async function generateFlashcardsFromImage(
   const prompt = topic
     ? FLASHCARD_GENERATION_WITH_TOPIC_PROMPT.replace("{TOPIC}", topic)
     : FLASHCARD_GENERATION_PROMPT;
-  
+
   const finalPrompt = `${prompt}\n\nGenerate ${count} flashcards.`;
 
-  for (const apiKey of GEMINI_KEYS) {
-    try {
-      const raw = await callGeminiFlashcard(
-        [
-          {
-            inlineData: {
-              mimeType,
-              data: base64Data,
-            },
+  // Gemini vision first (multi-key rotation), OpenRouter as fallback
+  try {
+    return await tryGeminiKeys(
+      [
+        {
+          inlineData: {
+            mimeType,
+            data: base64Data,
           },
-          { text: "Generate flashcards from this image exactly as the system instructions describe. Return ONLY valid JSON." },
-        ],
-        finalPrompt,
-        apiKey,
-      );
-      return validateFlashcardResult(raw);
-    } catch (err) {
-      console.error("[FLASHCARD_AI] Gemini vision failed:", err);
-    }
+        },
+        { text: "Generate flashcards from this image exactly as the system instructions describe. Return ONLY valid JSON." },
+      ],
+      finalPrompt,
+    );
+  } catch (err) {
+    console.error("[FLASHCARD_AI] Gemini vision failed:", err);
+    throw new Error("AI flashcard generation failed. Please try again later.");
   }
-
-  throw new Error("AI flashcard generation failed. Please try again later.");
 }

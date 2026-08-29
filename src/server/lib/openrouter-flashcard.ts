@@ -70,11 +70,9 @@ export async function generateFlashcardsViaOpenRouter(
     throw new Error("OpenRouter is currently disabled");
   }
 
-  const MAX_KEYS = OPENROUTER_KEYS.length;
   const errors: Error[] = [];
 
-  for (let i = 0; i < MAX_KEYS; i++) {
-    const apiKey = OPENROUTER_KEYS[i];
+  for (const apiKey of OPENROUTER_KEYS) {
     try {
       const text = await callOpenRouterFlashcard(prompt, apiKey);
       openaiCircuitBreaker.recordSuccess();
@@ -104,7 +102,7 @@ export async function generateFlashcardsViaOpenRouter(
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       errors.push(error);
-      console.error(`[FLASHCARD_OPENROUTER] Key ${i + 1}/${MAX_KEYS} failed:`, error.message);
+      console.error(`[FLASHCARD_OPENROUTER] Key failed:`, error.message);
 
       if (error.message && isRetryableError(parseInt(error.message.match(/\d{3}/)?.[0] || "0"))) {
         openaiCircuitBreaker.recordFailure();
@@ -115,5 +113,5 @@ export async function generateFlashcardsViaOpenRouter(
   }
 
   const lastError = errors[errors.length - 1];
-  throw new Error(`All ${MAX_KEYS} OpenRouter keys failed. Last error: ${lastError?.message}`);
+  throw new Error(`All ${OPENROUTER_KEYS.length} OpenRouter keys failed. Last error: ${lastError?.message}`);
 }
