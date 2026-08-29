@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useSyncExternalStore, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, ArrowLeft } from "lucide-react";
+import { Menu, ArrowLeft, Settings } from "lucide-react";
+import { SkipNavigation } from "@/components/skip-navigation";
 import { Sidebar } from "@/components/sidebar";
 import { BottomNav } from "@/components/bottom-nav";
 import { OfflineBanner } from "@/components/offline-banner";
@@ -10,7 +12,7 @@ import { NotificationBell } from "@/components/notification-bell";
 import { useThemeConfig } from "@/features/theme";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { reportClientType, type ClientType } from "./actions";
-import { getUserSchedules } from "@/app/(dashboard)/schedule/actions";
+import { getUserSchedules } from "@/app/(dashboard)/classes/actions";
 import { getUserReminders, scheduleUpcomingReminders, dispatchUserReminders } from "@/app/(dashboard)/reminders/actions";
 import { programReminderAlarms } from "@/lib/notification-scheduler";
 import { cachedAction } from "@/lib/server-action-cache";
@@ -49,6 +51,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         lastName?: string;
         image?: string;
         avatarUrl?: string;
+        isAdmin?: boolean;
       }
     | null
     | undefined;
@@ -64,10 +67,24 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       : rawAvatar;
   const userAvatar = avatarError ? null : resolvedAvatar;
 
+  // Determine if the avatar is a remote URL that next/image can optimize.
+  // Vercel Blob URLs and absolute https URLs are supported.
+  // data: URLs, relative paths, blob: URLs, and local upload API URLs must use <img> directly.
+  const isRemoteAvatar =
+    userAvatar &&
+    userAvatar.startsWith("https") &&
+    !userAvatar.startsWith("data:") &&
+    !userAvatar.startsWith("blob:") &&
+    !userAvatar.includes("/api/upload/");
+
   // Reset the broken-avatar flag when the session's avatar actually changes.
-  useEffect(() => {
+  // Done during render (React's documented "adjust state when props change"
+  // pattern) instead of in an effect so the image can retry on a new URL.
+  const [prevAvatar, setPrevAvatar] = useState(resolvedAvatar);
+  if (resolvedAvatar !== prevAvatar) {
+    setPrevAvatar(resolvedAvatar);
     setAvatarError(false);
-  }, [resolvedAvatar]);
+  }
 
   // Auto-download offline support: once signed in, warm the cache with the
   // main tab pages so they're instantly available (and work) offline. The
@@ -90,7 +107,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           reg.active?.postMessage({
             type: "PRECACHE",
             urls: [
-              "/dashboard", "/schedule", "/capture", "/notes", "/notifications", "/pomodoro", "/gwa",
+              "/dashboard", "/classes", "/capture", "/notes", "/notifications", "/pomodoro", "/gwa",
               ...(avatar ? [avatar] : []),
             ],
           });
@@ -129,9 +146,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         }
       })
       .catch(() => {});
-    // Refresh exact-time QStash deliveries (30s throttle, no-op until tokens
+    // Refresh exact-time QStash deliveries (5min throttle, no-op until tokens
     // are configured).
-    cachedAction("layout:qstash", () => scheduleUpcomingReminders(), 60_000).catch(() => {});
+    cachedAction("layout:qstash", () => scheduleUpcomingReminders(), 300_000).catch(() => {});
     return () => {
       active = false;
     };
@@ -139,17 +156,18 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   // Client heartbeat — QStash isn't configured in this deployment, so exact-
   // time class reminders only fire when something checks for them. Poll the
-  // dispatcher every 30s while the app is open (and on every focus/visibility
-  // change) so enabled reminders actually go out on time. Deduped server-side
-  // via lastSentAt/lastStartSentAt, so frequent polling never double-sends.
+  // dispatcher every 5 min while the app is open (and on every focus/visibility
+  // change) so enabled reminders actually go out within a reasonable window.
+  // Deduped server-side via lastSentAt/lastStartSentAt, so frequent polling
+  // never double-sends.
   useEffect(() => {
     if (!user) return;
     const tick = () => {
       if (document.visibilityState !== "visible") return;
-      cachedAction("layout:dispatch", () => dispatchUserReminders(), 30_000).catch(() => {});
+      cachedAction("layout:dispatch", () => dispatchUserReminders(), 60_000).catch(() => {});
     };
     tick();
-    const id = window.setInterval(tick, 60_000);
+    const id = window.setInterval(tick, 300_000);
     const onVis = () => tick();
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", onVis);
@@ -204,7 +222,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   }, [user]);
   // The design editor is immersive on mobile: no fixed header, drawer,
   // backdrop, or bottom nav covering it — the canvas fills the screen.
-  const isImmersive = pathname === "/design";
+  const isImmersive =
+    pathname === "/design" ||
+    pathname.startsWith("/flashcards/") && pathname.endsWith("/study");
 
   // Account settings is a full-screen page — hide the bottom nav there.
   const isSettings = pathname === "/settings";
@@ -218,6 +238,15 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   // Feedback page is opened from the support section.
   const isFeedback = pathname === "/feedback";
+
+  // Tools pages should show back arrow on mobile (like notifications)
+  const isToolsPage =
+    pathname === "/notes" ||
+    pathname === "/flashcards" ||
+    pathname === "/planner" ||
+    pathname === "/syllabus" ||
+    pathname === "/gwa" ||
+    pathname.startsWith("/flashcards/");
 
   // Close the mobile drawer on every navigation so it never stays open
   // covering a page (e.g., after coming back from the design editor).
@@ -245,6 +274,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       className="relative isolate flex min-h-dvh-fallback"
       style={themeVars}
     >
+      <SkipNavigation />
+
       <div className={sidebarWrap} inert={!open}>
         <Sidebar onClose={() => setOpen(false)} />
       </div>
@@ -275,9 +306,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         <button
           type="button"
           onClick={() => {
-            if (isSettings || isProfile || isNotifications) {
+            if (isSettings || isProfile || isNotifications || isAdmin || isToolsPage) {
               router.push("/dashboard");
-            } else if (isAdmin || isFeedback) {
+            } else if (isFeedback) {
               router.push("/settings?tab=support");
             } else {
               router.push("/profile");
@@ -285,14 +316,23 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           }}
           className="fixed left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-sidebar/90 text-sidebar-foreground shadow-[0_8px_40px_rgba(0,0,0,0.12)] transition-all duration-300 hover:bg-sidebar md:hidden"
           aria-label={
-            isSettings || isProfile || isNotifications || isAdmin || isFeedback
+            isSettings || isProfile || isNotifications || isAdmin || isFeedback || isToolsPage
               ? "Go back"
               : "Open profile"
           }
         >
-          {isSettings || isProfile || isNotifications || isAdmin || isFeedback ? (
+          {isSettings || isProfile || isNotifications || isAdmin || isFeedback || isToolsPage ? (
             <ArrowLeft className="h-6 w-6" />
-          ) : userAvatar ? (
+          ) : userAvatar ? isRemoteAvatar ? (
+            <Image
+              src={userAvatar}
+              alt={displayName}
+              width={44}
+              height={44}
+              className="h-11 w-11 rounded-full object-cover ring-2 ring-border/40"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={userAvatar}
               alt={displayName}
@@ -307,17 +347,49 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </button>
       )}
 
-      {/* Floating notification bell — mobile only; desktop pages render it
-          inline in their headers. */}
-      {!isImmersive && showButton && !isNotifications && !detailOpen && (
+      {/* Floating notification bell + admin button — mobile only.
+          Shown side by side in a single card. */}
+      {!isImmersive && showButton && !isNotifications && !detailOpen && u?.isAdmin && (
+        <div className="fixed right-[4.75rem] top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex items-center gap-1 md:hidden">
+          <NotificationBell variant="inline" />
+          <button
+            type="button"
+          onClick={() => {
+            if (pathname.startsWith("/admin/limits")) {
+              router.push("/admin");
+            } else if (pathname === "/admin") {
+              router.push("/dashboard");
+            } else {
+              router.push("/admin");
+            }
+          }}
+          className="flex h-11 w-11 items-center justify-center rounded-xl bg-sidebar/90 text-sidebar-foreground shadow-[0_8px_40px_rgba(0,0,0,0.12)] transition-colors hover:bg-sidebar"
+          aria-label="Admin"
+          title={
+            pathname === "/admin"
+              ? "Back to Dashboard"
+              : pathname.startsWith("/admin")
+                ? "Back to Admin Dashboard"
+                : "Admin Dashboard"
+          }
+          >
+            <Settings className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+
+      {/* Notification bell only — mobile only, shown when user is NOT admin. */}
+      {!isImmersive && showButton && !isNotifications && !detailOpen && !u?.isAdmin && (
         <NotificationBell className="md:hidden" />
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
           <main
+            id="main-content"
+            tabIndex={-1}
             onClick={() => setOpen(false)}
             className={[
-              "flex-1",
+              "flex-1 scroll-mt-2",
               isImmersive ? "" : "px-4 pt-[calc(env(safe-area-inset-top)+4rem)] pb-28 sm:px-6 sm:pt-[calc(env(safe-area-inset-top)+4rem)] md:px-8 md:pt-16 md:pb-12",
             ].join(" ")}
           >

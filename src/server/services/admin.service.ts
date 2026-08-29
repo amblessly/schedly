@@ -23,6 +23,33 @@ export const adminService = {
     return userRepository.findAllUsers();
   },
 
+  async getFeedbacks() {
+    return db.feedback.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            username: true,
+            email: true,
+          },
+        },
+      },
+    });
+  },
+
+  async sendThankYouNotification(userId: string) {
+    await notificationRepository.create({
+      userId,
+      type: "system",
+      title: "Thanks for your feedback!",
+      body: "We really appreciate you taking the time to share your thoughts. Your feedback helps us improve Schedly for everyone.",
+    });
+    return { success: true };
+  },
+
   async toggleAdmin(userId: string, callerId: string) {
     if (userId === callerId) {
       throw new Error("Cannot change your own admin status");

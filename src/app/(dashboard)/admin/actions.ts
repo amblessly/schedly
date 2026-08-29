@@ -42,6 +42,23 @@ export async function getUsers() {
   return adminService.getUsers();
 }
 
+export async function getFeedbacks() {
+  await requireAdmin();
+  return adminService.getFeedbacks();
+}
+
+export async function sendThankYouNotification(userId: string) {
+  const session = await requireAdmin();
+  if (!userId) throw new Error("User ID is required");
+  const result = await adminService.sendThankYouNotification(userId);
+  auditLog("admin.action", {
+    action: "notification.thank_you",
+    callerId: session.user.id,
+    targetUserId: userId,
+  });
+  return result;
+}
+
 export async function toggleAdminRole(userId: string, password: string) {
   const session = await requireAdmin();
   const valid = await verifyPassword(session.user.id, password);
