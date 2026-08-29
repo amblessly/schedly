@@ -43,21 +43,21 @@ export function DesktopLanding() {
 
             {/* ── HERO TEXT — 7 cols ── */}
             <div style={{ gridColumn: "span 7" }}>
-              <div className="rounded-3xl border p-8 md:p-10 h-full" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
-                <h1 className="font-bold tracking-tight leading-[1.05]" style={{ fontSize: "clamp(2.5rem, 5vw, 4rem)", color: "var(--foreground)" }}>
+              <div className="rounded-3xl border p-7 md:p-8 h-full" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+                <h1 className="font-bold tracking-tight leading-[1.05]" style={{ fontSize: "clamp(2rem, 4vw, 3rem)", color: "var(--foreground)" }}>
                   Your class schedule,<br />made simple.
                 </h1>
-                <p className="mt-4 leading-relaxed" style={{ color: "var(--muted-foreground)", fontSize: "1rem" }}>
-                  Upload a photo of your schedule. Schedly turns it into an interactive timetable &mdash; with your classes, times, rooms, and reminders.
+                <p className="mt-3 leading-relaxed" style={{ color: "var(--muted-foreground)", fontSize: "0.9rem" }}>
+                  Upload a photo of your schedule. Schedly turns it into an interactive timetable.
                 </p>
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center">
                   <Link href="/register">
-                    <Button size="lg" className="rounded-full px-8 font-semibold shadow-sm">
+                    <Button size="default" className="rounded-full px-6 font-semibold shadow-sm">
                       Get started free
                     </Button>
                   </Link>
                   <Link href="#how-it-works">
-                    <Button size="lg" variant="ghost" className="rounded-full px-6 text-muted-foreground hover:text-foreground">
+                    <Button size="default" variant="ghost" className="rounded-full px-4 text-muted-foreground hover:text-foreground">
                       See how it works &rarr;
                     </Button>
                   </Link>
@@ -66,39 +66,39 @@ export function DesktopLanding() {
             </div>
 
             {/* ── RIGHT COLUMN — 5 cols: stacked ── */}
-            <div style={{ gridColumn: "span 5", display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div style={{ gridColumn: "span 5", display: "flex", flexDirection: "column", gap: "12px" }}>
 
               {/* Stats row */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                <div className="rounded-3xl border p-6 text-center" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
-                  <div className="text-4xl font-bold" style={{ color: "var(--foreground)" }}>10s</div>
-                  <div className="mt-1 text-xs" style={{ color: "var(--muted-foreground)" }}>Average extraction</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div className="rounded-2xl border p-4 text-center" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+                  <div className="text-3xl font-bold" style={{ color: "var(--foreground)" }}>10s</div>
+                  <div className="mt-0.5 text-[11px]" style={{ color: "var(--muted-foreground)" }}>Average extraction</div>
                 </div>
-                <div className="rounded-3xl border p-6 text-center" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
-                  <div className="text-4xl font-bold" style={{ color: "var(--foreground)" }}>100%</div>
-                  <div className="mt-1 text-xs" style={{ color: "var(--muted-foreground)" }}>Free, no card</div>
+                <div className="rounded-2xl border p-4 text-center" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+                  <div className="text-3xl font-bold" style={{ color: "var(--foreground)" }}>100%</div>
+                  <div className="mt-0.5 text-[11px]" style={{ color: "var(--muted-foreground)" }}>Free, no card</div>
                 </div>
               </div>
 
               {/* Trust badge */}
-              <div className="rounded-3xl border px-4 py-2 text-center text-xs font-medium" style={{ borderColor: "var(--border)", background: "var(--card)", color: "var(--muted-foreground)" }}>
+              <div className="rounded-2xl border px-3 py-1.5 text-center text-[11px] font-medium" style={{ borderColor: "var(--border)", background: "var(--card)", color: "var(--muted-foreground)" }}>
                 Free forever. No credit card required.
               </div>
 
               {/* Schedule mockup */}
-              <div className="rounded-3xl border p-6" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-2 w-2 rounded-full bg-foreground/20" />
-                    <div className="h-2 w-2 rounded-full bg-foreground/20" />
-                    <div className="h-2 w-2 rounded-full bg-foreground/20" />
-                    <span className="ml-2 text-[11px] font-mono text-muted-foreground">schedule.pdf</span>
+              <div className="rounded-2xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-1">
+                    <div className="h-1.5 w-1.5 rounded-full bg-foreground/20" />
+                    <div className="h-1.5 w-1.5 rounded-full bg-foreground/20" />
+                    <div className="h-1.5 w-1.5 rounded-full bg-foreground/20" />
+                    <span className="ml-1.5 text-[10px] font-mono text-muted-foreground">schedule.pdf</span>
                   </div>
-                  <span className="rounded-full px-2 py-0.5 text-[10px] text-muted-foreground border" style={{ borderColor: "var(--border)" }}>Live</span>
+                  <span className="rounded-full px-1.5 py-0.5 text-[9px] text-muted-foreground border" style={{ borderColor: "var(--border)" }}>Live</span>
                 </div>
-                <div className="grid grid-cols-5 gap-2 text-[11px]">
+                <div className="grid grid-cols-5 gap-1.5 text-[10px]">
                   {["Mon", "Tue", "Wed", "Thu", "Fri"].map((d) => (
-                    <div key={d} className="py-2 text-center font-medium text-muted-foreground">{d}</div>
+                    <div key={d} className="py-1.5 text-center font-medium text-muted-foreground">{d}</div>
                   ))}
                   {[
                     { label: "Math 101", time: "9:00", c: "bg-primary/10 text-foreground" },
@@ -107,9 +107,9 @@ export function DesktopLanding() {
                     { label: "", c: "bg-transparent" },
                     { label: "Math 101", time: "9:00", c: "bg-primary/10 text-foreground" },
                   ].map((c, i) => (
-                    <div key={`r0-${i}`} className={`min-h-[48px] rounded-xl px-2 py-1.5 ${c.c}`}>
-                      {c.label && <span className="block font-semibold text-[10px]">{c.label}</span>}
-                      {c.time && <span className="block text-[9px] text-muted-foreground">{c.time}</span>}
+                    <div key={`r0-${i}`} className={`min-h-[40px] rounded-lg px-1.5 py-1 ${c.c}`}>
+                      {c.label && <span className="block font-semibold text-[9px]">{c.label}</span>}
+                      {c.time && <span className="block text-[8px] text-muted-foreground">{c.time}</span>}
                     </div>
                   ))}
                   {[
@@ -119,9 +119,9 @@ export function DesktopLanding() {
                     { label: "CS 201", time: "11:00", c: "bg-primary/10 text-foreground" },
                     { label: "", c: "bg-transparent" },
                   ].map((c, i) => (
-                    <div key={`r1-${i}`} className={`min-h-[48px] rounded-xl px-2 py-1.5 ${c.c}`}>
-                      {c.label && <span className="block font-semibold text-[10px]">{c.label}</span>}
-                      {c.time && <span className="block text-[9px] text-muted-foreground">{c.time}</span>}
+                    <div key={`r1-${i}`} className={`min-h-[40px] rounded-lg px-1.5 py-1 ${c.c}`}>
+                      {c.label && <span className="block font-semibold text-[9px]">{c.label}</span>}
+                      {c.time && <span className="block text-[8px] text-muted-foreground">{c.time}</span>}
                     </div>
                   ))}
                   {[
@@ -131,9 +131,9 @@ export function DesktopLanding() {
                     { label: "", c: "bg-transparent" },
                     { label: "Phys 301", time: "14:00", c: "bg-primary/10 text-foreground" },
                   ].map((c, i) => (
-                    <div key={`r2-${i}`} className={`min-h-[48px] rounded-xl px-2 py-1.5 ${c.c}`}>
-                      {c.label && <span className="block font-semibold text-[10px]">{c.label}</span>}
-                      {c.time && <span className="block text-[9px] text-muted-foreground">{c.time}</span>}
+                    <div key={`r2-${i}`} className={`min-h-[40px] rounded-lg px-1.5 py-1 ${c.c}`}>
+                      {c.label && <span className="block font-semibold text-[9px]">{c.label}</span>}
+                      {c.time && <span className="block text-[8px] text-muted-foreground">{c.time}</span>}
                     </div>
                   ))}
                   {[
@@ -143,23 +143,23 @@ export function DesktopLanding() {
                     { label: "Eng 102", time: "16:00", c: "bg-primary/10 text-foreground" },
                     { label: "", c: "bg-transparent" },
                   ].map((c, i) => (
-                    <div key={`r3-${i}`} className={`min-h-[48px] rounded-xl px-2 py-1.5 ${c.c}`}>
-                      {c.label && <span className="block font-semibold text-[10px]">{c.label}</span>}
-                      {c.time && <span className="block text-[9px] text-muted-foreground">{c.time}</span>}
+                    <div key={`r3-${i}`} className={`min-h-[40px] rounded-lg px-1.5 py-1 ${c.c}`}>
+                      {c.label && <span className="block font-semibold text-[9px]">{c.label}</span>}
+                      {c.time && <span className="block text-[8px] text-muted-foreground">{c.time}</span>}
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Bottom stats */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                <div className="rounded-3xl border p-6 text-center" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
-                  <div className="text-4xl font-bold" style={{ color: "var(--foreground)" }}>24/7</div>
-                  <div className="mt-1 text-xs" style={{ color: "var(--muted-foreground)" }}>Smart reminders</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div className="rounded-2xl border p-4 text-center" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+                  <div className="text-3xl font-bold" style={{ color: "var(--foreground)" }}>24/7</div>
+                  <div className="mt-0.5 text-[11px]" style={{ color: "var(--muted-foreground)" }}>Smart reminders</div>
                 </div>
-                <div className="rounded-3xl border p-6 text-center" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
-                  <div className="text-4xl font-bold" style={{ color: "var(--foreground)" }}>0</div>
-                  <div className="mt-1 text-xs" style={{ color: "var(--muted-foreground)" }}>Tools to juggle</div>
+                <div className="rounded-2xl border p-4 text-center" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+                  <div className="text-3xl font-bold" style={{ color: "var(--foreground)" }}>0</div>
+                  <div className="mt-0.5 text-[11px]" style={{ color: "var(--muted-foreground)" }}>Tools to juggle</div>
                 </div>
               </div>
             </div>
