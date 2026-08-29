@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 export function DesktopLanding() {
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/95">
+      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
-            <Link href="/" className="flex items-center gap-2.5">
-              <Image src="/images/logo.jpg" alt="" aria-hidden width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
-              <span className="text-lg font-bold tracking-tight text-foreground">Schedly</span>
-            </Link>
-          <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
+          <Link href="/" className="flex items-center gap-2.5">
+            <Image src="/images/logo.jpg" alt="" aria-hidden width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
+            <span className="text-lg font-bold tracking-tight text-foreground">Schedly</span>
+          </Link>
+          <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
             <a href="#features" className="hover:text-foreground transition-colors">Features</a>
             <a href="#how-it-works" className="hover:text-foreground transition-colors">How it works</a>
           </nav>
@@ -31,29 +31,35 @@ export function DesktopLanding() {
       <main className="flex-1">
         {/* Hero */}
         <section className="relative overflow-hidden">
-          {/* Decorative background — mirrors the dashboard's radial glow */}
           <div className="pointer-events-none absolute inset-0" aria-hidden>
-            <div className="absolute left-1/2 top-[-24rem] h-[700px] w-[1100px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,color-mix(in srgb,var(--primary) 24%,transparent),transparent)]" />
-            <div className="animate-blob absolute left-[6%] top-[30%] h-72 w-72 rounded-full bg-primary/[0.07] blur-[80px]" />
-            <div className="animate-blob absolute right-[4%] top-[55%] h-56 w-56 rounded-full bg-primary/[0.06] blur-[70px] [animation-delay:-7s]" />
-            <div className="animate-blob absolute bottom-[6%] left-[36%] h-64 w-64 rounded-full bg-primary/[0.05] blur-[90px] [animation-delay:-11s]" />
+            <div className="absolute left-1/2 top-[-20rem] h-[700px] w-[1200px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,color-mix(in_srgb,var(--primary)_28%,transparent),transparent)]" />
+            <div className="animate-blob absolute left-[8%] top-[35%] h-72 w-72 rounded-full bg-primary/[0.06] blur-[80px]" />
+            <div className="animate-blob absolute right-[6%] top-[60%] h-56 w-56 rounded-full bg-primary/[0.05] blur-[70px] [animation-delay:-7s]" />
+            <div className="animate-blob absolute bottom-[8%] left-[40%] h-64 w-64 rounded-full bg-primary/[0.04] blur-[90px] [animation-delay:-11s]" />
           </div>
-          <div className="relative container mx-auto flex flex-col items-center gap-8 px-4 pt-24 pb-20 text-center md:pt-32 md:pb-28">
-            <h1 className="animate-fade-up max-w-4xl text-5xl font-bold tracking-tight text-foreground leading-[1.1] sm:text-6xl md:text-7xl">
+          <div className="relative container mx-auto flex flex-col items-center gap-8 px-4 pt-24 pb-20 text-center md:pt-36 md:pb-32">
+            <div className="animate-fade-up inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary [animation-delay:0ms]">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+              </span>
+              AI-powered schedule extraction
+            </div>
+            <h1 className="animate-fade-up max-w-4xl text-5xl font-bold tracking-tight text-foreground leading-[1.08] sm:text-6xl md:text-7xl [animation-delay:60ms]">
               Your class schedule,{" "}
-              <span className="bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
                 made simple.
               </span>
             </h1>
-            <p className="animate-fade-up max-w-xl text-lg text-muted-foreground leading-relaxed [animation-delay:80ms] md:text-xl">
+            <p className="animate-fade-up max-w-xl text-lg text-muted-foreground leading-relaxed md:text-xl [animation-delay:120ms]">
               Upload a photo of your schedule and let Schedly turn it into an
               interactive timetable &mdash; complete with your classes, times,
               rooms, and reminders.
             </p>
-            <div className="animate-fade-up flex flex-col gap-3 [animation-delay:160ms] sm:flex-row">
+            <div className="animate-fade-up flex flex-col gap-3 [animation-delay:200ms] sm:flex-row">
               <Link href="/register">
-                <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 shadow-md shadow-primary/20 transition-transform hover:-translate-y-0.5">
-                  Get started
+                <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 shadow-lg shadow-primary/25 transition-transform hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/30">
+                  Get started free
                 </Button>
               </Link>
               <Link href="#how-it-works">
@@ -64,45 +70,78 @@ export function DesktopLanding() {
             </div>
 
             {/* Mock timetable preview */}
-            <div className="animate-fade-up mt-12 w-full max-w-2xl rounded-2xl border border-border/60 bg-card p-6 shadow-2xl shadow-primary/5 [animation-delay:320ms]">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="h-3 w-3 rounded-full bg-destructive/60" />
-                <div className="h-3 w-3 rounded-full bg-yellow-400/60" />
-                <div className="h-3 w-3 rounded-full bg-green-400/60" />
-                <span className="ml-2 text-xs text-muted-foreground font-mono">schedule.pdf</span>
+            <div className="animate-fade-up mt-8 w-full max-w-3xl rounded-2xl border-2 border-border bg-card/80 p-8 shadow-[0_8px_0_0_hsl(var(--border)) backdrop-blur-sm [animation-delay:400ms]">
+              <div className="mb-6 flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full bg-red-400/70" />
+                <div className="h-3 w-3 rounded-full bg-yellow-400/70" />
+                <div className="h-3 w-3 rounded-full bg-green-400/70" />
+                <span className="ml-2 rounded bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">schedule.pdf</span>
               </div>
-              <div className="grid grid-cols-5 gap-2 text-xs">
-                <div className="rounded-lg bg-primary/10 p-3 text-center font-semibold text-primary">Mon</div>
-                <div className="rounded-lg bg-primary/10 p-3 text-center font-semibold text-primary">Tue</div>
-                <div className="rounded-lg bg-primary/10 p-3 text-center font-semibold text-primary">Wed</div>
-                <div className="rounded-lg bg-primary/10 p-3 text-center font-semibold text-primary">Thu</div>
-                <div className="rounded-lg bg-primary/10 p-3 text-center font-semibold text-primary">Fri</div>
+              <div className="grid grid-cols-5 gap-3 text-xs">
+                <div className="rounded-xl bg-primary/10 p-3 text-center font-bold text-primary">Mon</div>
+                <div className="rounded-xl bg-primary/10 p-3 text-center font-bold text-primary">Tue</div>
+                <div className="rounded-xl bg-primary/10 p-3 text-center font-bold text-primary">Wed</div>
+                <div className="rounded-xl bg-primary/10 p-3 text-center font-bold text-primary">Thu</div>
+                <div className="rounded-xl bg-primary/10 p-3 text-center font-bold text-primary">Fri</div>
+
                 {[
-                  { label: "Math 101", time: "9:00", color: "bg-primary/20 text-primary" },
-                  { label: "", time: "", color: "" },
-                  { label: "Math 101", time: "9:00", color: "bg-primary/20 text-primary" },
-                  { label: "", time: "", color: "" },
-                  { label: "Math 101", time: "9:00", color: "bg-primary/20 text-primary" },
-                  { label: "", time: "", color: "" },
-                  { label: "CS 201", time: "11:00", color: "bg-purple-500/15 text-purple-600 dark:text-purple-400" },
-                  { label: "", time: "", color: "" },
-                  { label: "CS 201", time: "11:00", color: "bg-purple-500/15 text-purple-600 dark:text-purple-400" },
-                  { label: "Phys 301", time: "14:00", color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
-                  { label: "", time: "", color: "" },
-                  { label: "Phys 301", time: "14:00", color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
-                  { label: "", time: "", color: "" },
-                  { label: "Phys 301", time: "14:00", color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
-                  { label: "", time: "", color: "" },
-                  { label: "Eng 102", time: "16:00", color: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
-                  { label: "", time: "", color: "" },
-                  { label: "Eng 102", time: "16:00", color: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
+                  { label: "Math 101", time: "9:00", bg: "bg-blue-500/15 text-blue-600 dark:text-blue-400", col: 0 },
+                  { label: "", time: "", bg: "bg-muted/20", col: 1 },
+                  { label: "Math 101", time: "9:00", bg: "bg-blue-500/15 text-blue-600 dark:text-blue-400", col: 2 },
+                  { label: "", time: "", bg: "bg-muted/20", col: 3 },
+                  { label: "Math 101", time: "9:00", bg: "bg-blue-500/15 text-blue-600 dark:text-blue-400", col: 4 },
                 ].map((item, i) => (
                   <div
-                    key={i}
-                    className={`rounded-lg transition-all duration-200 p-2 text-center min-h-[48px] flex flex-col items-center justify-center hover:-translate-y-0.5 hover:shadow-md ${item.color || "bg-muted/30"}`}
+                    key={`r0-${i}`}
+                    className={`rounded-xl p-3 text-center min-h-[52px] flex flex-col items-center justify-center ${item.bg}`}
                   >
-                    {item.label && <span className="font-medium leading-tight">{item.label}</span>}
-                    {item.time && <span className="opacity-70">{item.time}</span>}
+                    {item.label && <span className="font-semibold leading-tight text-xs">{item.label}</span>}
+                    {item.time && <span className="text-[10px] opacity-70">{item.time}</span>}
+                  </div>
+                ))}
+                {[
+                  { label: "", time: "", bg: "bg-muted/20", col: 0 },
+                  { label: "CS 201", time: "11:00", bg: "bg-purple-500/15 text-purple-600 dark:text-purple-400", col: 1 },
+                  { label: "", time: "", bg: "bg-muted/20", col: 2 },
+                  { label: "CS 201", time: "11:00", bg: "bg-purple-500/15 text-purple-600 dark:text-purple-400", col: 3 },
+                  { label: "", time: "", bg: "bg-muted/20", col: 4 },
+                ].map((item, i) => (
+                  <div
+                    key={`r1-${i}`}
+                    className={`rounded-xl p-3 text-center min-h-[52px] flex flex-col items-center justify-center ${item.bg}`}
+                  >
+                    {item.label && <span className="font-semibold leading-tight text-xs">{item.label}</span>}
+                    {item.time && <span className="text-[10px] opacity-70">{item.time}</span>}
+                  </div>
+                ))}
+                {[
+                  { label: "", time: "", bg: "bg-muted/20", col: 0 },
+                  { label: "Phys 301", time: "14:00", bg: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400", col: 1 },
+                  { label: "Phys 301", time: "14:00", bg: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400", col: 2 },
+                  { label: "", time: "", bg: "bg-muted/20", col: 3 },
+                  { label: "Phys 301", time: "14:00", bg: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400", col: 4 },
+                ].map((item, i) => (
+                  <div
+                    key={`r2-${i}`}
+                    className={`rounded-xl p-3 text-center min-h-[52px] flex flex-col items-center justify-center ${item.bg}`}
+                  >
+                    {item.label && <span className="font-semibold leading-tight text-xs">{item.label}</span>}
+                    {item.time && <span className="text-[10px] opacity-70">{item.time}</span>}
+                  </div>
+                ))}
+                {[
+                  { label: "", time: "", bg: "bg-muted/20", col: 0 },
+                  { label: "", time: "", bg: "bg-muted/20", col: 1 },
+                  { label: "Eng 102", time: "16:00", bg: "bg-amber-500/15 text-amber-600 dark:text-amber-400", col: 2 },
+                  { label: "Eng 102", time: "16:00", bg: "bg-amber-500/15 text-amber-600 dark:text-amber-400", col: 3 },
+                  { label: "", time: "", bg: "bg-muted/20", col: 4 },
+                ].map((item, i) => (
+                  <div
+                    key={`r3-${i}`}
+                    className={`rounded-xl p-3 text-center min-h-[52px] flex flex-col items-center justify-center ${item.bg}`}
+                  >
+                    {item.label && <span className="font-semibold leading-tight text-xs">{item.label}</span>}
+                    {item.time && <span className="text-[10px] opacity-70">{item.time}</span>}
                   </div>
                 ))}
               </div>
@@ -111,17 +150,20 @@ export function DesktopLanding() {
         </section>
 
         {/* Features */}
-        <section id="features" className="border-t border-border/40 bg-secondary/20">
-          <div className="container mx-auto px-4 py-20 md:px-6 md:py-28">
-            <div className="mx-auto max-w-2xl text-center mb-16">
-              <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+        <section id="features" className="border-t border-border/40 bg-secondary/10">
+          <div className="container mx-auto px-4 py-24 md:px-6 md:py-32">
+            <div className="mx-auto mb-16 max-w-2xl text-center">
+              <span className="mb-3 inline-block rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
+                Features
+              </span>
+              <h2 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
                 Built for student life
               </h2>
-              <p className="mt-3 text-muted-foreground">
+              <p className="mt-4 text-muted-foreground">
                 Everything you need to stay on top of your classes.
               </p>
             </div>
-            <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-3">
+            <div className="mx-auto grid max-w-5xl gap-5 md:grid-cols-3">
               <FeatureCard
                 icon={
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -139,7 +181,7 @@ export function DesktopLanding() {
                   </svg>
                 }
                 title="Class Reminders"
-                description="Get reminded when your next class is coming up so you know what's next."
+                description="Get reminded when your next class is coming up so you know what&apos;s next."
               />
               <FeatureCard
                 icon={
@@ -183,48 +225,69 @@ export function DesktopLanding() {
 
         {/* How it works */}
         <section id="how-it-works" className="border-t border-border/40">
-          <div className="container mx-auto px-4 py-20 md:px-6 md:py-28">
-            <div className="mx-auto max-w-2xl text-center mb-16">
-              <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                From schedule photo to ready-to-use timetable.
+          <div className="container mx-auto px-4 py-24 md:px-6 md:py-32">
+            <div className="mx-auto mb-16 max-w-2xl text-center">
+              <span className="mb-3 inline-block rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
+                How it works
+              </span>
+              <h2 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+                From photo to timetable.
               </h2>
-              <p className="mt-3 text-muted-foreground">
+              <p className="mt-4 text-muted-foreground">
                 Three simple steps and your classes are sorted.
               </p>
             </div>
-            <div className="mx-auto grid max-w-4xl gap-8 md:grid-cols-3">
-              <StepCard number={1} title="Upload" description="Take a photo or upload your class schedule." />
-              <StepCard number={2} title="Let Schedly Scan" description="Schedly extracts your subjects, times, rooms, and other schedule details." />
-              <StepCard number={3} title="Check & Save" description="Review the results, make any needed changes, and save your timetable." />
+            <div className="relative mx-auto grid max-w-4xl gap-8 md:grid-cols-3">
+              <div className="absolute left-[calc(33.33%-40px)] top-[40px] h-[calc(50%-40px)] w-[80px] border-r-2 border-dashed border-border/50 md:block hidden" />
+              <div className="absolute left-[calc(66.66%-40px)] top-[40px] h-[calc(50%-40px)] w-[80px] border-r-2 border-dashed border-border/50 md:block hidden" />
+              <StepCard
+                number={1}
+                title="Upload"
+                description="Take a photo or upload your class schedule."
+                badge="Capture"
+              />
+              <StepCard
+                number={2}
+                title="Let Schedly Scan"
+                description="AI extracts your subjects, times, rooms, and other details."
+                badge="Extract"
+              />
+              <StepCard
+                number={3}
+                title="Check & Save"
+                description="Review results, make changes, and save your timetable."
+                badge="Done"
+              />
             </div>
           </div>
         </section>
 
         {/* CTA */}
-        <section className="border-t border-border/40 bg-gradient-to-b from-primary/[0.03] to-transparent">
-          <div className="container mx-auto flex flex-col items-center gap-6 px-4 py-20 text-center md:py-28">
-            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+        <section className="border-t border-border/40 bg-gradient-to-b from-primary/[0.04] to-transparent">
+          <div className="container mx-auto flex flex-col items-center gap-6 px-4 py-24 text-center md:py-36">
+            <h2 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
               Stop checking your schedule manually.
             </h2>
             <p className="max-w-md text-muted-foreground">
               Let Schedly organize your classes so you always know what&apos;s next.
             </p>
             <Link href="/register">
-              <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 shadow-md shadow-primary/20">
-                Get started with Schedly &rarr;
+              <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 px-10 shadow-lg shadow-primary/25 text-base">
+                Get started free &rarr;
               </Button>
             </Link>
+            <p className="mt-2 text-sm text-muted-foreground">No credit card required. 100% free forever.</p>
           </div>
         </section>
       </main>
 
-      <footer className="border-t border-border/40 py-8">
-        <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-4 md:flex-row md:px-6">
-          <div className="flex items-center gap-2">
+      <footer className="border-t border-border/40 py-10">
+        <div className="container mx-auto flex flex-col items-center justify-between gap-5 px-4 md:flex-row md:px-6">
+          <div className="flex items-center gap-2.5">
             <Image src="/images/logo.jpg" alt="" aria-hidden width={24} height={24} className="h-6 w-6 rounded-md object-cover" />
             <span className="text-sm font-semibold text-foreground">Schedly</span>
           </div>
-          <div className="flex items-center gap-5 text-sm text-muted-foreground">
+          <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <Link href="/privacy" className="transition-colors hover:text-foreground">
               Privacy
             </Link>
@@ -251,11 +314,11 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <div className="group rounded-xl border border-border/60 bg-card p-6 transition-colors hover:border-primary/30 hover:bg-primary/[0.02]">
-      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+    <div className="group rounded-2xl border-2 border-border bg-card p-7 shadow-[0_4px_0_0_hsl(var(--border)) transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_8px_0_0_hsl(var(--border))">
+      <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
         {icon}
       </div>
-      <h3 className="mb-1.5 text-base font-semibold text-foreground">{title}</h3>
+      <h3 className="mb-2 text-base font-semibold text-foreground">{title}</h3>
       <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
     </div>
   );
@@ -265,17 +328,22 @@ function StepCard({
   number,
   title,
   description,
+  badge,
 }: {
   number: number;
   title: string;
   description: string;
+  badge: string;
 }) {
   return (
     <div className="flex flex-col items-center text-center">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground text-lg font-bold shadow-md shadow-primary/20">
+      <div className="relative mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-border bg-card text-lg font-bold text-foreground shadow-[0_4px_0_0_hsl(var(--border))">
         {number}
       </div>
-      <h3 className="mb-1.5 text-base font-semibold text-foreground">{title}</h3>
+      <span className="mb-2 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-0.5 text-xs font-medium text-primary">
+        {badge}
+      </span>
+      <h3 className="mb-2 text-base font-semibold text-foreground">{title}</h3>
       <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">{description}</p>
     </div>
   );
