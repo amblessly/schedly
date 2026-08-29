@@ -3,6 +3,7 @@ import { auth } from "@/server/lib/auth";
 import { db } from "@/server/db/client";
 import { checkRateLimitDb, validateCsrf } from "@/server/lib/security";
 import { extractSyllabusFromText, extractSyllabusFromImage } from "@/server/lib/syllabus-extract";
+import { friendlyError } from "@/server/lib/friendly-error";
 import { storeImage } from "@/server/services/file-store.service";
 
 export const maxDuration = 300;
@@ -137,9 +138,8 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     console.error("[SYLLABUS_UPLOAD]", err);
-    const message = err instanceof Error ? err.message : "Extraction failed";
     return NextResponse.json(
-      { error: message.includes("All AI providers") ? "AI extraction failed. Please try again." : message },
+      { error: friendlyError(err, "syllabus") },
       { status: 500 }
     );
   }

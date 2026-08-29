@@ -92,7 +92,10 @@ export async function POST(request: NextRequest) {
       ? stored.url
       : `${origin}${stored.url}`;
 
-    if (process.env.OPENROUTER_API_KEY) {
+    // Run AI extraction when at least one provider is configured.
+    // Gemini (primary) is checked via GEMINI_KEYS count; OpenRouter (fallback)
+    // is checked via OPENROUTER_API_KEY. If neither is set, skip extraction.
+    if (process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY) {
       const task = uploadService.processWithAi(stored.uploadId, absoluteUrl, {
         data: buffer,
         mimeType: detectedMime,
