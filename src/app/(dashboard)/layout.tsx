@@ -233,6 +233,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const isProfile = pathname === "/profile";  // Admin pages are full-screen — same treatment as settings/profile.
   const isAdmin = pathname.startsWith("/admin");
 
+  // Capture page is a focused single-task screen — no bottom nav.
+  const isCapture = pathname === "/capture";
+
   // Notifications page is opened from the bell icon.
   const isNotifications = pathname === "/notifications";
 
@@ -403,7 +406,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </main>
         </div>
 
-      {!isImmersive && !isProfile && !isNotifications && !isSettings && !isAdmin && <BottomNav />}
+      {!isImmersive && !isProfile && !isNotifications && !isSettings && !isAdmin && !isCapture && <BottomNav />}
       {!isImmersive && <OfflineBanner />}
     </div>
   );

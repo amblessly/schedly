@@ -21,7 +21,6 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   timer: Timer,
 };
 
-/** The center "camera" button always opens its own dedicated capture card. */
 const ADD_PAGE = "/capture";
 
 export function BottomNav() {
@@ -31,7 +30,6 @@ export function BottomNav() {
 
   const handleQuickAdd = () => {
     if (pathname === ADD_PAGE) {
-      // Already on the capture card — tell it to start a fresh capture.
       window.dispatchEvent(new CustomEvent("schedly:quickadd"));
     } else {
       router.push(ADD_PAGE);
@@ -43,7 +41,7 @@ export function BottomNav() {
       aria-label="Primary"
       className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 md:hidden"
     >
-<div
+      <div
         className="bottom-nav flex items-end justify-center gap-2 rounded-[1.75rem] border border-border/60 bg-card/90 px-3 shadow-[0_12px_40px_rgba(0,0,0,0.22)] ring-1 ring-black/[0.03] backdrop-blur-xl"
         style={{ paddingBottom: "calc(0.75rem + var(--sab))", marginBottom: "calc(1.25rem + var(--sab))" }}
       >
