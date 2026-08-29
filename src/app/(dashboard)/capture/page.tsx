@@ -14,7 +14,6 @@ import {
   Calendar, Upload, X, Plus,
 } from "lucide-react";
 import { ArcTracer } from "@/components/arc-tracer";
-import { RotatingLoadingTips } from "@/components/rotating-loading-tips";
 import { ChaoticOrbit } from "ldrs/react";
 import { compressImage } from "@/lib/image-compress";
 import { validateExtractedClasses, type ValidationIssue } from "@/server/services/validation.service";
@@ -443,10 +442,6 @@ export default function CapturePage() {
                       style={{ width: `${displayProgress}%` }}
                     />
                   </div>
-                  <RotatingLoadingTips
-                    isLoading={isAiWorking}
-                    className="pt-1"
-                  />
                 </div>
               ) : (
                 <div className="flex gap-3">
