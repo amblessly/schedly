@@ -34,16 +34,11 @@ export function DesktopLanding() {
 
         {/* ── BENTO HERO ── */}
         <section className="container mx-auto max-w-6xl px-6 pt-16 pb-12">
-          {/* Trust badge */}
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-medium" style={{ borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.55)" }}>
-            Free forever. No credit card required.
-          </div>
-
           {/* BENTO GRID */}
-          <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(12, 1fr)", gridTemplateRows: "auto auto auto auto" }}>
+          <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(12, 1fr)" }}>
 
             {/* ── HERO TEXT — spans 7 cols ── */}
-            <div className="col-span-12 md:col-span-7" style={{ gridColumn: "span 7" }}>
+            <div style={{ gridColumn: "span 7" }}>
               <div className="rounded-3xl border p-8 md:p-10 h-full" style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}>
                 <h1 className="font-bold tracking-tight leading-[1.05]" style={{ fontSize: "clamp(2.5rem, 5vw, 4rem)" }}>
                   Your class schedule,<br />made{" "}
@@ -67,25 +62,28 @@ export function DesktopLanding() {
               </div>
             </div>
 
-            {/* ── STAT 1 — spans 2.5 cols ── */}
-            <div className="col-span-6 md:col-span-2" style={{ gridColumn: "span 2" }}>
-              <div className="rounded-3xl border p-6 h-full text-center" style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}>
-                <div className="text-4xl font-bold" style={{ color: "#fff" }}>10s</div>
-                <div className="mt-1 text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Average extraction</div>
-              </div>
-            </div>
+            {/* ── RIGHT COLUMN — 5 cols: stats stacked, then schedule ── */}
+            <div style={{ gridColumn: "span 5", display: "flex", flexDirection: "column", gap: "16px" }}>
 
-            {/* ── STAT 2 — spans 2.5 cols ── */}
-            <div className="col-span-6 md:col-span-3" style={{ gridColumn: "span 3" }}>
-              <div className="rounded-3xl border p-6 h-full text-center" style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}>
-                <div className="text-4xl font-bold" style={{ color: "#fff" }}>100%</div>
-                <div className="mt-1 text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Free, no card</div>
+              {/* Stats row */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                <div className="rounded-3xl border p-6 text-center" style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}>
+                  <div className="text-4xl font-bold" style={{ color: "#fff" }}>10s</div>
+                  <div className="mt-1 text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Average extraction</div>
+                </div>
+                <div className="rounded-3xl border p-6 text-center" style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}>
+                  <div className="text-4xl font-bold" style={{ color: "#fff" }}>100%</div>
+                  <div className="mt-1 text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Free, no card</div>
+                </div>
               </div>
-            </div>
 
-            {/* ── SCHEDULE MOCKUP — spans 6 cols, 2 rows ── */}
-            <div className="col-span-12 md:col-span-6" style={{ gridColumn: "span 6", gridRow: "span 2" }}>
-              <div className="rounded-3xl border p-6 h-full" style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}>
+              {/* Trust badge */}
+              <div className="rounded-3xl border px-4 py-2 text-center text-xs font-medium" style={{ borderColor: "rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.45)" }}>
+                Free forever. No credit card required.
+              </div>
+
+              {/* Schedule mockup */}
+              <div className="rounded-3xl border p-6" style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}>
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-1.5">
                     <div className="h-2 w-2 rounded-full bg-white/30" />
@@ -149,21 +147,17 @@ export function DesktopLanding() {
                   ))}
                 </div>
               </div>
-            </div>
 
-            {/* ── STAT 3 — spans 3 cols ── */}
-            <div className="col-span-6 md:col-span-3">
-              <div className="rounded-3xl border p-6 h-full text-center" style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}>
-                <div className="text-4xl font-bold" style={{ color: "#fff" }}>24/7</div>
-                <div className="mt-1 text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Smart reminders</div>
-              </div>
-            </div>
-
-            {/* ── STAT 4 — spans 3 cols ── */}
-            <div className="col-span-6 md:col-span-3">
-              <div className="rounded-3xl border p-6 h-full text-center" style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}>
-                <div className="text-4xl font-bold" style={{ color: "#fff" }}>0</div>
-                <div className="mt-1 text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Tools to juggle</div>
+              {/* Bottom stats */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                <div className="rounded-3xl border p-6 text-center" style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}>
+                  <div className="text-4xl font-bold" style={{ color: "#fff" }}>24/7</div>
+                  <div className="mt-1 text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Smart reminders</div>
+                </div>
+                <div className="rounded-3xl border p-6 text-center" style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}>
+                  <div className="text-4xl font-bold" style={{ color: "#fff" }}>0</div>
+                  <div className="mt-1 text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Tools to juggle</div>
+                </div>
               </div>
             </div>
 
@@ -171,7 +165,7 @@ export function DesktopLanding() {
         </section>
 
         {/* ── PROBLEM → PROMISE ── */}
-        <section className="container mx-auto max-w-6xl px-6 py-8">
+        <section className="container mx-auto max-w-6xl px-6 py-6">
           <div className="rounded-3xl border p-8 md:p-10" style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}>
             <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "rgba(255,255,255,0.35)" }}>
               Problem &rarr; Promise
@@ -186,7 +180,7 @@ export function DesktopLanding() {
         </section>
 
         {/* ── FEATURES ── */}
-        <section id="features" className="container mx-auto max-w-6xl px-6 py-8">
+        <section id="features" className="container mx-auto max-w-6xl px-6 py-6">
           <div className="mb-8">
             <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>Features</p>
             <h2 className="font-bold tracking-tight" style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)" }}>
@@ -205,7 +199,7 @@ export function DesktopLanding() {
         </section>
 
         {/* ── HOW IT WORKS ── */}
-        <section id="how-it-works" className="container mx-auto max-w-6xl px-6 py-8">
+        <section id="how-it-works" className="container mx-auto max-w-6xl px-6 py-6">
           <div className="mb-8">
             <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>How it works</p>
             <h2 className="font-bold tracking-tight" style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)" }}>
@@ -235,7 +229,7 @@ export function DesktopLanding() {
         </section>
 
         {/* ── CTA ── */}
-        <section className="container mx-auto max-w-6xl px-6 py-8">
+        <section className="container mx-auto max-w-6xl px-6 py-6">
           <div className="rounded-3xl border p-10 md:p-14 text-center" style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}>
             <h2 className="font-bold tracking-tight" style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)" }}>
               Stop checking your schedule manually.
@@ -311,7 +305,7 @@ const FEATURES = [
       </svg>
     ),
     title: "Class Reminders",
-    desc: "Get reminded when your next class is coming up so you know what&apos;s next.",
+    desc: "Get reminded when your next class is coming up so you know what's next.",
   },
   {
     icon: (
