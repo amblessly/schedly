@@ -2,7 +2,7 @@ import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/server/lib/security";
 
-const publicRoutes = ["/login", "/register", "/"];
+const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password", "/"];
 const publicApiRoutes = ["/api/auth", "/api/version", "/api/push", "/api/notifications", "/api/cron", "/api/upload", "/api/reminders/fire"];
 const verificationRoutes = ["/verify-email"];
 
@@ -39,7 +39,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (sessionCookie && (pathname === "/" || pathname === "/login" || pathname === "/register")) {
+  if (sessionCookie && (pathname === "/" || pathname === "/login" || pathname === "/register" || pathname === "/forgot-password")) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
