@@ -5,6 +5,7 @@ import { checkRateLimitDb, validateCsrf } from "@/server/lib/security";
 import { extractSyllabusFromText, extractSyllabusFromImage } from "@/server/lib/syllabus-extract";
 import { friendlyError } from "@/server/lib/friendly-error";
 import { storeImage } from "@/server/services/file-store.service";
+import { extractPdfText } from "@/server/lib/pdf-extract";
 
 export const maxDuration = 300;
 
@@ -96,11 +97,7 @@ export async function POST(request: NextRequest) {
     let extractionResult: { course: Record<string, unknown>; requirements: Record<string, unknown>[] };
 
     if (fileType === "pdf") {
-      // Dynamic import for pdf-parse (server-side only)
-      const { PDFParse } = await import("pdf-parse");
-      const parser = new PDFParse({ data: Buffer.from(buffer) });
-      const textResult = await parser.getText();
-      const textContent = textResult.text;
+      const { text: textContent } = await extractPdfText(Buffer.from(buffer));
 
       if (!textContent || textContent.trim().length < 20) {
         await db.upload.update({

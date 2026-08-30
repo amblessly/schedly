@@ -66,3 +66,4 @@ benchmark/report.md
 # Firebase admin service account (contains a live private key)
 *-firebase-adminsdk-*.json
 firebase-admin*.json
+dev-test.log

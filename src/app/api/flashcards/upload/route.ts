@@ -5,6 +5,7 @@ import { checkRateLimitDb, validateCsrf } from "@/server/lib/security";
 import { storeImage } from "@/server/services/file-store.service";
 import { processFlashcardData } from "@/server/workers/flashcard-worker";
 import { friendlyError } from "@/server/lib/friendly-error";
+import { extractPdfText } from "@/server/lib/pdf-extract";
 
 export const maxDuration = 90;
 
@@ -123,11 +124,9 @@ export async function POST(request: NextRequest) {
     for (let i = 0; i < fileMetas.length; i++) {
       const meta = fileMetas[i]!;
       if (meta.fileType === "pdf") {
-        const { PDFParse } = await import("pdf-parse");
-        const parser = new PDFParse({ data: Buffer.from(meta.buffer) });
-        const textResult = await parser.getText();
-        if (textResult.text && textResult.text.trim().length >= 50) {
-          combinedText.push(`--- ${meta.fileName} ---\n${textResult.text}`);
+        const { text } = await extractPdfText(Buffer.from(meta.buffer));
+        if (text && text.trim().length >= 50) {
+          combinedText.push(`--- ${meta.fileName} ---\n${text}`);
         }
       } else {
         images.push({ buffer: Buffer.from(meta.buffer), mime: meta.mime, fileName: meta.fileName });

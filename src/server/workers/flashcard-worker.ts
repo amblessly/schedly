@@ -3,6 +3,7 @@ import { generateFlashcardsFromText, generateFlashcardsFromImage } from "../lib/
 import { generateFlashcardsViaOpenRouter } from "../lib/openrouter-flashcard";
 import { geminiCircuitBreaker } from "../lib/circuit-breaker";
 import { db } from "../db/client";
+import { extractPdfText } from "../lib/pdf-extract";
 
 export interface FlashcardJobData {
   uploadId: string;
@@ -105,12 +106,10 @@ export async function processFlashcardData(
     for (let i = 0; i < buffers.length; i++) {
       if (fileTypes[i] === "pdf") {
         try {
-          const { PDFParse } = await import("pdf-parse");
           const buf = buffers[i] as Buffer;
-          const parser = new PDFParse({ data: buf });
-          const textResult = await parser.getText();
-          if (textResult.text && textResult.text.trim().length >= 50) {
-            combinedText += `\n\n--- ${fileNames[i] || `Document ${i + 1}`} ---\n${textResult.text}`;
+          const { text } = await extractPdfText(buf);
+          if (text && text.trim().length >= 50) {
+            combinedText += `\n\n--- ${fileNames[i] || `Document ${i + 1}`} ---\n${text}`;
           }
         } catch (err) {
           console.error(`[FLASHCARD_WORKER] PDF parse failed for ${fileNames[i]}:`, err);
