@@ -517,16 +517,16 @@ const [genCards, setGenCards] = useState<GenCard[]>([]);
               )}
 
               <DialogFooter className="flex-col gap-2">
-                {newDeckMode === "upload" && generating && (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <Spinner size={14} />
-                      <span className="text-xs text-muted-foreground">Analyzing with AI...</span>
-                      <span className="text-xs font-medium text-primary ml-auto tabular-nums">{Math.round(genProgress)}%</span>
-                    </div>
-                    <ProgressBar value={genProgress} className="h-1" />
-                  </div>
-                )}
+                    {newDeckMode === "upload" && generating && (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <Spinner size={14} />
+                          <span className="text-xs text-muted-foreground">Creating your flashcards...</span>
+                          <span className="text-xs font-medium text-primary ml-auto tabular-nums">{Math.round(genProgress)}%</span>
+                        </div>
+                        <ProgressBar value={genProgress} className="h-1" />
+                      </div>
+                    )}
                 {newDeckMode === "upload" ? (
                   <Button
                     onClick={handleGenerate}

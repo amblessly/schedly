@@ -1331,7 +1331,7 @@ const POPUP_DEMOS: PopupDemo[] = [
             <Spinner size={32} className="text-primary" />
             <DialogHeader>
               <DialogTitle>Generating flashcards…</DialogTitle>
-              <DialogDescription>AI is analyzing your notes and creating flashcards. This usually takes about 10–30 seconds.</DialogDescription>
+              <DialogDescription>Creating your flashcards from your notes. This usually takes about 10–30 seconds.</DialogDescription>
             </DialogHeader>
           </div>
         </DialogContent>
