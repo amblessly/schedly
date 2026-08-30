@@ -3,7 +3,7 @@ import { generateFlashcardsViaOpenRouter } from "./openrouter-flashcard";
 import { incrementUsage } from "./usage-counter";
 
 const GEMINI_GENERATE_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
 const FLASHCARD_GENERATION_PROMPT = `You are an expert flashcard creator for students. Generate high-quality flashcards from the provided study material.
 
@@ -55,9 +55,9 @@ export type FlashcardGenerationResult = {
   cards: Array<{ question: string; answer: string }>;
 };
 
-const MAX_RETRIES = 5;
-const RETRY_DELAYS = [1000, 3000, 5000, 10000, 15000];
-const KEY_RETRY_DELAY = 2000;
+const MAX_RETRIES = 7;
+const RETRY_DELAYS = [1000, 3000, 5000, 10000, 15000, 20000, 30000];
+const KEY_RETRY_DELAY = 3000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

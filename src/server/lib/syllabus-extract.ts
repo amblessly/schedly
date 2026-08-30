@@ -284,16 +284,20 @@ export async function extractSyllabusFromText(
 
   const truncated = textContent.slice(0, 15000);
 
-  // Try Gemini keys first (key 1 -> ... -> key N)
+  // Try Gemini keys first (key 1 -> ... -> key N), with up to 3 retries per key
+  // on transient failures (429/503) before escalating.
   for (const apiKey of GEMINI_KEYS) {
-    try {
-      const raw = await callGeminiExtract(
-        [{ text: truncated }],
-        apiKey,
-      );
-      return dedupRequirements(normalizeResult(raw));
-    } catch (err) {
-      console.error("[SYLLABUS_AI] Gemini key failed:", err);
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const raw = await callGeminiExtract(
+          [{ text: truncated }],
+          apiKey,
+        );
+        return dedupRequirements(normalizeResult(raw));
+      } catch (err) {
+        console.error(`[SYLLABUS_AI] Gemini key attempt ${attempt} failed:`, err);
+        if (attempt < 3) await sleep(2000);
+      }
     }
   }
 
@@ -314,29 +318,37 @@ export async function extractSyllabusFromText(
   throw new Error("All AI providers failed. Please try again later.");
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * Extract syllabus from an image (base64) using Gemini vision.
+ * Retries each Gemini key up to 3 times on transient errors.
  */
 export async function extractSyllabusFromImage(
   base64Data: string,
   mimeType: string,
 ): Promise<SyllabusExtractionResult> {
   for (const apiKey of GEMINI_KEYS) {
-    try {
-      const raw = await callGeminiExtract(
-        [
-          {
-            inlineData: {
-              mimeType,
-              data: base64Data,
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const raw = await callGeminiExtract(
+          [
+            {
+              inlineData: {
+                mimeType,
+                data: base64Data,
+              },
             },
-          },
-        ],
-        apiKey,
-      );
-      return dedupRequirements(normalizeResult(raw));
-    } catch (err) {
-      console.error("[SYLLABUS_AI] Gemini vision failed:", err);
+          ],
+          apiKey,
+        );
+        return dedupRequirements(normalizeResult(raw));
+      } catch (err) {
+        console.error(`[SYLLABUS_AI] Gemini vision attempt ${attempt} failed:`, err);
+        if (attempt < 3) await sleep(2000);
+      }
     }
   }
 

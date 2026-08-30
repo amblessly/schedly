@@ -37,7 +37,7 @@ const VALIDATION_MODELS = [
   "google/gemma-4-26b-a4b-it:free",                      // Fallback
 ];
 
-const RETRY_DELAYS = [1000];
+const RETRY_DELAYS = [1000, 3000, 5000, 10000];
 
 /**
  * Single, concise extraction prompt. Day abbreviation expansion is delegated to
@@ -379,8 +379,8 @@ async function runWithOpenRouterKeys<T>(
 
 /**
  * Runs `call(apiKey)` across every configured Gemini key (in order), retrying
- * each key once on a transient failure before escalating to the next key.
- * Returns the first successful result, or throws the last error.
+ * each key up to 3 times on a transient failure before escalating to the next
+ * key. Returns the first successful result, or throws the last error.
  */
 async function runWithGeminiKeys<T>(
   call: (apiKey: string) => Promise<T>,
@@ -391,7 +391,7 @@ async function runWithGeminiKeys<T>(
   for (let i = 0; i < GEMINI_KEYS.length; i++) {
     const apiKey = GEMINI_KEYS[i]!;
     PipelineLogger.info("extract", `Trying Gemini key ${i + 1}/${GEMINI_KEYS.length}`);
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         return await call(apiKey);
       } catch (err) {
@@ -400,7 +400,7 @@ async function runWithGeminiKeys<T>(
           `[AI] Gemini key ${i + 1} attempt ${attempt} failed:`,
           err instanceof Error ? err.message : err,
         );
-        if (attempt < 2) await sleep(1500);
+        if (attempt < 3) await sleep(2000);
       }
     }
   }
