@@ -92,11 +92,14 @@ async function fetchAndPreprocessImage(imageUrl: string) {
   PipelineLogger.info(stage, "Fetching image", { imageUrl });
 
   const t0 = performance.now();
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
   let response: Response;
   try {
-    response = await fetch(imageUrl, { signal: controller.signal });
+    response = await fetch(imageUrl, {
+      signal: controller.signal,
+      keepalive: true,
+    });
     if (!response.ok) {
       PipelineLogger.error(stage, "Failed to fetch image", { imageUrl, status: response.status });
       throw new Error(`Failed to fetch image: ${response.status}`);

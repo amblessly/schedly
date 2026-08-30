@@ -597,15 +597,15 @@ export interface PreprocessOptions {
 }
 
 const DEFAULTS: PreprocessOptions = {
- autoRotate: true,
- autoCrop: true,
- perspectiveCorrection: true,
- removeShadows: true,
- brightnessNormalization: true,
- contrastEnhancement: true,
- sharpen: true,
- denoise: true,
- resolutionUpscale: true,
+  autoRotate: true,
+  autoCrop: false,
+  perspectiveCorrection: false,
+  removeShadows: false,
+  brightnessNormalization: false,
+  contrastEnhancement: false,
+  sharpen: false,
+  denoise: false,
+  resolutionUpscale: true,
   maxDimension: 1600,
 };
 
@@ -632,19 +632,29 @@ export async function preprocessImage(
 
  let buf = input;
 
- // Fast path: skip heavy OpenCV steps if the image is already clean.
- const quality = await analyzeImageQuality(buf);
- if (quality.overall >= 0.7) {
-   buf = await stepAutoRotate(buf);
-   if (options.resolutionUpscale) {
-     buf = await stepResolutionUpscaling(buf, options.maxDimension);
-   }
-   return sharp(buf).jpeg({ quality: 90, force: true }).toBuffer();
- }
+// Fast path: skip heavy OpenCV steps if the image is already clean.
+  const quality = await analyzeImageQuality(buf);
+  if (quality.overall >= 0.7) {
+    buf = await stepAutoRotate(buf);
+    if (options.resolutionUpscale) {
+      buf = await stepResolutionUpscaling(buf, options.maxDimension);
+    }
+    return sharp(buf).jpeg({ quality: 90, force: true }).toBuffer();
+  }
 
- if (options.autoRotate) {
-   buf = await stepAutoRotate(buf);
- }
+  // Lightweight normalization (sharp-only) — no OpenCV WASM loading, fast.
+  if (options.brightnessNormalization || options.contrastEnhancement) {
+    const operations = [];
+    if (tooDark) operations.push({ gamma: 3.0 });
+    if (tooBright) operations.push({ gamma: 0.7 });
+    if (tooDark || tooBright) {
+      buf = await sharp(buf).gamma(2.0).normalize().toBuffer();
+    }
+  }
+
+  if (options.autoRotate) {
+    buf = await stepAutoRotate(buf);
+  }
 
  if (options.autoCrop) {
    buf = await stepAutoCrop(buf);
