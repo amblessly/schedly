@@ -136,7 +136,7 @@ async function callOpenRouter(
   if (!apiKey) throw new Error("No OpenRouter API key configured");
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60000);
+  const timeoutId = setTimeout(() => controller.abort(), 20000);
   let response: Response;
   try {
     response = await fetch(OPENROUTER_API_URL, {
