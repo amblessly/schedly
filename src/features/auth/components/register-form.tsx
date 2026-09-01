@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -16,7 +18,6 @@ import {
 } from "@/lib/validations";
 import { TurnstileWidget } from "@/components/turnstile";
 import { verifyCaptcha } from "@/app/actions";
-import Link from "next/link";
 import { Spinner } from "@/components/ui/spinner";
 
 const TOTAL_STEPS = 3;
@@ -126,36 +127,33 @@ export function RegisterForm() {
 
   return (
     <Card className="border-border/50 shadow-lg shadow-primary/5 overflow-hidden">
-      <CardHeader className="space-y-1 pb-4 text-center">
-        <div className="flex items-center justify-between">
+      <CardHeader className="space-y-3 pb-3 text-center">
+        <Link href="/" className="mx-auto flex items-center gap-2.5">
+          <Image
+            src="/images/logo.jpg"
+            alt="Schedly"
+            width={36}
+            height={36}
+            className="h-9 w-9 rounded-xl object-cover"
+          />
+          <span className="text-lg font-bold tracking-tight">Schedly</span>
+        </Link>
+        <div>
           <CardTitle className="text-2xl font-bold tracking-tight">Create an account</CardTitle>
-          <span className="text-xs font-medium text-muted-foreground">
-            {step} / {TOTAL_STEPS}
-          </span>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {step === 1 && "Let's start with your basic info"}
-          {step === 2 && "Tell us a bit more about yourself"}
-          {step === 3 && "Set up your password"}
-        </p>
-        <div className="flex gap-1.5 pt-2">
-          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-            <div
-              key={i}
-              className={`h-1 flex-1 rounded-full transition-[background-color] duration-300 ${
-                i < step ? "bg-primary" : "bg-muted"
-              }`}
-            />
-          ))}
+          <p className="mt-1 text-sm text-muted-foreground">
+            {step === 1 && "Let's start with your basic info"}
+            {step === 2 && "Tell us a bit more about yourself"}
+            {step === 3 && "Set up your password"}
+          </p>
         </div>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} noValidate>
           <div className={`${slideClass} duration-300 ease-out`}>
             {step === 1 && (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
+                  <div>
                     <TextField
                       label="First name"
                       value={form.firstName}
@@ -165,7 +163,7 @@ export function RegisterForm() {
                     />
                     {errors.firstName && <p className="text-xs text-destructive">{errors.firstName}</p>}
                   </div>
-                  <div className="space-y-2">
+                  <div>
                     <TextField
                       label="Last name"
                       value={form.lastName}
@@ -176,7 +174,7 @@ export function RegisterForm() {
                     {errors.lastName && <p className="text-xs text-destructive">{errors.lastName}</p>}
                   </div>
                 </div>
-                <div className="space-y-2">
+                <div>
                   <TextField
                     label="Email"
                     type="email"
@@ -187,7 +185,7 @@ export function RegisterForm() {
                   />
                   {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
                 </div>
-                <div className="flex justify-center">
+                <div className="flex justify-center pt-1">
                   <TurnstileWidget onToken={setTurnstileToken} />
                 </div>
               </div>
@@ -272,7 +270,7 @@ export function RegisterForm() {
             </div>
           )}
 
-          <div className="mt-5 flex gap-3">
+          <div className="mt-3 flex gap-3">
             {step > 1 && (
               <Button
                 type="button"
@@ -311,7 +309,23 @@ export function RegisterForm() {
             )}
           </div>
         </form>
-        <div className="mt-4 pt-4 border-t border-border/50 text-center text-sm text-muted-foreground">
+        <div className="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
+          <div className="flex flex-1 gap-1.5">
+            {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+              <div
+                key={i}
+                className={`h-1 rounded-full transition-[background-color] duration-300 ${
+                  i < step ? "bg-primary" : "bg-muted"
+                }`}
+                style={{ width: `${100 / TOTAL_STEPS}%` }}
+              />
+            ))}
+          </div>
+          <span className="ml-3 text-xs font-medium text-muted-foreground">
+            {step} / {TOTAL_STEPS}
+          </span>
+        </div>
+        <div className="mt-4 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link href="/login" className="font-medium text-primary hover:text-primary/80 transition-colors">
             Sign in

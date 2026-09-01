@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 export function DesktopLanding() {
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b-2 border-foreground/70 bg-background/95">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
           <Link href="/" className="flex items-center gap-2.5">
             <Image src="/images/logo.jpg" alt="" aria-hidden width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
@@ -20,9 +20,7 @@ export function DesktopLanding() {
               <Button variant="ghost" size="sm">Sign in</Button>
             </Link>
             <Link href="/register">
-              <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm">
-                Get started free
-              </Button>
+              <Button size="sm">Get started free</Button>
             </Link>
           </div>
         </div>
@@ -59,12 +57,12 @@ export function DesktopLanding() {
             <div className="mt-8 flex flex-col items-center gap-4">
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Link href="/register">
-                  <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 px-10 shadow-lg shadow-primary/20 text-base font-medium">
+                  <Button size="lg" className="px-10 text-base font-bold">
                     Get started free
                   </Button>
                 </Link>
                 <Link href="#how-it-works">
-                  <Button size="lg" variant="outline" className="px-10 text-base font-medium">
+                  <Button size="lg" variant="outline" className="px-10 text-base font-bold">
                     See how it works
                   </Button>
                 </Link>
@@ -72,7 +70,7 @@ export function DesktopLanding() {
             </div>
 
             {/* Mock timetable */}
-            <div className="mx-auto mt-14 max-w-3xl rounded-2xl border-2 border-border bg-card/90 p-6 shadow-[0_6px_0_0_hsl(var(--border))] backdrop-blur-sm">
+            <div className="mx-auto mt-14 max-w-3xl rounded-xl border-2 border-foreground/70 bg-card/90 p-6 shadow-[3px_3px_0_0_#401f32]">
               <div className="mb-5 flex items-center gap-2">
                 <div className="h-2.5 w-2.5 rounded-full bg-red-400/70" />
                 <div className="h-2.5 w-2.5 rounded-full bg-yellow-400/70" />
@@ -80,11 +78,11 @@ export function DesktopLanding() {
                 <span className="ml-2 rounded bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">schedule.pdf</span>
               </div>
               <div className="grid grid-cols-5 gap-2 text-xs">
-                <div className="rounded-xl bg-primary/10 p-3 text-center font-bold text-primary">Mon</div>
-                <div className="rounded-xl bg-primary/10 p-3 text-center font-bold text-primary">Tue</div>
-                <div className="rounded-xl bg-primary/10 p-3 text-center font-bold text-primary">Wed</div>
-                <div className="rounded-xl bg-primary/10 p-3 text-center font-bold text-primary">Thu</div>
-                <div className="rounded-xl bg-primary/10 p-3 text-center font-bold text-primary">Fri</div>
+                <div className="rounded-xl border-2 border-foreground/70 bg-primary/10 p-3 text-center font-bold text-primary">Mon</div>
+                <div className="rounded-xl border-2 border-foreground/70 bg-primary/10 p-3 text-center font-bold text-primary">Tue</div>
+                <div className="rounded-xl border-2 border-foreground/70 bg-primary/10 p-3 text-center font-bold text-primary">Wed</div>
+                <div className="rounded-xl border-2 border-foreground/70 bg-primary/10 p-3 text-center font-bold text-primary">Thu</div>
+                <div className="rounded-xl border-2 border-foreground/70 bg-primary/10 p-3 text-center font-bold text-primary">Fri</div>
 
                 {[
                   { label: "Math 101", time: "9:00", bg: "bg-blue-500/15 text-blue-600 dark:text-blue-400" },
@@ -93,7 +91,7 @@ export function DesktopLanding() {
                   { label: "", bg: "bg-muted/20" },
                   { label: "Math 101", time: "9:00", bg: "bg-blue-500/15 text-blue-600 dark:text-blue-400" },
                 ].map((item, i) => (
-                  <div key={`r0-${i}`} className={`rounded-xl p-3 text-center min-h-[52px] flex flex-col items-center justify-center ${item.bg}`}>
+                  <div key={`r0-${i}`} className={`rounded-xl border-2 border-foreground/10 p-3 text-center min-h-[52px] flex flex-col items-center justify-center ${item.bg}`}>
                     {item.label && <span className="font-semibold leading-tight text-xs">{item.label}</span>}
                     {item.time && <span className="text-[10px] opacity-70">{item.time}</span>}
                   </div>
@@ -105,7 +103,7 @@ export function DesktopLanding() {
                   { label: "CS 201", time: "11:00", bg: "bg-purple-500/15 text-purple-600 dark:text-purple-400" },
                   { label: "", bg: "bg-muted/20" },
                 ].map((item, i) => (
-                  <div key={`r1-${i}`} className={`rounded-xl p-3 text-center min-h-[52px] flex flex-col items-center justify-center ${item.bg}`}>
+                  <div key={`r1-${i}`} className={`rounded-xl border-2 border-foreground/10 p-3 text-center min-h-[52px] flex flex-col items-center justify-center ${item.bg}`}>
                     {item.label && <span className="font-semibold leading-tight text-xs">{item.label}</span>}
                     {item.time && <span className="text-[10px] opacity-70">{item.time}</span>}
                   </div>
@@ -117,7 +115,7 @@ export function DesktopLanding() {
                   { label: "", bg: "bg-muted/20" },
                   { label: "Phys 301", time: "14:00", bg: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
                 ].map((item, i) => (
-                  <div key={`r2-${i}`} className={`rounded-xl p-3 text-center min-h-[52px] flex flex-col items-center justify-center ${item.bg}`}>
+                  <div key={`r2-${i}`} className={`rounded-xl border-2 border-foreground/10 p-3 text-center min-h-[52px] flex flex-col items-center justify-center ${item.bg}`}>
                     {item.label && <span className="font-semibold leading-tight text-xs">{item.label}</span>}
                     {item.time && <span className="text-[10px] opacity-70">{item.time}</span>}
                   </div>
@@ -129,7 +127,7 @@ export function DesktopLanding() {
                   { label: "Eng 102", time: "16:00", bg: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
                   { label: "", bg: "bg-muted/20" },
                 ].map((item, i) => (
-                  <div key={`r3-${i}`} className={`rounded-xl p-3 text-center min-h-[52px] flex flex-col items-center justify-center ${item.bg}`}>
+                  <div key={`r3-${i}`} className={`rounded-xl border-2 border-foreground/10 p-3 text-center min-h-[52px] flex flex-col items-center justify-center ${item.bg}`}>
                     {item.label && <span className="font-semibold leading-tight text-xs">{item.label}</span>}
                     {item.time && <span className="text-[10px] opacity-70">{item.time}</span>}
                   </div>
@@ -156,14 +154,14 @@ export function DesktopLanding() {
             </div>
 
             {/* Stats */}
-            <div className="mt-14 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border bg-border md:grid-cols-4">
+            <div className="mt-14 grid grid-cols-2 overflow-hidden rounded-xl border-2 border-foreground/70 bg-card shadow-[3px_3px_0_0_#401f32] md:grid-cols-4">
               {[
                 { value: "10s", label: "Average extraction time" },
                 { value: "100%", label: "Free forever, no card" },
                 { value: "24/7", label: "Smart class reminders" },
                 { value: "0", label: "Tools to juggle" },
               ].map((stat) => (
-                <div key={stat.label} className="bg-card p-6 text-center">
+                <div key={stat.label} className="border-r-2 border-foreground/10 p-6 text-center last:border-r-0">
                   <div className="text-3xl font-bold text-primary sm:text-4xl">{stat.value}</div>
                   <div className="mt-1 text-xs text-muted-foreground">{stat.label}</div>
                 </div>
@@ -196,7 +194,7 @@ export function DesktopLanding() {
                     </svg>
                   ),
                   title: "Schedule Scanner",
-                  description: "Upload a photo of your class schedule and let AI turn it into an interactive timetable.",
+                  description: "Upload a photo of your class schedule and get an interactive timetable.",
                 },
                 {
                   icon: (
@@ -269,7 +267,7 @@ export function DesktopLanding() {
               <div className="absolute left-[calc(50%-1px)] top-14 hidden h-[calc(100%-7rem)] w-0.5 border-l-2 border-dashed border-border/60 md:block" style={{ left: "calc(66.66% - 1px)" }} />
               {[
                 { n: 1, title: "Upload", desc: "Take a photo or upload your class schedule." },
-                { n: 2, title: "Schedly Scans", desc: "AI extracts your subjects, times, rooms, and details." },
+                { n: 2, title: "Schedly Scans", desc: "Reads your subjects, times, rooms, and details." },
                 { n: 3, title: "Check & Save", desc: "Review results, make changes, and save your timetable." },
               ].map((step) => (
                 <StepCard key={step.n} {...step} />
@@ -289,7 +287,7 @@ export function DesktopLanding() {
             </p>
             <div className="mt-8 flex flex-col items-center gap-3">
               <Link href="/register">
-                <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 px-12 shadow-lg shadow-primary/20 text-base font-medium">
+                <Button size="lg" className="px-12 text-base font-bold">
                   Get started free &rarr;
                 </Button>
               </Link>
@@ -320,11 +318,11 @@ export function DesktopLanding() {
 
 function FeatureCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
   return (
-    <div className="group rounded-2xl border-2 border-border bg-card p-7 shadow-[0_4px_0_0_hsl(var(--border))] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_0_0_hsl(var(--border))]">
-      <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+    <div className="group rounded-xl border-2 border-foreground/70 bg-card p-7 shadow-[3px_3px_0_0_#401f32] transition-all duration-200 hover:shadow-none active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_0_#401f32]">
+      <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl border-2 border-foreground/70 bg-primary/10 text-primary shadow-[2px_2px_0_0_#401f32] transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
         {icon}
       </div>
-      <h3 className="mb-2 text-base font-semibold text-foreground">{title}</h3>
+      <h3 className="mb-2 text-base font-bold text-foreground">{title}</h3>
       <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
     </div>
   );
@@ -333,10 +331,10 @@ function FeatureCard({ icon, title, description }: { icon: React.ReactNode; titl
 function StepCard({ n, title, desc }: { n: number; title: string; desc: string }) {
   return (
     <div className="flex flex-col items-center text-center">
-      <div className="relative mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-border bg-card text-lg font-bold text-foreground shadow-[0_4px_0_0_hsl(var(--border))]">
+      <div className="relative mb-5 flex h-14 w-14 items-center justify-center rounded-xl border-2 border-foreground/70 bg-card text-lg font-bold text-foreground shadow-[3px_3px_0_0_#401f32]">
         {n}
       </div>
-      <h3 className="mb-2 text-base font-semibold text-foreground">{title}</h3>
+      <h3 className="mb-2 text-base font-bold text-foreground">{title}</h3>
       <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">{desc}</p>
     </div>
   );

@@ -278,10 +278,6 @@ const [genCards, setGenCards] = useState<GenCard[]>([]);
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Button onClick={() => { setNewDeckMode("upload"); setShowNewDeck(true); }} size="sm">
-            <PlusIcon className="mr-1.5 h-4 w-4" />
-            New Deck
-          </Button>
           <NotificationBell variant="inline" className="hidden md:flex" />
         </div>
       </div>
@@ -291,25 +287,27 @@ const [genCards, setGenCards] = useState<GenCard[]>([]);
         <div className="min-w-0 flex-1 mx-auto w-full max-w-4xl space-y-6 md:mx-0">
 
       {decks.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <BrainIcon className="mb-4 h-12 w-12 text-muted-foreground/40" />
-            <h3 className="text-lg font-medium">No decks yet</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="relative w-full max-w-sm rounded-2xl border-2 border-border bg-card shadow-sm p-6 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+              <BrainIcon className="h-7 w-7 text-primary" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground">No decks yet</h3>
+            <p className="mt-1 max-w-xs mx-auto text-sm text-muted-foreground leading-relaxed">
               Upload a file to generate, or create one manually.
             </p>
-            <div className="mt-4 flex gap-2">
-              <Button onClick={() => { setNewDeckMode("upload"); setShowNewDeck(true); }} size="sm">
-                <SparklesIcon className="mr-1.5 h-4 w-4" />
+            <div className="mt-5 flex w-full flex-row gap-3">
+              <Button className="flex-1 h-11 px-6 font-medium" onClick={() => { setNewDeckMode("upload"); setShowNewDeck(true); }}>
+                <SparklesIcon className="mr-2 h-4 w-4" />
                 Upload File
               </Button>
-              <Button onClick={() => { setNewDeckMode("manual"); setShowNewDeck(true); }} size="sm" variant="outline">
-                <PlusIcon className="mr-1.5 h-4 w-4" />
+              <Button variant="outline" className="flex-1 h-11 px-6 font-medium" onClick={() => { setNewDeckMode("manual"); setShowNewDeck(true); }}>
+                <PlusIcon className="mr-2 h-4 w-4" />
                 Manual
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {decks.map((deck) => (
@@ -393,7 +391,7 @@ const [genCards, setGenCards] = useState<GenCard[]>([]);
                   </p>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    Upload files to generate flashcards with AI.
+                    Upload files to generate flashcards.
                   </p>
                 )}
               </DialogHeader>
@@ -518,13 +516,25 @@ const [genCards, setGenCards] = useState<GenCard[]>([]);
 
               <DialogFooter className="flex-col gap-2">
                     {newDeckMode === "upload" && generating && (
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <Spinner size={14} />
-                          <span className="text-xs text-muted-foreground">Creating your flashcards...</span>
-                          <span className="text-xs font-medium text-primary ml-auto tabular-nums">{Math.round(genProgress)}%</span>
+                      <div className="rounded-xl border border-primary/15 bg-primary/[0.04] p-4">
+                        <div className="flex items-center gap-3">
+                          <Spinner size={18} className="text-primary shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">Creating your flashcards...</p>
+                            <p className="text-xs text-muted-foreground">
+                              Uploading, analyzing, and generating cards
+                            </p>
+                          </div>
+                          <span className="text-sm font-semibold text-primary tabular-nums">
+                            {Math.round(genProgress)}%
+                          </span>
                         </div>
-                        <ProgressBar value={genProgress} className="h-1" />
+                        <div className="mt-3">
+                          <ProgressBar value={genProgress} />
+                        </div>
+                        <p className="mt-2 text-[11px] text-muted-foreground text-center">
+                          This usually takes about 10–30 seconds.
+                        </p>
                       </div>
                     )}
                 {newDeckMode === "upload" ? (

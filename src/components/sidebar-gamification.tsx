@@ -44,47 +44,50 @@ export function SidebarGamification() {
   const focusTime = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 
   return (
-    <div className="space-y-3">
-      {/* Level + XP progress */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <TreePine className="h-3.5 w-3.5 text-green-500" />
-            <span className="text-xs font-semibold text-sidebar-foreground">
+    <div className="rounded-xl border-2 border-foreground/80 bg-gradient-to-br from-primary/10 to-primary/5 p-3 shadow-[3px_3px_0_0_rgba(0,0,0,0.5)]">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/20">
+          <TreePine className="h-4 w-4 text-primary" />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold text-sidebar-foreground">
               Level {profile.level}
             </span>
+            <span className="text-[10px] font-medium text-primary">
+              {Math.round(progress * 100)}% to next
+            </span>
           </div>
-          <span className="text-[10px] font-medium text-sidebar-foreground/50 tabular-nums">
-            {profile.xp} XP
-          </span>
-        </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-sidebar-accent">
-          <div
-            className="h-full rounded-full bg-green-500 transition-all duration-500 ease-out"
-            style={{ width: `${Math.round(progress * 100)}%` }}
-          />
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-sidebar-accent mt-1">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+              style={{ width: `${Math.round(progress * 100)}%` }}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Stats row */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1">
-          <Flame className="h-3 w-3 text-orange-500" />
-          <span className="text-xs font-medium text-sidebar-foreground tabular-nums">
+      <div className="grid grid-cols-3 gap-2">
+        <div className="flex flex-col items-center rounded-lg bg-background/40 py-1.5 px-1">
+          <Flame className="h-3.5 w-3.5 text-orange-500 mb-0.5" />
+          <span className="text-xs font-bold text-sidebar-foreground tabular-nums">
             {profile.currentStreak}
           </span>
+          <span className="text-[9px] text-muted-foreground">streak</span>
         </div>
-        <div className="flex items-center gap-1">
-          <Clock className="h-3 w-3 text-blue-500" />
-          <span className="text-xs font-medium text-sidebar-foreground tabular-nums">
+        <div className="flex flex-col items-center rounded-lg bg-background/40 py-1.5 px-1">
+          <Clock className="h-3.5 w-3.5 text-blue-500 mb-0.5" />
+          <span className="text-xs font-bold text-sidebar-foreground tabular-nums">
             {focusTime}
           </span>
+          <span className="text-[9px] text-muted-foreground">focus</span>
         </div>
-        <div className="flex items-center gap-1">
-          <Zap className="h-3 w-3 text-yellow-500" />
-          <span className="text-xs font-medium text-sidebar-foreground tabular-nums">
+        <div className="flex flex-col items-center rounded-lg bg-background/40 py-1.5 px-1">
+          <Zap className="h-3.5 w-3.5 text-yellow-500 mb-0.5" />
+          <span className="text-xs font-bold text-sidebar-foreground tabular-nums">
             {profile.xp}
           </span>
+          <span className="text-[9px] text-muted-foreground">xp</span>
         </div>
       </div>
     </div>

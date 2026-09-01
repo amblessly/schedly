@@ -138,6 +138,12 @@ export async function updateClasses(
     return { success: false, error: "Schedule not found" };
   }
 
+  const userSettings = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { defaultReminderMinutes: true },
+  });
+  const defaultMinutes = userSettings?.defaultReminderMinutes ?? 15;
+
   try {
     const isNew = (id: string) => id.startsWith("new-");
     let classCount = await db.class.count({ where: { scheduleId } });
@@ -186,7 +192,7 @@ export async function updateClasses(
           },
         });
         classCount += 1;
-        await db.reminder.create({ data: { classId: created.id, userId: session.user.id } });
+        await db.reminder.create({ data: { classId: created.id, userId: session.user.id, minutesBefore: defaultMinutes } });
         continue;
       }
 

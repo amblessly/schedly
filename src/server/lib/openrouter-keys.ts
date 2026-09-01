@@ -45,15 +45,38 @@ function nextUtcMidnight(from: Date): Date {
 }
 
 /**
- * Whether OpenRouter keys may be used right now. When `OPENROUTER_DISABLED` is
- * "true", OpenRouter is skipped until its next daily quota reset: the provider
- * reported `x-ratelimit-reset` when one is still in the future, otherwise the
- * next midnight UTC. This lets OpenRouter's free quota rest and come back
- * automatically once its limit resets.
+ * Whether OpenRouter keys may be used right now.
+ *
+ * OpenRouter is skipped (auto-rested) when we know its free-model daily budget
+ * is exhausted. Two signals disable it:
+ *   1. `OPENROUTER_DISABLED=true` — a manual hard skip until the next daily
+ *      provider reset (midnight UTC).
+ *   2. A persisted provider rate-limit snapshot showing `remaining <= 0` with
+ *      a reset still in the future — i.e. OpenRouter itself told us its free
+ *      tier is used up (429). We record that on the fly and rest the quota
+ *      automatically instead of trying exhausted keys on every request.
+ *
+ * Once the reset passes we come back online automatically.
  */
 export async function isOpenRouterEnabled(now = new Date()): Promise<boolean> {
-  if (process.env.OPENROUTER_DISABLED !== "true") return true;
+  if (process.env.OPENROUTER_DISABLED === "true") {
+    return nowIsAfterProviderReset(now);
+  }
 
+  const snapshots = await getLimitSnapshots();
+  for (const service of OPENROUTER_SERVICES) {
+    const snap = snapshots[service];
+    if (!snap) continue;
+    const remainingExhausted = snap.remaining != null && snap.remaining <= 0;
+    const notYetReset = snap.resetAt != null && snap.resetAt.getTime() > now.getTime();
+    if (remainingExhausted && notYetReset) {
+      return false;
+    }
+  }
+  return true;
+}
+
+async function nowIsAfterProviderReset(now: Date): Promise<boolean> {
   const snapshots = await getLimitSnapshots();
   let providerReset: Date | null = null;
   for (const service of OPENROUTER_SERVICES) {
@@ -64,7 +87,6 @@ export async function isOpenRouterEnabled(now = new Date()): Promise<boolean> {
       }
     }
   }
-
   const reset = providerReset ?? nextUtcMidnight(now);
   return now.getTime() >= reset.getTime();
 }

@@ -20,7 +20,7 @@ export async function GET(
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    const jobData = job.data as { userId?: string };
+    const jobData = job.data as { userId?: string; uploadId?: string };
     if (jobData.userId && jobData.userId !== session.user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -37,8 +37,8 @@ export async function GET(
         progress: job.progress,
         attemptsMade: job.attemptsMade,
         failedReason: job.failedReason,
-        finishedOn: job.finishedOn,
-        processedOn: job.processedOn,
+        finishedOn: (job as { finishedOn?: number }).finishedOn,
+        processedOn: (job as { processedOn?: number }).processedOn,
       },
       upload: upload ? {
         id: upload.id,

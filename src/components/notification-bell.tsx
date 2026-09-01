@@ -56,8 +56,8 @@ export function NotificationBell({
       className={cn(
         "relative flex h-11 w-11 items-center justify-center rounded-xl transition-colors",
         variant === "floating"
-          ? "fixed right-[4.75rem] top-[calc(env(safe-area-inset-top)+1rem)] z-50 bg-sidebar/90 text-sidebar-foreground shadow-[0_8px_40px_rgba(0,0,0,0.12)] hover:bg-sidebar md:right-4"
-          : "border border-border/60 bg-card text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground",
+          ? "fixed right-[4.75rem] top-[calc(env(safe-area-inset-top)+1rem)] z-50 border-2 border-foreground/70 bg-sidebar text-sidebar-foreground shadow-[3px_3px_0_0_#401f32] hover:bg-sidebar md:right-4"
+          : "border-2 border-foreground/70 bg-card text-muted-foreground shadow-[3px_3px_0_0_#401f32] hover:bg-muted hover:text-foreground",
         className,
       )}
       aria-label={`Notifications${unread > 0 ? ` (${unread} unread)` : ""}`}

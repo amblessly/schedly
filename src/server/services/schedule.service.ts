@@ -55,8 +55,15 @@ export const scheduleService = {
   async create(userId: string, input: CreateScheduleInput) {
     const now = new Date();
 
+    const userSettings = await db.user.findUnique({
+      where: { id: userId },
+      select: { defaultReminderMinutes: true },
+    });
+    const defaultMinutes = userSettings?.defaultReminderMinutes ?? 15;
+
     const schedule = await db.$transaction(async (tx) => {
-      const s = await tx.schedule.create({
+      const t = tx as typeof db;
+      const s = await t.schedule.create({
         data: {
           userId,
           title: input.title,
@@ -81,29 +88,29 @@ export const scheduleService = {
         days: c.days,
       }));
 
-      await tx.class.createMany({ data: classData });
+      await t.class.createMany({ data: classData });
 
       // Auto-create a reminder for every class so push notifications fire at
       // the right time (configurable later from the Reminders page).
-      const createdClasses = await tx.class.findMany({
+      const createdClasses = await t.class.findMany({
         where: { scheduleId: s.id },
         select: { id: true },
       });
       if (createdClasses.length > 0) {
-        await tx.reminder.createMany({
-          data: createdClasses.map((c) => ({ classId: c.id, userId })),
+        await t.reminder.createMany({
+          data: createdClasses.map((c) => ({ classId: c.id, userId, minutesBefore: defaultMinutes })),
         });
       }
 
       if (input.uploadId) {
         // Only link the upload if it actually belongs to this user — an
         // arbitrary uploadId from another user must not be re-linked here.
-        const ownedUpload = await tx.upload.findFirst({
+        const ownedUpload = await t.upload.findFirst({
           where: { id: input.uploadId, userId },
           select: { id: true },
         });
         if (ownedUpload) {
-          await tx.upload.update({
+          await t.upload.update({
             where: { id: input.uploadId },
             data: { scheduleId: s.id },
           });

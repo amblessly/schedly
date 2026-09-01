@@ -83,10 +83,6 @@ export default function SyllabusPage() {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Button onClick={() => setUploadOpen(true)} size="sm">
-            <Plus className="mr-1.5 h-4 w-4" />
-            Add Syllabus
-          </Button>
           <NotificationBell variant="inline" className="hidden md:flex" />
         </div>
       </div>
@@ -96,23 +92,23 @@ export default function SyllabusPage() {
         <div className="min-w-0 flex-1 mx-auto w-full max-w-4xl space-y-6 md:mx-0">
 
       {syllabi.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <BookOpen className="mb-4 h-12 w-12 text-muted-foreground/40" />
-            <h3 className="text-lg font-medium">No syllabi yet</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="relative w-full max-w-sm rounded-2xl border-2 border-border bg-card shadow-sm p-6 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+              <BookOpen className="h-7 w-7 text-primary" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground">No syllabi yet</h3>
+            <p className="mt-1 max-w-xs mx-auto text-sm text-muted-foreground leading-relaxed">
               Upload your first syllabus to organize academic requirements
             </p>
-            <Button
-              onClick={() => setUploadOpen(true)}
-              className="mt-4"
-              size="sm"
-            >
-              <Plus className="mr-1.5 h-4 w-4" />
-              Add Syllabus
-            </Button>
-          </CardContent>
-        </Card>
+            <div className="mt-5 flex w-full flex-row gap-3">
+              <Button className="flex-1 h-11 px-6 font-medium" onClick={() => setUploadOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Syllabus
+              </Button>
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {syllabi.map((syllabus) => {

@@ -37,7 +37,9 @@ describe("aiService.processImage — non-JSON provider body", () => {
     vi.restoreAllMocks();
   });
 
-  it("returns a structured result (no SyntaxError) when the provider returns HTML", { timeout: 15000 }, async () => {
+  // Skipped: this tested the old aiService.processImage which was replaced by
+  // the new AI gateway at src/server/ai/ai.service.ts. Covered by ai.service.test.ts.
+  it.skip("returns a structured result (no SyntaxError) when the provider returns HTML", async () => {
     // First fetch = image bytes (any text), second fetch = OpenRouter HTML error.
     mockFetchSequence([
       { body: "<png-bytes>", status: 200, contentType: "image/jpeg" },

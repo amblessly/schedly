@@ -42,7 +42,7 @@ export function BottomNav() {
       className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 md:hidden"
     >
       <div
-        className="bottom-nav flex items-end justify-center gap-2 rounded-[1.75rem] border border-border/60 bg-card/90 px-3 shadow-[0_12px_40px_rgba(0,0,0,0.22)] ring-1 ring-black/[0.03] backdrop-blur-xl"
+        className="bottom-nav flex items-end justify-center gap-2 rounded-[1.75rem] border-2 border-foreground/70 bg-card/90 px-3 shadow-[4px_4px_0_0_#401f32] ring-1 ring-black/[0.03] backdrop-blur-xl"
         style={{ paddingBottom: "calc(0.75rem + var(--sab))", marginBottom: "calc(1.25rem + var(--sab))" }}
       >
         {items.slice(0, 2).map((item) => {
@@ -74,7 +74,7 @@ export function BottomNav() {
           onClick={handleQuickAdd}
           aria-label="Quick add"
           title="Quick add"
-          className="relative -mt-6 flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-4 border-card bg-primary text-primary-foreground shadow-[0_6px_20px_rgba(0,0,0,0.28)] transition-transform active:scale-95"
+          className="relative -mt-6 flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-foreground/80 bg-primary text-primary-foreground transition-transform active:scale-95"
         >
           <Camera className="h-6 w-6 -translate-y-0.5" strokeWidth={2.5} />
         </button>

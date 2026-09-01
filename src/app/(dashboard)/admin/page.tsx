@@ -121,7 +121,6 @@ export default function AdminPage() {
   const [broadcastMessage, setBroadcastMessage] = useState("");
   const [broadcasting, setBroadcasting] = useState(false);
   const [broadcastResult, setBroadcastResult] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("overview");
   const [openPopupId, setOpenPopupId] = useState<string | null>(null);
   const [limitsStats, setLimitsStats] = useState<LimitsStat[] | null>(null);
   const [limitsDate, setLimitsDate] = useState("");
@@ -148,12 +147,9 @@ export default function AdminPage() {
   // Refresh online users every 60s while overview tab is shown.
   useEffect(() => {
     void loadOnlineUsers();
-    const t = setInterval(() => {
-      if (activeTab === "overview") void loadOnlineUsers();
-    }, 60_000);
+    const t = setInterval(() => void loadOnlineUsers(), 60_000);
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, []);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -175,10 +171,9 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    if (activeTab === "service-limits" && !limitsStats && !limitsLoading) {
-      void loadLimits();
-    }
-  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+    void loadLimits();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filteredFeedbacks = feedbacks.filter((fb) => {
     if (feedbackType !== "all" && fb.type !== feedbackType) return false;
@@ -212,11 +207,11 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    if (activeTab === "feedback" && feedbacks.length === 0 && !feedbacksLoading) {
-      loadFeedbacks();
+    if (feedbacks.length === 0 && !feedbacksLoading) {
+      void loadFeedbacks();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -301,7 +296,7 @@ export default function AdminPage() {
       <BoneSkeleton
         name="admin-page"
         loading={loading}
-        fallback={renderSkeleton(activeTab)}
+        fallback={renderSkeleton()}
       >
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3 sm:mb-8">
         <div className="flex items-start gap-3">
@@ -318,38 +313,8 @@ export default function AdminPage() {
         <NotificationBell variant="inline" className="hidden md:flex" />
       </div>
 
-      <div className="flex flex-col gap-6 md:flex-row md:items-start">
-        {/* Left nav */}
-        <nav className="flex shrink-0 gap-1 overflow-x-auto md:w-48 md:flex-col md:overflow-visible md:rounded-2xl md:border md:border-border/60 md:bg-card/80 md:p-2 md:backdrop-blur-sm md:sticky md:top-6">
-          {[
-            { id: "overview", label: "Overview", icon: LayoutDashboard },
-            { id: "feedback", label: "Feedback", icon: MessageSquare },
-            { id: "broadcast", label: "Broadcast", icon: Radio },
-            { id: "users", label: "Users", icon: Users },
-            { id: "service-limits", label: "Service Limits", icon: Gauge },
-            { id: "popups", label: "Test Pop-ups", icon: Megaphone },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-left text-sm font-medium transition-colors",
-                activeTab === tab.id
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-              )}
-            >
-              <tab.icon className="h-4 w-4" />
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-
-        {/* Content */}
-        <div className="min-w-0 flex-1 space-y-6">
-          {activeTab === "overview" && (
-            <section className="space-y-3">
+      <div className="space-y-6">
+          <section className="space-y-3">
               <SectionHeader
                 icon={LayoutDashboard}
                 title="Overview"
@@ -365,7 +330,7 @@ export default function AdminPage() {
               )}
 
               {/* Online Users */}
-              <Card className="border-border/50">
+              <Card className="border-border/50 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div>
                     <CardTitle className="text-base flex items-center gap-2">
@@ -430,16 +395,15 @@ export default function AdminPage() {
                 </CardContent>
               </Card>
             </section>
-          )}
 
-          {activeTab === "broadcast" && (
-            <section className="space-y-3">
+          {/* Broadcast */}
+          <section className="space-y-3">
               <SectionHeader
                 icon={Radio}
                 title="Broadcast"
                 description="Send a push notification to all users — or just yourself to test"
               />
-              <Card className="border-border/50">
+              <Card className="border-border/50 shadow-sm">
                 <CardHeader>
                   <CardTitle className="text-base">Send Notification</CardTitle>
                   <CardDescription className="mt-0.5 text-xs">
@@ -490,10 +454,9 @@ export default function AdminPage() {
                 </CardContent>
               </Card>
             </section>
-          )}
 
-          {activeTab === "feedback" && (
-            <section className="space-y-4">
+          {/* Feedback */}
+          <section className="space-y-4">
               <SectionHeader
                 icon={MessageSquare}
                 title="User Feedback"
@@ -573,16 +536,15 @@ export default function AdminPage() {
                 </div>
               )}
             </section>
-          )}
 
-          {activeTab === "users" && (
-            <section className="space-y-3">
+          {/* Users */}
+          <section className="space-y-3">
               <SectionHeader
                 icon={Users}
                 title="User Management"
                 description="Roles, devices, and account access"
               />
-              <Card className="border-border/50">
+              <Card className="border-border/50 shadow-sm">
                 <CardHeader>
                   <CardTitle className="text-base">Users</CardTitle>
                 </CardHeader>
@@ -674,10 +636,9 @@ export default function AdminPage() {
               </CardContent>
             </Card>
             </section>
-          )}
 
-          {activeTab === "service-limits" && (
-            <section className="space-y-3">
+          {/* Service Limits */}
+          <section className="space-y-3">
               <SectionHeader
                 icon={Gauge}
                 title="Service Limits"
@@ -730,10 +691,9 @@ export default function AdminPage() {
                 </div>
               )}
             </section>
-          )}
 
-          {activeTab === "popups" && (
-            <section className="space-y-4">
+          {/* Test Pop-ups */}
+          <section className="space-y-4">
               <SectionHeader
                 icon={Megaphone}
                 title="Test Pop-ups"
@@ -751,10 +711,8 @@ export default function AdminPage() {
                 ))}
               </div>
             </section>
-          )}
-        </div>
-      </div>
-      </BoneSkeleton>
+          </div>
+        </BoneSkeleton>
 
       {confirmId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -883,7 +841,7 @@ function FeedbackRow({
   );
 }
 
-function renderSkeleton(activeTab: string) {
+function renderSkeleton() {
   return (
     <>
       {/* Header */}
@@ -898,141 +856,44 @@ function renderSkeleton(activeTab: string) {
         <Skeleton className="h-9 w-9 rounded-xl shrink-0" />
       </div>
 
-      <div className="flex flex-col gap-6 md:flex-row md:items-start">
-        {/* Left nav rail */}
-        <div className="flex shrink-0 gap-1 overflow-x-auto md:w-48 md:flex-col md:overflow-visible md:rounded-2xl md:border md:border-border/60 md:bg-card/80 md:p-2 md:sticky md:top-6">
+      {/* All sections skeleton */}
+      <div className="space-y-6">
+        <SectionSkeleton titleWidth="w-20" descWidth="w-44" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-10 w-full rounded-xl" />
+            <Card key={i} className="border-border/50">
+              <CardContent className="pt-5 pb-4 text-center">
+                <Skeleton className="h-7 w-14 mx-auto" />
+                <Skeleton className="h-3 w-16 mx-auto mt-2" />
+              </CardContent>
+            </Card>
           ))}
         </div>
-
-        {/* Content */}
-        <div className="min-w-0 flex-1 space-y-6">
-          {activeTab === "overview" && (
-            <>
-              <SectionSkeleton titleWidth="w-20" descWidth="w-44" />
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {[1, 2, 3, 4].map((i) => (
-                  <Card key={i} className="border-border/50">
-                    <CardContent className="pt-5 pb-4 text-center">
-                      <Skeleton className="h-7 w-14 mx-auto" />
-                      <Skeleton className="h-3 w-16 mx-auto mt-2" />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </>
-          )}
-
-          {activeTab === "feedback" && (
-            <>
-              <SectionSkeleton titleWidth="w-32" descWidth="w-96" />
-              {/* Search + filter row */}
-              <div className="flex flex-wrap items-center gap-2">
-                <Skeleton className="h-9 flex-1 min-w-[200px] rounded-lg" />
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4].map((i) => (
-                    <Skeleton key={i} className="h-9 w-16 rounded-lg" />
-                  ))}
+        <SectionSkeleton titleWidth="w-24" descWidth="w-80" />
+        <Card className="border-border/50 shadow-sm">
+          <CardContent className="space-y-3 pt-4">
+            <Skeleton className="h-10 w-full rounded-md" />
+            <Skeleton className="h-[110px] w-full rounded-md" />
+            <div className="flex gap-2">
+              <Skeleton className="h-10 w-36 rounded-md" />
+              <Skeleton className="h-10 w-44 rounded-md" />
+            </div>
+          </CardContent>
+        </Card>
+        <SectionSkeleton titleWidth="w-32" descWidth="w-96" />
+        <div className="space-y-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="rounded-xl border border-border/40 bg-card/60 p-4">
+              <div className="flex items-start gap-3">
+                <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+                <div className="flex-1 min-w-0 space-y-2">
+                  <Skeleton className="h-3.5 w-36" />
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-3/4" />
                 </div>
               </div>
-              {/* Feedback list */}
-              <div className="space-y-3">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="rounded-xl border border-border/40 bg-card/60 p-4">
-                    <div className="flex items-start gap-3">
-                      <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
-                      <div className="flex-1 min-w-0 space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Skeleton className="h-3.5 w-36" />
-                          <Skeleton className="h-4 w-16 rounded-full" />
-                          <Skeleton className="h-3 w-20" />
-                        </div>
-                        <Skeleton className="h-3 w-full" />
-                        <Skeleton className="h-3 w-3/4" />
-                      </div>
-                      <Skeleton className="h-8 w-24 shrink-0 rounded-md" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {activeTab === "broadcast" && (
-            <>
-              <SectionSkeleton titleWidth="w-24" descWidth="w-80" />
-              <Card className="border-border/50">
-                <CardHeader>
-                  <Skeleton className="h-5 w-40" />
-                  <Skeleton className="h-3 w-full mt-1" />
-                  <Skeleton className="h-3 w-3/4" />
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Skeleton className="h-3 w-20" />
-                    <Skeleton className="h-10 w-full rounded-md" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Skeleton className="h-3 w-16" />
-                    <Skeleton className="h-[110px] w-full rounded-md" />
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Skeleton className="h-10 w-36 rounded-md" />
-                    <Skeleton className="h-10 w-44 rounded-md" />
-                  </div>
-                </CardContent>
-              </Card>
-            </>
-          )}
-
-          {activeTab === "service-limits" && (
-            <>
-              <SectionSkeleton titleWidth="w-32" descWidth="w-48" />
-              <Card className="border-border/50">
-                <CardContent className="p-4">
-                  <Skeleton className="h-4 w-full" />
-                </CardContent>
-              </Card>
-            </>
-          )}
-
-          {activeTab === "users" && (
-            <>
-              <SectionSkeleton titleWidth="w-40" descWidth="w-56" />
-              <Card className="border-border/50">
-                <CardHeader>
-                  <Skeleton className="h-5 w-12" />
-                </CardHeader>
-                <CardContent>
-                  <div className="hidden sm:block space-y-3">
-          {[1, 2, 3, 4, 5].map((i) => (
-                      <div key={i} className="flex items-center gap-4 py-3">
-                        <Skeleton className="h-4 w-28" />
-                        <Skeleton className="h-4 w-40" />
-                        <Skeleton className="h-4 w-20" />
-                        <Skeleton className="h-4 w-20" />
-                        <Skeleton className="h-5 w-12 rounded-full" />
-                        <Skeleton className="h-7 w-20 ml-auto" />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="sm:hidden space-y-3">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="rounded-xl border border-border/40 bg-muted/20 p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Skeleton className="h-4 w-28" />
-                          <Skeleton className="h-5 w-12 rounded-full" />
-                        </div>
-                        <Skeleton className="h-3 w-40" />
-                        <Skeleton className="h-3 w-20" />
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </>
-          )}
+            </div>
+          ))}
         </div>
       </div>
     </>
@@ -1075,7 +936,7 @@ function SectionHeader({
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <Card className="border-border/50">
+    <Card className="border-border/50 shadow-sm">
       <CardContent className="pt-5 pb-4 text-center">
         <p className="text-2xl font-bold text-foreground">{value.toLocaleString()}</p>
         <p className="mt-1 text-xs font-medium text-muted-foreground">{label}</p>
@@ -2053,7 +1914,7 @@ function LimitsStatBar({ stat }: { stat: LimitsStat }) {
   const limitLabel = isBandwidth ? formatBytes(limit) : formatNumber(limit);
 
   return (
-    <Card className="border-border/50">
+    <Card className="border-border/50 shadow-sm">
       <CardContent className="space-y-3 pt-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">

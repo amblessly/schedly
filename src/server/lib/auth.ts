@@ -73,6 +73,30 @@ export const auth = betterAuth({
         required: false,
         defaultValue: false,
       },
+      defaultReminderMinutes: {
+        type: "number",
+        required: false,
+        defaultValue: 15,
+      },
+      reminderStartDate: {
+        type: "string",
+        required: false,
+      },
+      notificationsEnabled: {
+        type: "boolean",
+        required: false,
+        defaultValue: false,
+      },
+      timezone: {
+        type: "string",
+        required: false,
+        defaultValue: "Asia/Manila",
+      },
+      theme: {
+        type: "string",
+        required: false,
+        defaultValue: "system",
+      },
     },
   },
   emailAndPassword: {

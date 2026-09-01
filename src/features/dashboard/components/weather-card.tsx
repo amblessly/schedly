@@ -20,7 +20,7 @@ type WeatherCardProps = {
 // wrap instead of clipping so the card keeps working at any width.
 export function WeatherCard({ weather, loading, error, onRefresh }: WeatherCardProps) {
   return (
-    <Card className="bento-tile-side border-border/50 shadow-sm">
+    <Card className="bento-tile-side">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-base">Weather</CardTitle>
         <div className="flex items-center gap-2">

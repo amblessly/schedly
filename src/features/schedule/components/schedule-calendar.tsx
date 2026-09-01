@@ -225,10 +225,10 @@ export function ScheduleCalendar({
           type="button"
           onClick={() => onActiveChange(null)}
           className={cn(
-            "flex w-44 shrink-0 items-center gap-3 rounded-2xl border px-3.5 py-2.5 text-left transition-colors",
+            "flex w-44 shrink-0 items-center gap-3 rounded-2xl border-2 px-3.5 py-2.5 text-left transition-colors shadow-[3px_3px_0_0_#401f32]",
             activeScheduleId === null
-              ? "border-primary/60 bg-primary/5"
-              : "border-border/50 bg-card hover:border-primary/40"
+              ? "border-foreground/70 bg-primary/5"
+              : "border-foreground/70 bg-card hover:border-primary/40"
           )}
         >
           <span
@@ -258,10 +258,10 @@ export function ScheduleCalendar({
             <div
               key={s.id}
               className={cn(
-                "flex w-52 shrink-0 items-center gap-1 rounded-2xl border py-1 pl-2 pr-1 transition-colors",
+                "flex w-52 shrink-0 items-center gap-1 rounded-2xl border-2 py-1 pl-2 pr-1 transition-colors shadow-[3px_3px_0_0_#401f32]",
                 chipActive
-                  ? "border-primary/60 bg-primary/5"
-                  : "border-border/50 bg-card hover:border-primary/40"
+                  ? "border-foreground/70 bg-primary/5"
+                  : "border-foreground/70 bg-card hover:border-primary/40"
               )}
             >
               <button
@@ -315,7 +315,7 @@ export function ScheduleCalendar({
       </div>
 
       {/* Calendar card */}
-      <div className="rounded-2xl border border-border/50 bg-card">
+      <div className="rounded-2xl border-2 border-foreground/70 bg-card shadow-[3px_3px_0_0_#401f32]">
         <div className="flex items-center justify-between px-4 pt-3">
           <div className="flex items-center gap-2">
             <Button
@@ -448,7 +448,7 @@ export function ScheduleCalendar({
             {selectedDay.map(({ cls, scheduleTitle }) => (
               <div
                 key={cls.id}
-                className="relative overflow-hidden rounded-xl border border-border/50 bg-card px-4 py-3"
+                className="relative overflow-hidden rounded-xl border-2 border-foreground/70 bg-card px-4 py-3 shadow-[3px_3px_0_0_#401f32] transition-shadow hover:shadow-none"
               >
                 <span
                   className="absolute inset-y-0 left-0 w-1"

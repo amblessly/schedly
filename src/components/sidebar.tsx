@@ -139,7 +139,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       );
 
   return (
-    <aside className="flex h-full w-full flex-col overflow-hidden rounded-3xl bg-sidebar/95 shadow-[0_8px_40px_rgba(0,0,0,0.12)]">
+    <aside className="flex h-full w-full flex-col overflow-hidden rounded-2xl border-2 border-foreground/80 bg-sidebar/95 shadow-[3px_3px_0_0_#401f32]">
       {/* Brand */}
       <div className="flex h-16 items-center gap-2.5 px-5">
         <Image src="/images/logo.jpg" alt="" aria-hidden width={36} height={36} className="h-9 w-9 shrink-0 rounded-xl object-cover" />

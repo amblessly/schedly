@@ -92,21 +92,18 @@ export async function POST(request: NextRequest) {
       ? stored.url
       : `${origin}${stored.url}`;
 
-    // Run AI extraction when at least one provider is configured.
-    // Gemini (primary) is checked via GEMINI_KEYS count; OpenRouter (fallback)
-    // is checked via OPENROUTER_API_KEY. If neither is set, skip extraction.
-    if (process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY) {
-      const task = uploadService.processWithAi(stored.uploadId, absoluteUrl, {
-        data: buffer,
-        mimeType: detectedMime,
-      });
-      void waitUntil(task);
-      void task.catch((err) => {
-        console.error("[UPLOAD_API] Background AI extraction failed:", err);
-      });
-    } else {
-      await uploadService.updateStatus(stored.uploadId, "completed");
-    }
+    // Run OCR-based extraction by default (free, no paid API required).
+    // AI is only used as an explicit fallback when OPENROUTER_AI_FALLBACK=true.
+    // The OCR pipeline uses tesseract.js + position-based parsing — it works
+    // offline and doesn't require any API key configuration.
+    const task = uploadService.processUpload(stored.uploadId, absoluteUrl, {
+      data: buffer,
+      mimeType: detectedMime,
+    });
+    void waitUntil(task);
+    void task.catch((err) => {
+      console.error("[UPLOAD_API] Background extraction failed:", err);
+    });
 
     return NextResponse.json({
       uploadId: stored.uploadId,

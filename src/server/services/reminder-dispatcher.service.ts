@@ -148,7 +148,7 @@ export async function dispatchDueReminders(now: Date = new Date(), userId?: stri
     where: { isActive: true, ...(userId ? { userId } : {}) },
     include: {
       class: { include: { schedule: true } },
-      user: { select: { id: true, timezone: true } },
+      user: { select: { id: true, timezone: true, reminderStartDate: true } },
     },
   });
 
@@ -229,6 +229,15 @@ export async function dispatchDueReminders(now: Date = new Date(), userId?: stri
     const occNext = nextOccurrence(cls.startTime, cls.days as DayOfWeek[], tz, now);
     const occPrev = lastOccurrence(cls.startTime, cls.days as DayOfWeek[], tz, now);
     const occToday = occurrenceToday(cls.startTime, cls.days as DayOfWeek[], tz, now);
+
+    // Skip reminders if before the user's reminder start date
+    if (reminder.user.reminderStartDate) {
+      const startDate = new Date(reminder.user.reminderStartDate);
+      startDate.setHours(0, 0, 0, 0);
+      const today = new Date(now);
+      today.setHours(0, 0, 0, 0);
+      if (today < startDate) continue;
+    }
 
     const row: DispatchRow = {
       reminderId: reminder.id,

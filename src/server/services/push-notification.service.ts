@@ -73,7 +73,8 @@ export function validateSubscriptionInput(body: unknown): SaveSubscriptionInput 
  *  user's timezone in sync (a stale UTC default shifts every reminder). */
 export async function savePushSubscription(userId: string, input: SaveSubscriptionInput) {
   return db.$transaction(async (tx) => {
-    const sub = await tx.pushSubscription.upsert({
+    const t = tx as typeof db;
+    const sub = await t.pushSubscription.upsert({
       where: { endpoint: input.endpoint },
       create: {
         userId,
@@ -97,7 +98,7 @@ export async function savePushSubscription(userId: string, input: SaveSubscripti
     });
 
     if (input.timezone && input.timezone !== "UTC") {
-      await tx.user.updateMany({
+      await t.user.updateMany({
         where: { id: userId },
         data: { timezone: input.timezone },
       });

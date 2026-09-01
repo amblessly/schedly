@@ -199,7 +199,7 @@ export default function NotesPage() {
     <div className="flex flex-col gap-6 md:flex-row md:items-start pt-8 pb-24 md:pt-0 md:pb-8">
       <AppNavPanel />
       <div className="min-w-0 flex-1 mx-auto w-full max-w-6xl space-y-6">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Notes</h1>
           <p className="text-sm text-muted-foreground">
@@ -209,15 +209,12 @@ export default function NotesPage() {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            size="sm"
+            size="icon"
             onClick={() => setShowMobileFolders(!showMobileFolders)}
             className="md:hidden"
+            aria-label="Toggle folders"
           >
             <StickyNoteIcon className="h-4 w-4" />
-          </Button>
-          <Button onClick={openNewNote} size="sm">
-            <PlusIcon className="mr-1.5 h-4 w-4" />
-            New Note
           </Button>
         </div>
       </div>
@@ -281,23 +278,29 @@ export default function NotesPage() {
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="relative mb-4">
-            <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search notes..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border bg-background pl-10 pr-4 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2"
-              >
-                <XIcon className="h-4 w-4 text-muted-foreground" />
-              </button>
-            )}
+          <div className="relative mb-4 flex items-center gap-2">
+            <div className="relative flex-1">
+              <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search notes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-xl border border-border bg-background pl-10 pr-10 py-2.5 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <XIcon className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <Button onClick={openNewNote} className="h-10 px-4 font-medium shrink-0">
+              <PlusIcon className="mr-1.5 h-4 w-4" />
+              New Note
+            </Button>
           </div>
 
           {loading ? (
@@ -305,19 +308,27 @@ export default function NotesPage() {
               <Spinner size={28} />
             </div>
           ) : filtered.length === 0 ? (
-            <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                <StickyNoteIcon className="mb-3 h-10 w-10 text-muted-foreground/40" />
-                <p className="text-muted-foreground">
+            <div className="flex items-center justify-center min-h-[50vh]">
+              <div className="w-full max-w-xl rounded-2xl border-2 border-border bg-card shadow-sm p-6 text-center">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+                  <StickyNoteIcon className="h-7 w-7 text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground">
                   {searchQuery ? "No matching notes" : "No notes yet"}
-                </p>
-                {!searchQuery && (
-                  <Button onClick={openNewNote} className="mt-3" size="sm">
-                    Create Note
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+                </h3>
+                {!searchQuery ? (
+                  <>
+                    <p className="mt-1 text-sm text-muted-foreground mb-4">
+                      Start by creating your first note
+                    </p>
+                    <Button className="h-11 px-6 font-medium" onClick={openNewNote}>
+                      <PlusIcon className="mr-2 h-4 w-4" />
+                      Create Note
+                    </Button>
+                  </>
+                ) : null}
+              </div>
+            </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {filtered.map((note) => (

@@ -131,7 +131,7 @@ export function SyllabusUploadDialog({ open, onOpenChange, onSaved }: Props) {
       setProgressPct(15);
       await new Promise((r) => setTimeout(r, 500));
 
-      setProgressText("Analyzing syllabus with AI...");
+      setProgressText("Analyzing your syllabus...");
       setProgressPct(20);
       startProgress();
 
@@ -193,7 +193,7 @@ export function SyllabusUploadDialog({ open, onOpenChange, onSaved }: Props) {
           </DialogTitle>
           <DialogDescription>
             {step === "upload" && "Upload your PDF or syllabus image. Schedly will extract course information and academic requirements."}
-            {step === "review" && "AI-extracted information. Please review dates and requirements before saving."}
+            {step === "review" && "Extracted information. Please review dates and requirements before saving."}
             {step === "saving" && "Saving your syllabus and creating tasks..."}
             {step === "done" && "Your syllabus has been saved successfully."}
           </DialogDescription>

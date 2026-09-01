@@ -68,8 +68,8 @@
   /* Soft blue radial background — one layer behind the whole site */
   --app-backdrop: radial-gradient(circle at top center, rgba(59, 130, 246, 0.5), transparent 70%);
 
-  /* Radius */
-  --radius: 0.75rem;
+/* Radius */
+--radius: 0.75rem;
   --sidebar-primary: oklch(0.59 0.22 355);
   --sidebar-primary-foreground: oklch(0.99 0 0);
   --sidebar-accent-foreground: oklch(0.17 0.01 20);
@@ -245,13 +245,21 @@ body {
 }
 
 @keyframes scan-line {
-  0%, 100% { top: 2%; }
-  50% { top: 94%; }
+  0% { top: 0%; opacity: 0; }
+  5% { opacity: 1; }
+  95% { opacity: 1; }
+  100% { top: 96%; opacity: 0; }
 }
 
 @keyframes bounce-dot {
   0%, 100% { transform: translateY(0); opacity: 0.35; }
   50% { transform: translateY(-4px); opacity: 1; }
+}
+
+@keyframes grow-pop {
+  0% { transform: scale(0.6); opacity: 0.4; }
+  60% { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 @keyframes pulse-dot {
@@ -279,11 +287,16 @@ body {
     animation: skeleton-shimmer 1.3s ease-in-out infinite;
   }
   .animate-scan-line {
-    top: 2%;
-    animation: scan-line 2.4s ease-in-out infinite;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--primary), var(--primary), transparent);
+    box-shadow: 0 0 12px 2px var(--primary);
+    animation: scan-line 2s ease-in-out infinite;
   }
   .animate-bounce-dot {
     animation: bounce-dot 0.9s ease-in-out infinite;
+  }
+  .animate-grow-pop {
+    animation: grow-pop 500ms ease-out;
   }
 }
 

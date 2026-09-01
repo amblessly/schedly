@@ -166,15 +166,22 @@ export default function SchedulePage() {
             }
           >
           {schedules.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-16 text-center">
-              <Calendar className="mb-3 h-8 w-8 text-muted-foreground/40" />
-              <h3 className="text-lg font-semibold text-foreground">No schedules yet</h3>
-              <p className="mt-1 max-w-xs text-sm leading-relaxed text-muted-foreground">
-                Upload a photo of your class schedule and let Schedly extract your timetable automatically.
-              </p>
-              <Button className="mt-5" onClick={() => router.push("/capture")}>
-                <Camera className="mr-2 h-4 w-4" /> Upload Schedule
-              </Button>
+            <div className="flex items-center justify-center min-h-[50vh]">
+              <div className="relative w-full max-w-sm rounded-2xl border-2 border-border bg-card shadow-sm p-6 text-center">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+                  <Calendar className="h-7 w-7 text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground">No schedules yet</h3>
+                <p className="mt-1 max-w-xs mx-auto text-sm text-muted-foreground leading-relaxed">
+                  Upload a photo of your class schedule and let Schedly extract your timetable automatically.
+                </p>
+                <div className="mt-5 flex w-full flex-row gap-3">
+                  <Button className="flex-1 h-11 px-6 font-medium" onClick={() => router.push("/capture")}>
+                    <Camera className="mr-2 h-4 w-4" />
+                    Upload Schedule
+                  </Button>
+                </div>
+              </div>
             </div>
           ) : (
             <ScheduleCalendar

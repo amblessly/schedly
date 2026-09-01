@@ -1,16 +1,16 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { BellRing, Camera, Sparkles } from "lucide-react";
+import { Camera, Sparkles } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { authClient } from "@/lib/auth-client";
 import { uploadAvatar, removeAvatar } from "@/app/(dashboard)/settings/actions";
-import { PermissionsStep } from "./permissions-step";
+import { PermissionsStep, UploadScheduleCard } from "./permissions-step";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { TextField } from "@/components/ui/text-field";
 import { Spinner } from "@/components/ui/spinner";
 import { authFetch } from "@/lib/auth-fetch";
 import {
@@ -36,7 +36,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [avatarUrl, setAvatarUrl] = useState<string | null>((u?.image as string) || (u?.avatarUrl as string) || null);
   const [avatarError, setAvatarError] = useState(false);
   const displayAvatar = avatarError ? null : avatarUrl;
@@ -93,7 +93,7 @@ export default function OnboardingPage() {
   const handleContinue = async () => {
     const trimmed = username.trim().toLowerCase();
     if (!trimmed) {
-      setUsernameError("Please choose a username.");
+      setUsernameError("Don't forget your username.");
       return;
     }
     setUsernameError("");
@@ -190,7 +190,7 @@ export default function OnboardingPage() {
 
         {/* Progress */}
         <div className="mb-6 flex items-center gap-2">
-          {[1, 2].map((s) => (
+          {[1, 2, 3].map((s) => (
             <span
               key={s}
               className={`h-1.5 flex-1 rounded-full transition-colors ${
@@ -262,13 +262,18 @@ export default function OnboardingPage() {
 
               {/* Username */}
               <div className="space-y-2">
+                <label
+                  htmlFor="username"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Username
+                </label>
                 <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 z-[2] -translate-y-1/2 text-sm text-muted-foreground">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                     @
                   </span>
-                  <TextField
-                    label="Username"
-                    inputClassName="pl-7"
+                  <input
+                    id="username"
                     type="text"
                     value={username}
                     onChange={(e) => {
@@ -277,6 +282,9 @@ export default function OnboardingPage() {
                     }}
                     aria-invalid={!!usernameError}
                     autoComplete="off"
+                    className={cn(
+                      "flex h-10 w-full min-w-0 rounded-lg border border-input bg-transparent pl-7 pr-3 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20"
+                    )}
                   />
                 </div>
                 {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
@@ -297,7 +305,30 @@ export default function OnboardingPage() {
             <CardContent className="pt-8">
               <div className="mb-7 flex flex-col items-center text-center">
                 <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10">
-                  <BellRing className="h-5 w-5 text-primary" />
+                  <Camera className="h-5 w-5 text-primary" />
+                </span>
+                <h1 className="text-xl font-bold tracking-tight text-foreground">Add your timetable</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Snap or upload a photo of your class schedule so we can build it for you.
+                </p>
+              </div>
+
+              <UploadScheduleCard
+                onComplete={() => setStep(3)}
+                finishing={false}
+                buttonLabel="Continue"
+                userId={(u?.id as string) || "anon"}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {step === 3 && (
+          <Card className="border-border/50 shadow-sm">
+            <CardContent className="pt-8">
+              <div className="mb-7 flex flex-col items-center text-center">
+                <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10">
+                  <Sparkles className="h-5 w-5 text-primary" />
                 </span>
                 <h1 className="text-xl font-bold tracking-tight text-foreground">You&apos;re almost there</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -310,15 +341,6 @@ export default function OnboardingPage() {
                 finishing={finishing}
                 buttonLabel="Get started"
               />
-
-              <Button
-                variant="ghost"
-                className="mt-2 h-10 w-full font-semibold text-muted-foreground"
-                onClick={markComplete}
-                disabled={finishing}
-              >
-                Skip for now
-              </Button>
             </CardContent>
           </Card>
         )}
@@ -333,7 +355,7 @@ export default function OnboardingPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col items-center gap-4">
-              {avatarUrl ? isRemoteDialogAvatar ? (
+              {avatarUrl ? isRemoteAvatar ? (
                 <Image
                   src={avatarUrl}
                   alt="Profile avatar"

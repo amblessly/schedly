@@ -8,15 +8,12 @@ import {
   CalendarDays,
   Camera,
   Check,
-  ChevronLeft,
   ChevronRight,
   Mail,
 } from "lucide-react";
 
 const LAST_SCREEN = 2;
 const STEPS = ["01", "02", "03"];
-
-type MascotVariant = "wave" | "timetable" | "celebrate";
 
 export function MobileOnboarding() {
   const [screen, setScreen] = useState(0);
@@ -67,8 +64,8 @@ export function MobileOnboarding() {
         style={{ transform: `translateX(-${screen * 100}%)` }}
       >
         <WelcomeScreen active={screen === 0} onNext={() => go(1)} onSkip={() => go(2)} />
-        <FeaturesScreen active={screen === 1} onNext={() => go(2)} onBack={() => go(0)} />
-        <AuthScreen active={screen === 2} onBack={() => go(1)} />
+        <FeaturesScreen active={screen === 1} onNext={() => go(2)} />
+        <AuthScreen active={screen === 2} />
       </div>
     </div>
   );
@@ -97,32 +94,12 @@ function ScreenContent({
   );
 }
 
-/* ============ Mascot — minimal mark, no decoration ============ */
-
-function Mascot({ variant = "wave", size = "lg" }: { variant?: MascotVariant; size?: "lg" | "sm" }) {
-  const big = size === "lg";
-  const box = big
-    ? "h-[clamp(7rem,22dvh,11rem)] w-[clamp(7rem,22dvh,11rem)]"
-    : "h-[clamp(4rem,15dvh,7rem)] w-[clamp(4rem,15dvh,7rem)]";
-  const anim = variant === "wave" || variant === "celebrate" ? "animate-float" : "";
-
-  return (
-    <div className={`relative flex items-center justify-center ${box}`}>
-      <div
-        className={`relative flex items-center justify-center overflow-hidden rounded-[32%] bg-secondary ring-1 ring-border ${box} ${anim}`}
-      >
-        <Image src="/images/logo.jpg" alt="" aria-hidden fill className="object-cover" />
-      </div>
-    </div>
-  );
-}
-
 function PrimaryButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex h-14 w-full items-center justify-center gap-2 rounded-full bg-primary text-[15px] font-medium text-primary-foreground shadow-md shadow-primary/20 transition-all duration-200 hover:bg-primary/90 active:scale-[0.98]"
+      className="flex h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-foreground/70 bg-primary text-[15px] font-bold text-primary-foreground shadow-[3px_3px_0_0_#401f32] transition-all duration-200 hover:bg-primary/90 hover:shadow-none active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_0_#401f32]"
     >
       {children}
     </button>
@@ -144,21 +121,19 @@ function ProgressDots({ current }: { current: number }) {
   );
 }
 
-function NavRow({ onBack, onSkip }: { onBack?: () => void; onSkip?: () => void }) {
+function BrandRow({ onSkip }: { onSkip?: () => void }) {
   return (
     <div className="flex items-center justify-between pb-[clamp(0.5rem,1.5dvh,1rem)]">
-      {onBack ? (
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center gap-1 px-1 py-2 text-[15px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          Back
-        </button>
-      ) : (
-        <span />
-      )}
+      <div className="flex items-center gap-2.5">
+        <Image
+          src="/images/logo.jpg"
+          alt="Schedly"
+          width={36}
+          height={36}
+          className="h-9 w-9 rounded-xl object-cover"
+        />
+        <span className="text-[19px] font-bold tracking-tight text-foreground">Schedly</span>
+      </div>
       {onSkip && (
         <button
           type="button"
@@ -176,8 +151,6 @@ function NavRow({ onBack, onSkip }: { onBack?: () => void; onSkip?: () => void }
 
 type Cell = { name: string; color: string } | null;
 
-/* Static grid data for the two timetable cards. Each is Mon–Sat × 3 rows.
- * A cell is null = empty, or { name, color } = subject block. */
 const GRID_A: Cell[][] = [
   [null, { name: "Phys", color: "#0ea5e9" }, null, { name: "Hist", color: "#ef4444" }, { name: "Eng", color: "#8b5cf6" }, null],
   [{ name: "Math", color: "#3b82f6" }, null, { name: "Bio", color: "#f59e0b" }, null, { name: "CS", color: "#22c55e" }, { name: "Phys", color: "#0ea5e9" }],
@@ -194,7 +167,7 @@ const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function MiniTimetable({ grid, label }: { grid: Cell[][]; label: string }) {
   return (
-    <div className="mx-auto w-full max-w-2xl rounded-lg border border-border/60 bg-card p-1.5 shadow-xl shadow-primary/5 sm:p-2">
+    <div className="mx-auto w-full max-w-2xl rounded-xl border-2 border-foreground/70 bg-card p-1.5 shadow-[3px_3px_0_0_#401f32] sm:p-2">
       <div className="mb-1.5 flex items-center gap-1.5">
         <div className="h-2 w-2 rounded-full bg-destructive/60" />
         <div className="h-2 w-2 rounded-full bg-yellow-400/60" />
@@ -225,27 +198,24 @@ function MiniTimetable({ grid, label }: { grid: Cell[][]; label: string }) {
   );
 }
 
-/* Two timetable cards stacked, both equal in size. */
 function TimetableVisual({ active }: { active: boolean }) {
   return (
     <div
-      className={`relative mx-auto h-[clamp(8rem,25dvh,12rem)] w-[clamp(20rem,96vw,28rem)] transition-all duration-500 ease-out ${
+      className={`relative mx-auto h-[clamp(10rem,32dvh,14rem)] w-[clamp(22rem,96vw,30rem)] transition-all duration-500 ease-out ${
         active ? "opacity-100" : "opacity-0"
       }`}
     >
-      {/* Back timetable */}
       <div
-        className={`absolute left-0 top-1 w-[92%] -rotate-2 transition-all duration-500 ease-out ${
-          active ? "translate-x-0 opacity-80" : "-translate-x-3 opacity-40"
+        className={`absolute left-2 top-2 w-[80%] -rotate-6 transition-all duration-500 ease-out ${
+          active ? "translate-x-0 translate-y-0 opacity-90" : "-translate-x-2 opacity-40"
         }`}
       >
         <MiniTimetable grid={GRID_B} label="Next Week" />
       </div>
 
-      {/* Front timetable */}
       <div
-        className={`absolute right-0 bottom-0 w-[92%] rotate-[1.5deg] transition-all duration-500 ease-out ${
-          active ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
+        className={`absolute right-2 top-6 w-[80%] rotate-[4deg] transition-all duration-500 ease-out ${
+          active ? "translate-x-0 translate-y-0 opacity-100" : "translate-x-2 opacity-0"
         }`}
       >
         <MiniTimetable grid={GRID_A} label="This Week" />
@@ -265,7 +235,7 @@ function WelcomeScreen({
 }) {
   return (
     <div className="flex w-full shrink-0 flex-col px-8 pb-[clamp(1.5rem,4dvh,2rem)] pt-[clamp(1rem,2dvh,1.5rem)]">
-      <NavRow onSkip={onSkip} />
+      <BrandRow onSkip={onSkip} />
 
       <div className="flex flex-1 flex-col items-center justify-center">
         <ScreenContent active={active} className="mb-[clamp(1.75rem,5dvh,2.75rem)]">
@@ -318,15 +288,13 @@ const FEATURES = [
 function FeaturesScreen({
   active,
   onNext,
-  onBack,
 }: {
   active: boolean;
   onNext: () => void;
-  onBack: () => void;
 }) {
   return (
     <div className="flex w-full shrink-0 flex-col px-8 pb-[clamp(1.5rem,4dvh,2rem)] pt-[clamp(1rem,2dvh,1.5rem)]">
-      <NavRow onBack={onBack} onSkip={onNext} />
+      <BrandRow onSkip={onNext} />
 
       <div className="flex flex-1 flex-col items-center justify-center">
         <ScreenContent active={active} delay={100} className="flex flex-col items-center text-center">
@@ -341,12 +309,12 @@ function FeaturesScreen({
         <div className="mt-[clamp(1.75rem,5dvh,2.5rem)] w-full space-y-3">
           {FEATURES.map((f, i) => (
             <ScreenContent key={f.title} active={active} delay={180 + i * 120}>
-              <div className="flex items-center gap-3.5 rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <div className="flex items-center gap-3.5 rounded-xl border-2 border-foreground/70 bg-card p-3.5 shadow-[3px_3px_0_0_#401f32]">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-foreground/70 bg-primary/10 text-primary shadow-[2px_2px_0_0_#401f32]">
                   <f.icon className="h-5 w-5" strokeWidth={1.75} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="flex items-baseline gap-2 text-[0.9375rem] font-medium text-foreground">
+                  <h3 className="flex items-baseline gap-2 text-[0.9375rem] font-bold text-foreground">
                     <span className="text-xs font-bold tracking-widest text-primary/50">{STEPS[i]}</span>
                     {f.title}
                   </h3>
@@ -371,25 +339,21 @@ function FeaturesScreen({
 
 /* ============ Screen 3 — Get started ============ */
 
-function AuthScreen({ active, onBack }: { active: boolean; onBack: () => void }) {
+function AuthScreen({ active }: { active: boolean }) {
   return (
     <div className="flex w-full shrink-0 flex-col px-8 pb-[clamp(1.5rem,4dvh,2rem)] pt-[clamp(1rem,2dvh,1.5rem)]">
-      <NavRow onBack={onBack} />
+      <BrandRow />
 
       <div className="flex flex-1 flex-col items-center justify-center">
-        <ScreenContent active={active} className="mb-[clamp(1.75rem,5dvh,2.5rem)]">
-          <Mascot variant="celebrate" size="sm" />
-        </ScreenContent>
-
         <ScreenContent active={active} delay={120} className="flex flex-col items-center text-center">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Check className="h-6 w-6" strokeWidth={2} />
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border-2 border-foreground/70 bg-primary/20 text-primary shadow-[3px_3px_0_0_#401f32]">
+            <Check className="h-7 w-7" strokeWidth={2.5} />
           </div>
           <h2 className="text-[clamp(1.875rem,8.5vw,2.25rem)] font-semibold leading-[1.1] tracking-tight text-foreground">
             You&apos;re all set.
           </h2>
-          <p className="mt-3 max-w-[260px] text-[clamp(0.9375rem,4vw,1rem)] leading-relaxed text-muted-foreground">
-            Sign in to start organizing your schedule.
+          <p className="mt-3 max-w-[280px] text-[clamp(0.9375rem,4vw,1rem)] leading-relaxed text-muted-foreground">
+            One last step — sign in to sync your schedule across all your devices.
           </p>
         </ScreenContent>
       </div>
@@ -401,7 +365,7 @@ function AuthScreen({ active, onBack }: { active: boolean; onBack: () => void })
       >
         <a
           href="/login"
-          className="flex h-14 w-full items-center justify-center gap-2.5 rounded-full bg-primary text-[15px] font-medium text-primary-foreground shadow-md shadow-primary/20 transition-all duration-200 hover:bg-primary/90 active:scale-[0.98]"
+          className="flex h-14 w-full items-center justify-center gap-2.5 rounded-xl border-2 border-foreground/70 bg-primary text-[15px] font-bold text-primary-foreground shadow-[3px_3px_0_0_#401f32] transition-all duration-200 hover:bg-primary/90 hover:shadow-none active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_0_#401f32]"
         >
           <Mail className="h-5 w-5" />
           Continue with Email

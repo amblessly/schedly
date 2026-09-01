@@ -90,7 +90,7 @@ export function TodayClassesCard({ classes, now, loading, nextDay }: TodayClasse
   });
 
   return (
-    <Card className="bento-tile-main flex h-full w-full flex-col border-border/50 shadow-sm">
+    <Card className="bento-tile-main flex h-full w-full flex-col">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-base">
           Today&apos;s Classes

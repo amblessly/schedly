@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   }
 
   await db.$transaction(async (tx) => {
-    await tx.fCMToken.upsert({
+    await (tx as typeof db).fCMToken.upsert({
       where: { token },
       create: { userId: session.user.id, token },
       update: { updatedAt: new Date() },
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     // to UTC, which would shift every reminder by the UTC offset).
     const timezone = typeof body?.timezone === "string" ? body.timezone.slice(0, 64) : "UTC";
     if (timezone !== "UTC") {
-      await tx.user.updateMany({
+      await (tx as typeof db).user.updateMany({
         where: { id: session.user.id },
         data: { timezone },
       });

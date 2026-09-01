@@ -1,3 +1,11 @@
+/**
+ * Provider-aware circuit breakers. Each provider gets its own breaker so a
+ * single exhausted key/provider does NOT block the others. The breaker trips
+ * after N consecutive failures within a window and auto-resets after a
+ * configurable cooldown. The same provider on the same serverless instance
+ * shares the breaker state — serverless cold starts reset the breaker, which
+ * is acceptable (worst case: one extra request, no quota harm).
+ */
 interface CircuitBreakerState {
   failures: number;
   lastFailure: number;
@@ -7,12 +15,20 @@ interface CircuitBreakerState {
 const circuitBreakers = new Map<string, CircuitBreakerState>();
 
 const DEFAULT_CONFIG = {
-  threshold: 5,
-  resetTimeout: 30000,
-  halfOpenAttempts: 3,
+  threshold: 10,
+  resetTimeout: 60_000,
+  halfOpenAttempts: 2,
 };
 
-export function getCircuitBreaker(name: string, config = DEFAULT_CONFIG) {
+const PROVIDER_CONFIG: Record<string, Partial<typeof DEFAULT_CONFIG>> = {
+  gemini: { threshold: 10, resetTimeout: 60_000, halfOpenAttempts: 2 },
+  openrouter: { threshold: 5, resetTimeout: 120_000, halfOpenAttempts: 1 },
+  groq: { threshold: 8, resetTimeout: 60_000, halfOpenAttempts: 2 },
+  bytez: { threshold: 5, resetTimeout: 120_000, halfOpenAttempts: 1 },
+  openai: { threshold: 5, resetTimeout: 60_000, halfOpenAttempts: 1 },
+};
+
+export function getCircuitBreaker(name: string, configOverride?: Partial<typeof DEFAULT_CONFIG>) {
   if (!circuitBreakers.has(name)) {
     circuitBreakers.set(name, {
       failures: 0,
@@ -21,6 +37,7 @@ export function getCircuitBreaker(name: string, config = DEFAULT_CONFIG) {
     });
   }
 
+  const config = { ...DEFAULT_CONFIG, ...(PROVIDER_CONFIG[name] ?? {}), ...(configOverride ?? {}) };
   const cb = circuitBreakers.get(name)!;
 
   function isOpen(): boolean {
@@ -76,14 +93,12 @@ export function getCircuitBreaker(name: string, config = DEFAULT_CONFIG) {
   };
 }
 
-export const geminiCircuitBreaker = getCircuitBreaker("gemini", {
-  threshold: 10,
-  resetTimeout: 60000,
-  halfOpenAttempts: 2,
-});
-
-export const openaiCircuitBreaker = getCircuitBreaker("openai", {
-  threshold: 10,
-  resetTimeout: 60000,
-  halfOpenAttempts: 2,
-});
+/* Provider-level breakers — used by the legacy direct-call paths and the
+ * flashcard worker. The newer per-key breakers live in
+ * src/server/ai/circuit-breaker.ts and are used by the centralized AI
+ * gateway. */
+export const geminiCircuitBreaker = getCircuitBreaker("gemini");
+export const openaiCircuitBreaker = getCircuitBreaker("openai");
+export const openrouterCircuitBreaker = getCircuitBreaker("openrouter");
+export const groqCircuitBreaker = getCircuitBreaker("groq");
+export const bytezCircuitBreaker = getCircuitBreaker("bytez");

@@ -410,7 +410,7 @@ export function SyllabusReview({ extraction, fileId, fileName, onSaved, onCancel
       {/* Summary + Save */}
       <div className="border-t pt-4 space-y-3">
         <p className="text-xs text-muted-foreground">
-          AI-extracted information. Please review dates and requirements before saving.
+          Extracted information. Please review dates and requirements before saving.
         </p>
         <p className="text-xs text-muted-foreground">
           Will create: {todoCount} to-do items, {datedCount} calendar events

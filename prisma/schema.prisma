@@ -52,6 +52,8 @@ model User {
   timezone  String   @default("Asia/Manila")
   theme     String   @default("system")
   notificationsEnabled Boolean @default(false) @map("notifications_enabled")
+  defaultReminderMinutes Int @default(15) @map("default_reminder_minutes")
+  reminderStartDate String? @map("reminder_start_date")
   locationEnabled Boolean @default(false) @map("location_enabled")
   requiresReauth Boolean @default(true) @map("requires_reauth")
   widgetToken String? @unique @map("widget_token")

@@ -210,7 +210,7 @@ export default function GWACalculatorPage() {
 
         <div className="min-w-0 flex-1 mx-auto w-full max-w-3xl space-y-6 md:mx-0">
       {/* Previous GWA */}
-      <Card className="border-border/50">
+      <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium text-muted-foreground">
             Previous Semester (Optional)
@@ -239,7 +239,7 @@ export default function GWACalculatorPage() {
       </Card>
 
       {/* Course List */}
-      <Card className="border-border/50">
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-sm font-medium text-muted-foreground">
             This Semester ({courses.length} courses)
@@ -304,7 +304,7 @@ export default function GWACalculatorPage() {
 
       {/* Results */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="border-border/50 bg-primary/5">
+        <Card className="bg-primary/5">
           <CardContent className="flex flex-col items-center pt-6 pb-4">
             <Calculator className="mb-2 h-5 w-5 text-primary" />
             <p className="text-xs text-muted-foreground">Semester GWA</p>
@@ -313,7 +313,7 @@ export default function GWACalculatorPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/50">
+        <Card>
           <CardContent className="flex flex-col items-center pt-6 pb-4">
             <Calculator className="mb-2 h-5 w-5 text-muted-foreground" />
             <p className="text-xs text-muted-foreground">Cumulative GWA</p>
@@ -322,7 +322,7 @@ export default function GWACalculatorPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/50">
+        <Card>
           <CardContent className="space-y-3 pt-6 pb-4">
             <TextField
               label="Target GWA"

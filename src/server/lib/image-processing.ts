@@ -1,5 +1,4 @@
 ﻿import sharp from "sharp";
-import { createRequire } from "node:module";
 import path from "node:path";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -9,8 +8,9 @@ let _cv: CVModule | null = null;
 
 async function getCV(): Promise<CVModule> {
   if (_cv) return _cv;
-  const require = createRequire(import.meta.url);
-  const opencvDir = path.dirname(require.resolve("opencv-wasm/package.json"));
+  // Use process.cwd() on Windows — import.meta.url resolves to C:\ROOT\... in Next.js dev
+  const projectRoot = process.cwd();
+  const opencvDir = path.join(projectRoot, "node_modules", "opencv-wasm");
   const wasmPath = path.join(opencvDir, "opencv.wasm");
   const { cv } = await import("opencv-wasm");
   const cvFn = cv as unknown as (mod: Record<string, unknown>) => Promise<CVModule>;
@@ -645,9 +645,9 @@ export async function preprocessImage(
   // Lightweight normalization (sharp-only) — no OpenCV WASM loading, fast.
   if (options.brightnessNormalization || options.contrastEnhancement) {
     const operations = [];
-    if (tooDark) operations.push({ gamma: 3.0 });
-    if (tooBright) operations.push({ gamma: 0.7 });
-    if (tooDark || tooBright) {
+    if (quality.brightness < 0.4) operations.push({ gamma: 3.0 });
+    if (quality.brightness > 0.85) operations.push({ gamma: 0.7 });
+    if (quality.brightness < 0.4 || quality.brightness > 0.85) {
       buf = await sharp(buf).gamma(2.0).normalize().toBuffer();
     }
   }

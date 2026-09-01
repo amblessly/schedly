@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type ComponentType } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
@@ -10,6 +10,11 @@ import {
   RotateCcw,
   SkipForward,
   TreePineIcon,
+  TreePine,
+  TreeDeciduous,
+  Flower2,
+  Leaf,
+  Sprout,
   FlameIcon,
   ZapIcon,
 } from "lucide-react";
@@ -22,10 +27,17 @@ import {
   getGamificationProfile,
   logFocusSession,
 } from "./gamification-actions";
+import { cn } from "@/lib/utils";
 
-const DEFAULTS = { focus: 25, break: 5 };
+const DEFAULTS = { focus: 5, break: 5 };
 const MAX_FOCUS = 240;
 const MAX_BREAK = 120;
+const TICK_MS = 250;
+
+// Growth thresholds are FRACTIONS of the current focus session's total duration.
+// 0%→Seed, 20%→Sprout, 40%→Sapling, 60%→Tree, 80%→Full Tree, 100%→completion.
+// These work for ANY focus duration (seconds, minutes, hours).
+const GROWTH_THRESHOLDS = { sprout: 0.20, sapling: 0.40, tree: 0.60, full: 0.80 };
 
 function format(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -38,12 +50,12 @@ function clampInt(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
-function getTreeStage(progress: number): { emoji: string; label: string } {
-  if (progress < 0.2) return { emoji: "🌱", label: "Seed" };
-  if (progress < 0.4) return { emoji: "🌿", label: "Sprout" };
-  if (progress < 0.6) return { emoji: "🪴", label: "Sapling" };
-  if (progress < 0.8) return { emoji: "🌳", label: "Tree" };
-  return { emoji: "🌲", label: "Full Tree" };
+function getTreeStage(progress: number): { label: string; icon: ComponentType<{ className?: string }>; color: string } {
+  if (progress < GROWTH_THRESHOLDS.sprout) return { label: "Seed", icon: Sprout, color: "text-orange-400" };
+  if (progress < GROWTH_THRESHOLDS.sapling) return { label: "Sprout", icon: Leaf, color: "text-green-400" };
+  if (progress < GROWTH_THRESHOLDS.tree) return { label: "Sapling", icon: Flower2, color: "text-emerald-500" };
+  if (progress < GROWTH_THRESHOLDS.full) return { label: "Tree", icon: TreeDeciduous, color: "text-green-600" };
+  return { label: "Full Tree", icon: TreePine, color: "text-green-700" };
 }
 
 const XP_PER_LEVEL = [0, 0, 50, 150, 300, 500, 750, 1050, 1400, 1800, 2250, 2750, 3300, 3900, 4550, 5250, 6000, 6800, 7650, 8550, 9500];
@@ -65,6 +77,12 @@ export default function PomodoroPage() {
   const focusRef = useRef(focusMin);
   const breakRef = useRef(breakMin);
   const sessionStartRef = useRef<number | null>(null);
+  const completionLockRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  // Track the previous tree label so we can animate only on stage changes.
+  const prevTreeRef = useRef<string>("");
+  const [treePop, setTreePop] = useState(false);
 
   const [profile, setProfile] = useState<{
     xp: number;
@@ -76,7 +94,7 @@ export default function PomodoroPage() {
 
   const loadProfile = useCallback(async () => {
     const p = await getGamificationProfile();
-    if (p) {
+    if (p && mountedRef.current) {
       setProfile({
         xp: p.xp,
         level: p.level,
@@ -87,6 +105,7 @@ export default function PomodoroPage() {
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     let cancelled = false;
     void (async () => {
       if (cancelled) return;
@@ -94,6 +113,7 @@ export default function PomodoroPage() {
     })();
     return () => {
       cancelled = true;
+      mountedRef.current = false;
     };
   }, [loadProfile]);
 
@@ -101,53 +121,108 @@ export default function PomodoroPage() {
     phaseRef.current = phase;
     focusRef.current = focusMin;
     breakRef.current = breakMin;
-  });
+  }, [phase, focusMin, breakMin]);
 
+  // Reset tree-pop tracker when a new focus session starts so the next stage
+  // change animates fresh.
+  useEffect(() => {
+    if (phase === "focus" && !running) {
+      prevTreeRef.current = "";
+    }
+  }, [phase, running]);
+
+  // Single countdown loop. Cleanup guarantees only one interval is ever alive
+  // at a time, so rapid start/pause clicks can't create duplicates.
   useEffect(() => {
     if (!running || deadline === null) return;
-    const id = setInterval(() => {
+
+    const id = window.setInterval(() => {
+      if (!mountedRef.current) return;
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
       setSecondsLeft(remaining);
-      if (remaining <= 0) {
-        const wasFocus = phaseRef.current === "focus";
-        const next = wasFocus ? "break" : "focus";
-        setPhase(next);
-        const dur = next === "focus" ? focusRef.current : breakRef.current;
-        const newDeadline = Date.now() + dur * 60 * 1000;
-        setSecondsLeft(dur * 60);
-        setDeadline(newDeadline);
 
-        if (wasFocus && sessionStartRef.current) {
-          const mins = Math.round(
-            (Date.now() - sessionStartRef.current) / 60000
-          );
-          logFocusSession(mins, true).then((res) => {
-            if (res.success && res.xpEarned && res.xpEarned > 0) {
-              setXpPopup(res.xpEarned);
-              setTimeout(() => setXpPopup(null), 3000);
-              loadProfile();
-            } else if (!res.success && res.error) {
-              toast.error(friendlyError(res.error, "gamification"));
-            }
-          });
-          sessionStartRef.current = null;
-        }
+      if (remaining > 0 || completionLockRef.current) return;
+
+      // Natural completion. Lock immediately so duplicate interval ticks can't fire this again.
+      completionLockRef.current = true;
+
+      const wasFocus = phaseRef.current === "focus";
+      const nextPhase: "focus" | "break" = wasFocus ? "break" : "focus";
+      const nextDur = nextPhase === "focus" ? focusRef.current : breakRef.current;
+      const start = sessionStartRef.current;
+
+      if (wasFocus && start) {
+        const mins = Math.max(1, Math.round((Date.now() - start) / 60000));
+        logFocusSession(mins, true).then((res) => {
+          if (!mountedRef.current) return;
+          if (res.success && res.xpEarned && res.xpEarned > 0) {
+            setXpPopup(res.xpEarned);
+            window.setTimeout(() => {
+              if (mountedRef.current) setXpPopup(null);
+            }, 3000);
+            loadProfile();
+          } else if (!res.success && res.error) {
+            toast.error(friendlyError(res.error, "gamification"));
+          }
+        });
+        sessionStartRef.current = null;
+      } else if (!wasFocus) {
+        // Break completed naturally: clear start so the next focus session
+        // begins timing fresh from its start.
+        sessionStartRef.current = null;
       }
-    }, 250);
-    return () => clearInterval(id);
+
+      // Transition to the next phase and arm a new deadline.
+      setPhase(nextPhase);
+      setSecondsLeft(nextDur * 60);
+      setDeadline(Date.now() + nextDur * 60 * 1000);
+    }, TICK_MS);
+
+    return () => {
+      window.clearInterval(id);
+      completionLockRef.current = false;
+    };
   }, [running, deadline, loadProfile]);
 
-  const total = (phase === "focus" ? focusMin : breakMin) * 60;
-  const progress = total > 0 ? ((total - secondsLeft) / total) * 100 : 0;
-  const timerProgress = total > 0 ? (secondsLeft / total) * 100 : 0;
-  const tree = getTreeStage(progress);
+  // Total duration in seconds for the current phase. Used for both the SVG
+  // ring and the per-session tree growth progress calculation.
+  const phaseTotal = (phase === "focus" ? focusMin : breakMin) * 60;
+  const phaseElapsed = phaseTotal - secondsLeft;
+  const phaseProgress = phaseTotal > 0 ? Math.max(0, Math.min(1, phaseElapsed / phaseTotal)) : 0;
+
+  // Tree stage is derived ONLY from the current focus session's progress.
+  // During break, the icon isn't shown (showTree=false), so this only matters
+  // for the visible state.
+  const tree = getTreeStage(phase === "focus" ? phaseProgress : 1);
+  const showTree = phase === "focus" && running;
+
+  // Trigger pop animation when the visible tree stage changes.
+  useEffect(() => {
+    if (!showTree) return;
+    if (!prevTreeRef.current) {
+      prevTreeRef.current = tree.label;
+      return;
+    }
+    if (prevTreeRef.current === tree.label || treePop) return;
+    setTreePop(true);
+    const id = window.setTimeout(() => {
+      if (mountedRef.current) setTreePop(false);
+    }, 500);
+    return () => window.clearTimeout(id);
+  }, [tree.label, showTree, treePop]);
+
+  const timerProgress = phaseTotal > 0 ? (secondsLeft / phaseTotal) * 100 : 0;
 
   function applyFocus(value: number) {
     const next = clampInt(value, 1, MAX_FOCUS);
     setFocusMin(next);
     if (phase === "focus") {
       setSecondsLeft(next * 60);
-      setDeadline(running ? Date.now() + next * 60 * 1000 : null);
+      if (running) {
+        setDeadline(Date.now() + next * 60 * 1000);
+      } else {
+        setDeadline(null);
+      }
     }
   }
 
@@ -156,28 +231,31 @@ export default function PomodoroPage() {
     setBreakMin(next);
     if (phase === "break") {
       setSecondsLeft(next * 60);
-      setDeadline(running ? Date.now() + next * 60 * 1000 : null);
+      if (running) {
+        setDeadline(Date.now() + next * 60 * 1000);
+      } else {
+        setDeadline(null);
+      }
     }
   }
 
   const toggle = () => {
     if (running) {
+      // Pausing — preserve remaining time, no seed award.
+      const remaining = secondsLeft;
       setRunning(false);
       setDeadline(null);
-      if (phase === "focus" && sessionStartRef.current) {
-        const mins = Math.round(
-          (Date.now() - sessionStartRef.current) / 60000
-        );
-        if (mins >= 1) {
-          logFocusSession(mins, false).then(() => loadProfile());
-        }
+      // Clear the session-start ref so resuming doesn't double-count.
+      if (phaseRef.current === "focus") {
         sessionStartRef.current = null;
       }
+      setSecondsLeft(remaining);
     } else {
-      if (phase === "focus" && !sessionStartRef.current) {
+      // Starting / resuming. Re-arm deadline from current remaining time.
+      if (phaseRef.current === "focus" && !sessionStartRef.current) {
         sessionStartRef.current = Date.now();
       }
-      setDeadline(Date.now() + secondsLeft * 1000);
+      setDeadline(Date.now() + Math.max(0, secondsLeft) * 1000);
       setRunning(true);
     }
   };
@@ -186,27 +264,50 @@ export default function PomodoroPage() {
     setRunning(false);
     setDeadline(null);
     sessionStartRef.current = null;
+    completionLockRef.current = false;
+    prevTreeRef.current = "";
     setSecondsLeft((phase === "focus" ? focusMin : breakMin) * 60);
   };
 
   const skip = () => {
-    if (phase === "focus" && sessionStartRef.current) {
-      const mins = Math.round(
-        (Date.now() - sessionStartRef.current) / 60000
-      );
-      if (mins >= 1) {
-        logFocusSession(mins, false).then(() => loadProfile());
-      }
-      sessionStartRef.current = null;
-    }
-    const next = phase === "focus" ? "break" : "focus";
+    // Manual phase switch — never marks current phase as completed.
+    sessionStartRef.current = null;
+    const next: "focus" | "break" = phase === "focus" ? "break" : "focus";
     setPhase(next);
     setRunning(false);
     setDeadline(null);
+    completionLockRef.current = false;
+    prevTreeRef.current = "";
     setSecondsLeft((next === "focus" ? focusMin : breakMin) * 60);
   };
 
+  const switchPhase = (target: "focus" | "break") => {
+    if (target === phase) return;
+    sessionStartRef.current = null;
+    setRunning(false);
+    setDeadline(null);
+    completionLockRef.current = false;
+    prevTreeRef.current = "";
+    setPhase(target);
+    setSecondsLeft((target === "focus" ? focusMin : breakMin) * 60);
+  };
+
   const levelProgress = profile ? getLevelProgress(profile.xp, profile.level) : 0;
+
+  // Stage progress hint (only meaningful during focus).
+  const nextStage =
+    tree.label === "Seed" ? `Sprout` :
+    tree.label === "Sprout" ? `Sapling` :
+    tree.label === "Sapling" ? `Tree` :
+    tree.label === "Tree" ? `Full Tree` :
+    null;
+  const nextThreshold =
+    tree.label === "Seed" ? GROWTH_THRESHOLDS.sprout :
+    tree.label === "Sprout" ? GROWTH_THRESHOLDS.sapling :
+    tree.label === "Sapling" ? GROWTH_THRESHOLDS.tree :
+    tree.label === "Tree" ? GROWTH_THRESHOLDS.full :
+    1;
+  const stagePct = Math.round(phaseProgress * 100);
 
   return (
     <div className="mx-auto w-full max-w-6xl pt-8 md:pt-0">
@@ -254,11 +355,11 @@ export default function PomodoroPage() {
             </div>
           )}
 
-          <Card>
+          <Card className="border-2 border-foreground/70 shadow-[6px_6px_0_0_#401f32] ring-2 ring-background">
             <CardContent className="flex flex-col items-center gap-6 py-8">
               <div className="flex gap-2">
                 <button
-                  onClick={() => { setRunning(false); setDeadline(null); setPhase("focus"); setSecondsLeft(focusMin * 60); }}
+                  onClick={() => switchPhase("focus")}
                   className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
                     phase === "focus"
                       ? "bg-primary text-primary-foreground"
@@ -268,7 +369,7 @@ export default function PomodoroPage() {
                   Focus
                 </button>
                 <button
-                  onClick={() => { setRunning(false); setDeadline(null); setPhase("break"); setSecondsLeft(breakMin * 60); }}
+                  onClick={() => switchPhase("break")}
                   className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
                     phase === "break"
                       ? "bg-primary text-primary-foreground"
@@ -296,9 +397,16 @@ export default function PomodoroPage() {
                   />
                 </svg>
                 <div className="text-center">
-                  {phase === "focus" && running && (
-                    <div className="text-4xl mb-1 transition-all duration-500">
-                      {tree.emoji}
+                  {showTree && (
+                    <div
+                      className={cn(
+                        "mb-1 flex items-center justify-center",
+                        treePop
+                          ? "animate-[grow-pop_500ms_ease-out]"
+                          : "transition-all duration-500"
+                      )}
+                    >
+                      <tree.icon className={cn("h-10 w-10", tree.color)} />
                     </div>
                   )}
                   <div className="text-5xl font-bold tabular-nums text-foreground">
@@ -315,6 +423,20 @@ export default function PomodoroPage() {
               {xpPopup && (
                 <div className="animate-bounce text-sm font-bold text-green-500">
                   +{xpPopup} XP earned!
+                </div>
+              )}
+
+              {showTree && (
+                <div className="w-full rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-center">
+                  <p className="flex items-center justify-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    <tree.icon className={cn("h-3.5 w-3.5", tree.color)} />
+                    {tree.label}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    {nextStage
+                      ? `${stagePct}% · ${Math.max(0, Math.round((nextThreshold - phaseProgress) * 100))}% to ${nextStage}`
+                      : "Maximum grown!"}
+                  </p>
                 </div>
               )}
 
@@ -355,3 +477,4 @@ export default function PomodoroPage() {
     </div>
   );
 }
+

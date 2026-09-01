@@ -44,7 +44,7 @@ export function ScheduleSection({
 }: ScheduleSectionProps) {
   return (
     <section>
-      <Card className="border-border/50 shadow-sm">
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-base">Your Schedule</CardTitle>
           {schedules && schedules.length > 0 && (
@@ -89,7 +89,7 @@ export function ScheduleSection({
             Upload a photo of your class schedule and your timetable will appear here
             automatically.
           </p>
-          <Button className="mt-5" onClick={() => (window.location.href = "/classes")}>
+          <Button className="mt-5" onClick={() => (window.location.href = "/capture")}>
             Upload Schedule
           </Button>
         </div>

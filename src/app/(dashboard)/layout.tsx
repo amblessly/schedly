@@ -11,6 +11,7 @@ import { OfflineBanner } from "@/components/offline-banner";
 import { NotificationBell } from "@/components/notification-bell";
 import { useThemeConfig } from "@/features/theme";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { ProfileBottomSheet } from "@/components/profile-bottom-sheet";
 import { reportClientType, type ClientType } from "./actions";
 import { getUserSchedules } from "@/app/(dashboard)/classes/actions";
 import { getUserReminders, scheduleUpcomingReminders, dispatchUserReminders } from "@/app/(dashboard)/reminders/actions";
@@ -34,6 +35,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [avatarError, setAvatarError] = useState(false);
+  // Profile sheet state (mobile only) — opened from the top-left avatar button
+  const [profileSheetOpen, setProfileSheetOpen] = useState(false);
 
   // First-time users are pushed through the setup flow before using the app.
   const { user, isLoading } = useAuth();
@@ -268,7 +271,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   // own skeletons instead of a full-screen loading state, so a refresh feels
   // like the cards are simply refreshing in place.
   const sidebarWrap = [
-    "sidebar-slide fixed right-3 top-16 z-40 w-[304px] max-w-[calc(100vw-1.5rem)] max-h-[70vh] will-change-transform md:hidden",
+    "sidebar-slide fixed right-3 top-16 z-40 w-[260px] max-w-[calc(100vw-1.5rem)] max-h-[80vh] will-change-transform md:hidden",
     open ? "translate-y-0 opacity-100" : "-translate-y-[130%] opacity-0",
   ].join(" ");
 
@@ -293,10 +296,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
       {/* Floating menu button — mobile only; on desktop the persistent left
           rail replaces the drawer, so there is nothing to open. */}
-      {!isImmersive && showButton && !detailOpen && (
+      {!isImmersive && showButton && !detailOpen && !profileSheetOpen && !isProfile && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed right-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center rounded-xl bg-sidebar/90 text-sidebar-foreground shadow-[0_8px_40px_rgba(0,0,0,0.12)] transition-colors hover:bg-sidebar md:hidden"
+          className="fixed right-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center rounded-xl border-2 border-foreground/70 bg-sidebar text-sidebar-foreground shadow-[3px_3px_0_0_#401f32] transition-colors hover:bg-sidebar md:hidden"
           aria-label="Show sidebar"
         >
           <Menu className="h-5 w-5" />
@@ -305,26 +308,26 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
       {/* Floating avatar / back arrow — mobile only. On desktop each page
           header renders its own inline avatar or back arrow. */}
-      {!isImmersive && showButton && !detailOpen && (
+      {!isImmersive && showButton && !detailOpen && !profileSheetOpen && !isProfile && (
         <button
           type="button"
           onClick={() => {
-            if (isSettings || isProfile || isNotifications || isAdmin || isToolsPage) {
+            if (isSettings || isNotifications || isAdmin || isToolsPage) {
               router.push("/dashboard");
             } else if (isFeedback) {
               router.push("/settings?tab=support");
             } else {
-              router.push("/profile");
+              setProfileSheetOpen(true);
             }
           }}
-          className="fixed left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-sidebar/90 text-sidebar-foreground shadow-[0_8px_40px_rgba(0,0,0,0.12)] transition-all duration-300 hover:bg-sidebar md:hidden"
+          className="fixed left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl border-2 border-foreground/70 bg-sidebar text-sidebar-foreground shadow-[3px_3px_0_0_#401f32] transition-all duration-300 hover:bg-sidebar md:hidden"
           aria-label={
-            isSettings || isProfile || isNotifications || isAdmin || isFeedback || isToolsPage
+            isSettings || isNotifications || isAdmin || isFeedback || isToolsPage
               ? "Go back"
               : "Open profile"
           }
         >
-          {isSettings || isProfile || isNotifications || isAdmin || isFeedback || isToolsPage ? (
+          {isSettings || isNotifications || isAdmin || isFeedback || isToolsPage ? (
             <ArrowLeft className="h-6 w-6" />
           ) : userAvatar ? isRemoteAvatar ? (
             <Image
@@ -350,39 +353,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </button>
       )}
 
-      {/* Floating notification bell + admin button — mobile only.
-          Shown side by side in a single card. */}
-      {!isImmersive && showButton && !isNotifications && !detailOpen && u?.isAdmin && (
-        <div className="fixed right-[4.75rem] top-[calc(env(safe-area-inset-top)+1rem)] z-50 flex items-center gap-1 md:hidden">
-          <NotificationBell variant="inline" />
-          <button
-            type="button"
-          onClick={() => {
-            if (pathname.startsWith("/admin/limits")) {
-              router.push("/admin");
-            } else if (pathname === "/admin") {
-              router.push("/dashboard");
-            } else {
-              router.push("/admin");
-            }
-          }}
-          className="flex h-11 w-11 items-center justify-center rounded-xl bg-sidebar/90 text-sidebar-foreground shadow-[0_8px_40px_rgba(0,0,0,0.12)] transition-colors hover:bg-sidebar"
-          aria-label="Admin"
-          title={
-            pathname === "/admin"
-              ? "Back to Dashboard"
-              : pathname.startsWith("/admin")
-                ? "Back to Admin Dashboard"
-                : "Admin Dashboard"
-          }
-          >
-            <Settings className="h-5 w-5" />
-          </button>
-        </div>
-      )}
-
-      {/* Notification bell only — mobile only, shown when user is NOT admin. */}
-      {!isImmersive && showButton && !isNotifications && !detailOpen && !u?.isAdmin && (
+      {/* Notification bell — mobile only. */}
+      {!isImmersive && showButton && !isNotifications && !detailOpen && !profileSheetOpen && !isProfile && (
         <NotificationBell className="md:hidden" />
       )}
 
@@ -408,6 +380,16 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
       {!isImmersive && !isProfile && !isNotifications && !isSettings && !isAdmin && !isCapture && <BottomNav />}
       {!isImmersive && <OfflineBanner />}
+
+      {/* Draggable profile bottom sheet — mobile only, opened from top-left avatar.
+          Suppressed on /profile because that page route renders its own full-screen
+          sheet, otherwise they stack on top of each other. */}
+      {!isImmersive && !isProfile && (
+        <ProfileBottomSheet
+          open={profileSheetOpen}
+          onClose={() => setProfileSheetOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -11,7 +13,6 @@ import { TurnstileWidget } from "@/components/turnstile";
 import { Spinner } from "@/components/ui/spinner";
 import { verifyCaptcha } from "@/app/actions";
 import { toast } from "sonner";
-import Link from "next/link";
 
 export function LoginForm() {
   const [form, setForm] = useState<LoginInput>({ email: "", password: "" });
@@ -60,7 +61,6 @@ export function LoginForm() {
 
       if (signInResult.error) {
         const msg = signInResult.error.message || "";
-        setFailedAttempts((prev) => prev + 1);
         if (
           msg.toLowerCase().includes("email not verified") ||
           msg.toLowerCase().includes("verify your email")
@@ -91,40 +91,48 @@ export function LoginForm() {
 
   return (
     <Card className="border-border/50 shadow-lg shadow-primary/5">
-      <CardHeader className="pb-4 text-center">
-        <CardTitle className="text-xl font-bold tracking-tight sm:text-2xl">Welcome back</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Sign in to your Schedly account
-        </p>
+      <CardHeader className="space-y-3 pb-5 text-center">
+        <Link href="/" className="mx-auto flex items-center gap-2.5 self-start">
+          <Image
+            src="/images/logo.jpg"
+            alt="Schedly"
+            width={36}
+            height={36}
+            className="h-9 w-9 rounded-xl object-cover"
+          />
+          <span className="text-lg font-bold tracking-tight">Schedly</span>
+        </Link>
+        <div>
+          <CardTitle className="text-xl font-bold tracking-tight sm:text-2xl">Welcome back</CardTitle>
+          <p className="mt-1 text-sm text-muted-foreground">Sign in to your Schedly account</p>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-4">
         <form onSubmit={handleSubmit} className="space-y-3" noValidate>
-          <div className="space-y-2">
-            <TextField
-              label="Email"
-              type="email"
-              value={form.email}
-              onChange={(e) => update("email", e.target.value)}
-              aria-invalid={!!errors.email}
-              autoComplete="email"
-            />
-            {errors.email && (
-              <p className="text-xs text-destructive mt-1">{errors.email}</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <TextField
-              label="Password"
-              type="password"
-              value={form.password}
-              onChange={(e) => update("password", e.target.value)}
-              aria-invalid={!!errors.password}
-              autoComplete="current-password"
-            />
-            {errors.password && (
-              <p className="text-xs text-destructive mt-1">{errors.password}</p>
-            )}
-          </div>
+          <TextField
+            label="Email"
+            type="email"
+            placeholder="you@example.com"
+            value={form.email}
+            onChange={(e) => update("email", e.target.value)}
+            aria-invalid={!!errors.email}
+            autoComplete="email"
+          />
+          {errors.email && (
+            <p className="text-xs text-destructive -mt-1.5">{errors.email}</p>
+          )}
+          <TextField
+            label="Password"
+            type="password"
+            placeholder="••••••••"
+            value={form.password}
+            onChange={(e) => update("password", e.target.value)}
+            aria-invalid={!!errors.password}
+            autoComplete="current-password"
+          />
+          {errors.password && (
+            <p className="text-xs text-destructive -mt-1.5">{errors.password}</p>
+          )}
           {serverError && (
             <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3">
               <p className="text-sm text-destructive">{serverError}</p>
@@ -149,20 +157,20 @@ export function LoginForm() {
             )}
           </Button>
         </form>
-        <div className="relative z-20 -mt-2 text-center text-sm">
+        <div className="flex items-center justify-between pt-2 text-sm">
           <Link
             href="/forgot-password"
             prefetch={false}
-            className="relative z-20 inline-block text-muted-foreground underline-offset-4 hover:text-foreground hover:underline transition-colors"
+            className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline transition-colors"
           >
             Forgot your password?
           </Link>
-        </div>
-        <div className="pt-4 border-t border-border/50 text-center text-sm text-muted-foreground">
-          Don&apos;t have an account?{" "}
-          <Link href="/register" className="font-medium text-primary hover:text-primary/80 transition-colors">
-            Sign up
-          </Link>
+          <span className="text-muted-foreground">
+            New here?{" "}
+            <Link href="/register" className="font-medium text-primary hover:text-primary/80 transition-colors">
+              Create Account
+            </Link>
+          </span>
         </div>
       </CardContent>
     </Card>

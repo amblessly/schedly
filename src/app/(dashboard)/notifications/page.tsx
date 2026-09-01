@@ -581,7 +581,7 @@ export function NotificationsPage() {
                   : "Upload a schedule photo and you'll see its updates here."}
               </p>
               {filter !== "unread" && (
-                <Button className="mt-5" onClick={() => router.push("/classes")}>
+                <Button className="mt-5" onClick={() => router.push("/capture")}>
                   <Camera className="mr-1.5 h-4 w-4" />
                   Upload Schedule
                 </Button>
@@ -771,19 +771,22 @@ export function NotificationsPage() {
             }
           >
           {schedules && schedules.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-16 text-center">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                <Camera className="h-7 w-7 text-primary/60" />
+            <div className="flex items-center justify-center min-h-[50vh]">
+              <div className="w-full max-w-sm rounded-2xl border-2 border-border bg-card shadow-sm p-6 text-center">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+                  <Camera className="h-7 w-7 text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground">No classes yet</h3>
+                <p className="mt-1 max-w-xs mx-auto text-sm text-muted-foreground leading-relaxed">
+                  Upload a photo of your class schedule and we&rsquo;ll automatically create a reminder for each class.
+                </p>
+                <div className="mt-5">
+                  <Button className="h-11 px-6 font-medium" onClick={() => router.push("/classes")}>
+                    <Camera className="mr-2 h-4 w-4" />
+                    Upload Schedule
+                  </Button>
+                </div>
               </div>
-              <p className="text-sm font-medium text-foreground">No classes yet</p>
-              <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                Upload a photo of your class schedule and we&rsquo;ll automatically
-                create a reminder for each class.
-              </p>
-              <Button className="mt-5" onClick={() => router.push("/classes")}>
-                <Camera className="mr-1.5 h-4 w-4" />
-                Upload Schedule
-              </Button>
             </div>
           ) : (
             <>

@@ -27,7 +27,7 @@ type Domain =
   | "generic";
 
 const FALLBACK: Record<Domain, string> = {
-  schedule: "We couldn't process your schedule. Please try again later.",
+  schedule: "We couldn't process your schedule. Please try again in a moment.",
   flashcard: "Generation failed. Please try again later.",
   syllabus: "We couldn't read this syllabus. Please try another file.",
   gamification: "Unable to save your progress. Please try again later.",
@@ -38,6 +38,9 @@ const FALLBACK: Record<Domain, string> = {
 };
 
 const PATTERNS: Array<{ test: RegExp; message: string }> = [
+  // Daily AI/processing budget exhausted — comes back tomorrow.
+  { test: /DAILY_AI_LIMIT_REACHED/i, message: "We've reached today's processing limit. Please try again tomorrow — your limit resets daily." },
+
   // Schedule / image extraction
   { test: /AI returned data in an unrecognized format/i, message: "We couldn't process your schedule. Please try again later." },
   { test: /All AI providers failed/i, message: "We couldn't process your schedule. Please try again later." },
@@ -51,6 +54,7 @@ const PATTERNS: Array<{ test: RegExp; message: string }> = [
 
   // Schedule rate limit / generic 429
   { test: /Too many uploads/i, message: "Too many uploads. Please wait a moment and try again." },
+  { test: /rate[\s-]?limit/i, message: "You've reached the limit. Please wait a moment and try again." },
 
   // Schedule file validation
   { test: /File too large/i, message: "Your file is too large. Please use a file under 20MB." },
@@ -98,7 +102,12 @@ export function friendlyError(raw: unknown, domain: Domain = "generic"): string 
   }
 
   // Anything that smells like a raw provider/technical error → fallback.
-  if (/(gemini|openrouter|gemma|hy3|tencent|nemotron|claude|gpt|prisma|postgres|b2|backblaze|qstash|fcm|vapid|api[_-]?key|env)/i.test(message)) {
+  if (/(gemini|openrouter|gemma|hy3|tencent|nemotron|claude|gpt|prisma|postgres|b2|backblaze|qstash|fcm|vapid|api[_-]?key|env|\bai\b)/i.test(message)) {
+    return FALLBACK[domain];
+  }
+
+  // Raw HTTP status codes, provider error codes, or numeric statuses → fallback.
+  if (/\b(?:https?|error|status|code|quota|rate)[^\n]*\s?\b\d{2,3}\b|\b\d{3}\b/.test(message)) {
     return FALLBACK[domain];
   }
 

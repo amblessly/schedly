@@ -126,6 +126,26 @@ export async function logFocusSession(durationMinutes: number, completed: boolea
   const xpEarned = completed ? Math.round(durationMinutes * FOCUS_XP_PER_MINUTE) : 0;
 
   try {
+    // Idempotency guard: prevent duplicate completion records if the same
+    // completion fires twice within a short window (e.g. double click, refresh
+    // during a natural completion, or a stale client tab). Partial sessions
+    // (completed=false) are allowed multiple times.
+    if (completed) {
+      const sixtySecondsAgo = new Date(Date.now() - 60_000);
+      const recent = await db.focusSession.findFirst({
+        where: {
+          userId: session.user.id,
+          completed: true,
+          startedAt: { gte: sixtySecondsAgo },
+        },
+        orderBy: { startedAt: "desc" },
+        select: { id: true, xpEarned: true },
+      });
+      if (recent) {
+        return { success: true, xpEarned: recent.xpEarned, deduplicated: true };
+      }
+    }
+
     await db.focusSession.create({
       data: {
         userId: session.user.id,
@@ -232,7 +252,7 @@ export async function logFlashcardReview(
         },
         select: { cardId: true },
       });
-      const reviewedSet = new Set(reviewedBefore.map((r) => r.cardId));
+      const reviewedSet = new Set(reviewedBefore.map((r: { cardId: string }) => r.cardId));
       billableCount = options.cardIds.filter((id) => !reviewedSet.has(id)).length;
     }
 

@@ -517,8 +517,9 @@ export async function recordStudyResult(
     const nextReview = new Date(Date.now() + intervalMinutes * 60 * 1000);
 
     await db.$transaction(async (tx) => {
+      const t = tx as typeof db;
       // Update flashcard
-      await tx.flashcard.update({
+      await t.flashcard.update({
         where: { id: cardId },
         data: {
           streak: newStreak,
@@ -529,7 +530,7 @@ export async function recordStudyResult(
       });
 
       // Upsert progress
-      await tx.flashcardProgress.upsert({
+      await t.flashcardProgress.upsert({
         where: {
           cardId_userId: { cardId, userId: session.user.id },
         },

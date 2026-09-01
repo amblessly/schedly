@@ -23,7 +23,7 @@ type FreeTimeCardProps = {
 // answer to "when can I study / rest?".
 export function FreeTimeCard({ loading, freeToday, longestBreak }: FreeTimeCardProps) {
   return (
-    <Card className="bento-tile-side border-border/50 shadow-sm">
+    <Card className="bento-tile-side">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="truncate text-base">
           {/* "Free Time Today" can't fit a 320px half-tile header, so narrow

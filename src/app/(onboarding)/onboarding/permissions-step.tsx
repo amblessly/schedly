@@ -1,20 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BellRing, Check, Info, MapPin } from "lucide-react";
+import { Check, Info, MapPin, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "sonner";
 import {
   isPushSupported,
   enablePush,
-  pushUnsupportedReasons,
   isIosPwa,
 } from "@/lib/push";
 import { getPermissionState, updatePermissionState } from "./actions";
+import { saveUploadState } from "@/features/upload/lib/upload-state";
 
 const DEFAULT_TIMEZONE = "Asia/Manila";
 
-type NotifState = "loading" | "off" | "requesting" | "granted" | "denied" | "unsupported";
 type LocState = "loading" | "off" | "requesting" | "granted" | "denied" | "unsupported";
 
 function detectTimezone(): string {
@@ -23,12 +23,6 @@ function detectTimezone(): string {
   } catch {
     return DEFAULT_TIMEZONE;
   }
-}
-
-function deniedNotifMsg(): string {
-  return isIosPwa()
-    ? "Notifications are blocked. Enable them in iOS Settings → Schedly → Notifications."
-    : "Notifications are blocked in your browser settings. Allow Schedly there, then try again.";
 }
 
 function deniedLocMsg(): string {
@@ -77,9 +71,217 @@ function Toggle({
   );
 }
 
-/** Onboarding step that lets the user optionally enable notifications AND
- *  location on one screen. Both are optional — the continue button is always
- *  enabled and "Skip for now" lives next to it. */
+/** Step 1: Snap or upload a timetable photo. This is the only onboarding
+ *  step the user is required to complete — there's no skip. As soon as the
+ *  user picks a photo we kick off the upload + AI extraction in the
+ *  background so the dashboard is ready to render when they land there. */
+export function UploadScheduleCard({
+  onComplete,
+  finishing,
+  buttonLabel,
+  userId,
+}: {
+  onComplete: () => void;
+  finishing: boolean;
+  buttonLabel: string;
+  userId: string;
+}) {
+  const [pickedFile, setPickedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [phase, setPhase] = useState<"idle" | "uploading" | "processing" | "done">("idle");
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  const handlePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPickedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    setPhase("uploading");
+    setUploadError(null);
+
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "x-csrf-protection": "1" },
+        credentials: "include",
+        body: fd,
+      });
+      if (res.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      if (res.status === 413) {
+        throw new Error("The file is too large. Please choose a smaller image.");
+      }
+      if (res.status === 429) {
+        throw new Error("Too many uploads. Please wait a moment and try again.");
+      }
+      if (!res.ok) {
+        throw new Error("Upload failed. We'll try again from the dashboard.");
+      }
+      const data = (await res.json()) as { uploadId?: string; fileUrl?: string };
+      if (data.uploadId) {
+        // Persist the in-flight upload so the dashboard can resume polling it
+        // when the user lands there from onboarding.
+        saveUploadState(userId, {
+          uploadId: data.uploadId,
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          previewUrl,
+        });
+      }
+      setPhase("done");
+    } catch (err) {
+      setPhase("idle");
+      setPickedFile(null);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+      const msg = err instanceof Error ? err.message : "Network error. We'll try again from the dashboard.";
+      setUploadError(msg);
+      toast.error(msg);
+    }
+  };
+
+  const handleRetry = () => {
+    if (!pickedFile) return;
+    const file = pickedFile;
+    setPickedFile(null);
+    setPreviewUrl(null);
+    setUploadError(null);
+    setPhase("idle");
+    queueMicrotask(() => {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      const input = document.getElementById("timetable-file-input") as HTMLInputElement | null;
+      if (input) {
+        input.files = dt.files;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+  };
+
+  const handleRemove = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPickedFile(null);
+    setPreviewUrl(null);
+    setUploadError(null);
+    setPhase("idle");
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className={`rounded-2xl border p-4 transition-colors ${
+        uploadError
+          ? "border-destructive/40 bg-destructive/5"
+          : phase === "processing"
+            ? "border-primary/40 bg-primary/5"
+            : "border-border/50"
+      }`}>
+        {previewUrl ? (
+          <div className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewUrl}
+              alt="Selected timetable preview"
+              className="h-14 w-14 shrink-0 rounded-lg object-cover ring-1 ring-border/40"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-foreground">{pickedFile?.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {phase === "uploading" && "Uploading…"}
+                {phase === "processing" && "Reading your schedule in the background…"}
+                {phase === "done" && "Saved. We'll finish reading in the background."}
+                {phase === "idle" && pickedFile && uploadError
+                  ? uploadError
+                  : phase === "idle" && pickedFile
+                    ? `${(pickedFile.size / 1024).toFixed(0)} KB`
+                    : null}
+              </p>
+            </div>
+            {(phase === "idle" || phase === "done") && (
+              <button
+                type="button"
+                onClick={handleRemove}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label="Remove photo"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+            {(phase === "uploading" || phase === "processing") && (
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center">
+                <Spinner size={16} color="var(--primary)" />
+              </span>
+            )}
+            {phase === "done" && (
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center text-primary">
+                <Check className="h-5 w-5" />
+              </span>
+            )}
+          </div>
+        ) : (
+          <label className="flex cursor-pointer items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
+              <Upload className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground">Upload your timetable</p>
+              <p className="text-xs text-muted-foreground">
+                Take a photo or pick from your gallery — JPG or PNG.
+              </p>
+            </div>
+            <input
+              id="timetable-file-input"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handlePick}
+            />
+          </label>
+        )}
+      </div>
+
+      {uploadError && phase === "idle" && (
+        <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+          <X className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <div className="flex-1">
+            <p>{uploadError}</p>
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="mt-1 text-xs font-semibold text-primary hover:underline"
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      )}
+
+      <Button
+        className="mt-2 h-12 w-full font-semibold"
+        disabled={finishing || !pickedFile || phase === "uploading" || phase === "processing"}
+        onClick={onComplete}
+      >
+        {finishing ? "Finishing up..." : buttonLabel}
+      </Button>
+    </div>
+  );
+}
+
+/** Step 2: location permission is optional, but the continue button is
+ *  always enabled — the user is not allowed to "skip" beyond this point
+ *  without completing the upload step first. */
 export function PermissionsStep({
   onComplete,
   finishing,
@@ -89,8 +291,6 @@ export function PermissionsStep({
   finishing: boolean;
   buttonLabel: string;
 }) {
-  const [notif, setNotif] = useState<NotifState>("loading");
-  const [notifMsg, setNotifMsg] = useState<string | null>(null);
   const [loc, setLoc] = useState<LocState>("loading");
   const [locMsg, setLocMsg] = useState<string | null>(null);
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
@@ -98,25 +298,10 @@ export function PermissionsStep({
   useEffect(() => {
     let active = true;
 
-    // Deferred so we never set state synchronously inside the effect body.
     const t = setTimeout(() => {
       const tz = detectTimezone();
       setTimezone(tz);
 
-      // Reflect the REAL browser notification state (never trust the DB alone).
-      if (!isPushSupported()) {
-        setNotif("unsupported");
-        setNotifMsg(pushUnsupportedReasons().join(" · "));
-      } else if (Notification.permission === "granted") {
-        setNotif("granted");
-      } else if (Notification.permission === "denied") {
-        setNotif("denied");
-        setNotifMsg(deniedNotifMsg());
-      } else {
-        setNotif("off");
-      }
-
-      // Reflect the REAL geolocation state via the Permissions API.
       geolocationPermission().then((state) => {
         if (!active) return;
         if (state === "granted") {
@@ -133,17 +318,11 @@ export function PermissionsStep({
         }
       });
 
-      // Restore persisted prefs (timezone + sync the DB with real state). When
-      // notification permission is already granted, subscribe this device so
-      // reminders arrive without any extra prompt.
       getPermissionState()
         .then((s) => {
           if (!active) return;
           if (s?.timezone && s.timezone !== "UTC") setTimezone(s.timezone);
           if (isPushSupported() && Notification.permission === "granted") {
-            if (s?.notificationsEnabled !== true) {
-              updatePermissionState({ notificationsEnabled: true, timezone: tz }).catch(() => {});
-            }
             enablePush().catch(() => {});
           }
         })
@@ -155,28 +334,6 @@ export function PermissionsStep({
       clearTimeout(t);
     };
   }, []);
-
-  const handleNotifications = async () => {
-    if (notif === "requesting" || notif === "granted") return;
-    setNotifMsg(null);
-    if (!isPushSupported()) {
-      setNotif("unsupported");
-      setNotifMsg(pushUnsupportedReasons().join(" · "));
-      return;
-    }
-    setNotif("requesting");
-    const result = await enablePush();
-    if (result.ok || Notification.permission === "granted") {
-      setNotif("granted");
-      updatePermissionState({ notificationsEnabled: true, timezone }).catch(() => {});
-      if (!result.ok) {
-        setNotifMsg("Notification permission is on, but background alerts couldn't be set up on this browser.");
-      }
-    } else {
-      setNotif(result.code === "PUSH_NOT_SUPPORTED" ? "unsupported" : "denied");
-      setNotifMsg(result.reason);
-    }
-  };
 
   const handleLocation = () => {
     if (loc === "requesting" || loc === "granted") return;
@@ -222,30 +379,6 @@ export function PermissionsStep({
 
   return (
     <div className="space-y-4">
-      {permissionRow(
-        <BellRing className="h-5 w-5" />,
-        "Allow notifications",
-        "You’ll get reminders about your classes.",
-        <Toggle
-          checked={notif === "granted"}
-          onChange={handleNotifications}
-          disabled={notif === "requesting" || notif === "unsupported"}
-          label="Allow notifications"
-        />
-      )}
-      {notifMsg && (
-        <p className="flex items-start gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-600 dark:text-amber-500">
-          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          {notifMsg}
-        </p>
-      )}
-      {notif === "requesting" ? (
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Spinner size={14} color="var(--muted-foreground)" />
-          Waiting for permission…
-        </p>
-      ) : null}
-
       {permissionRow(
         <MapPin className="h-5 w-5" />,
         "Allow location",

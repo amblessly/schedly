@@ -16,7 +16,7 @@ export function ProgressBar({
   return (
     <div
       className={cn(
-        "relative w-full h-1 bg-muted overflow-hidden rounded-full",
+        "relative w-full h-4 border-2 border-foreground/60 bg-muted overflow-hidden rounded-full shadow-[2px_2px_0_0_#401f32]",
         className
       )}
       role="progressbar"

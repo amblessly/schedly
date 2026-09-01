@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/text-field";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,21 +40,30 @@ export default function ForgotPasswordPage() {
   if (sent) {
     return (
       <Card className="border-border/50 shadow-lg shadow-primary/5">
-        <CardHeader className="space-y-1 pb-4 text-center">
-          <CardTitle className="text-2xl font-bold tracking-tight">Check your email</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            We sent a password reset link to <strong>{email}</strong>.
-            Click the link in your inbox to set a new password.
-          </p>
+        <CardHeader className="space-y-3 pb-4 text-center">
+          <Link href="/" className="mx-auto flex items-center gap-2.5 self-start">
+            <Image
+              src="/images/logo.jpg"
+              alt="Schedly"
+              width={36}
+              height={36}
+              className="h-9 w-9 rounded-xl object-cover"
+            />
+            <span className="text-lg font-bold tracking-tight">Schedly</span>
+          </Link>
+          <div>
+            <CardTitle className="text-2xl font-bold tracking-tight">Check your email</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              We sent a password reset link to <strong>{email}</strong>.
+              Click the link in your inbox to set a new password.
+            </p>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            <Button variant="outline" className="w-full" asChild>
-              <Link href="/login">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Login
-              </Link>
-            </Button>
+            <Link href="/login" className="inline-flex h-10 w-full items-center justify-center rounded-lg border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted">
+              Back to Login
+            </Link>
             <button
               type="button"
               onClick={() => {
@@ -73,12 +82,24 @@ export default function ForgotPasswordPage() {
 
   return (
     <Card className="border-border/50 shadow-lg shadow-primary/5">
-      <CardHeader className="space-y-1 pb-4 text-center">
-        <CardTitle className="text-2xl font-bold tracking-tight">Forgot your password?</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Enter your email and we&apos;ll send you a link to reset your password.
-        </p>
-      </CardHeader>
+        <CardHeader className="space-y-3 pb-4 text-center">
+          <Link href="/" className="mx-auto flex items-center gap-2.5 self-start">
+            <Image
+              src="/images/logo.jpg"
+              alt="Schedly"
+              width={36}
+              height={36}
+              className="h-9 w-9 rounded-xl object-cover"
+            />
+            <span className="text-lg font-bold tracking-tight">Schedly</span>
+          </Link>
+          <div>
+            <CardTitle className="text-2xl font-bold tracking-tight">Forgot your password?</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Enter your email and we&apos;ll send you a link to reset your password.
+            </p>
+          </div>
+        </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <TextField
@@ -113,9 +134,8 @@ export default function ForgotPasswordPage() {
         <div className="mt-4 text-center">
           <Link
             href="/login"
-            className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+            className="text-sm text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft className="h-3 w-3" />
             Back to Login
           </Link>
         </div>

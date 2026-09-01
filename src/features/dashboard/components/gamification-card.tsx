@@ -43,7 +43,7 @@ export function GamificationCard() {
   const mins = profile.totalFocusMinutes % 60;
 
   return (
-    <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+    <div className="rounded-xl border-2 border-foreground/70 bg-primary/5 p-3 shadow-[3px_3px_0_0_#401f32]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-sidebar-foreground">Level {profile.level}</span>
         <span className="text-[10px] font-bold text-primary">{Math.round(progress * 100)}%</span>

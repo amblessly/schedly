@@ -3,11 +3,14 @@ import { PipelineLogger } from "./structured-logger";
 import { incrementUsage, saveLimitSnapshot } from "./usage-counter";
 import { OPENROUTER_KEYS, openRouterServiceFor, isOpenRouterEnabled } from "./openrouter-keys";
 import { GEMINI_KEYS, geminiServiceFor } from "./gemini-keys";
+import { GROQ_KEYS, groqServiceFor } from "./groq-keys";
+import { BYTEZ_KEYS, bytezServiceFor } from "./bytez-keys";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-const GEMINI_GENERATE_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+
+const BYTEZ_API_URL = "https://api.bytez.com/models/v2";
 
 /**
  * Confidence below this threshold triggers a single fallback vision-model
@@ -16,11 +19,49 @@ const GEMINI_GENERATE_URL =
  */
 const CONFIDENCE_THRESHOLD = Number(process.env.AI_CONFIDENCE_THRESHOLD ?? 0.75);
 
-/* ===== Vision Models (Image Understanding) =====
- * Ordered primary -> fallback. The fallback is ONLY used when the primary
- * errors out (rate limit / outage) — not on low confidence. Keeps the common
- * path to a single AI call for fast uploads.
- *
+/* ===== Groq Vision Models (Image Understanding) =====
+ * Ordered primary -> fallback. Groq free tier: 30 req/min per key.
+ * Vision model supports image inputs; fallback is text-only. */
+/* ===== Bytez (DISABLED — models return 404 on this account) =====
+ * Bytez is a unified API for 221,000+ models (vision + text).
+ * API key works for /models/v2/list/tasks but no model IDs are accessible
+ * from this account (all 404). Re-enable when account has model access. */
+// const BYTEZ_VISION_MODELS = [
+//   "google/gemma-3-4b-it",
+//   "Qwen/Qwen2-VL-7B-Instruct",
+// ];
+// const BYTEZ_TEXT_MODELS = [
+//   "google/gemma-3-4b-it",
+//   "Qwen/Qwen2.5-7B-Instruct",
+// ];
+const BYTEZ_VISION_MODELS: string[] = [];
+const BYTEZ_TEXT_MODELS: string[] = [];
+
+/* ===== Groq Text Models (text-only — no free vision on Groq) =====
+ * Groq free tier: 30 req/min per key, ~14,400 req/day.
+ * Groq has no free vision models (llama-3.2-90b-vision-preview deprecated).
+ * Only used for text-only operations (validation, suggestions). */
+const GROQ_TEXT_MODELS = [
+  "openai/gpt-oss-20b",              // Primary (fast, text)
+  "qwen/qwen3.6-27b",                // Fallback (text)
+];
+
+/* ===== Gemini Vision Models (Image Understanding) =====
+ * Each model is invoked via the same `generateContent` endpoint; using
+ * `:latest` aliases lets Google route to the most-available variant. */
+const GEMINI_VISION_MODELS = [
+  "gemini-flash-latest",             // Primary
+  "gemini-3.6-flash",               // Fallback (new)
+  "gemini-2.5-flash",               // Second fallback (deprecated but still works)
+];
+
+/* ===== Gemini Validation/Reasoning Models (text only) ===== */
+const GEMINI_VALIDATION_MODELS = [
+  "gemini-flash-latest",             // Primary
+  "gemini-2.5-flash",                // Fallback
+];
+
+/* ===== OpenRouter Vision Models (Image Understanding) =====
  * Primary: Gemma 4 26B — fastest measured free vision model on OpenRouter
  * (~49s end-to-end on a real schedule photo, reliable confident output). */
 const VISION_MODELS = [
@@ -37,7 +78,7 @@ const VALIDATION_MODELS = [
   "google/gemma-4-26b-a4b-it:free",                      // Fallback
 ];
 
-const RETRY_DELAYS = [1000, 3000, 5000, 10000];
+const RETRY_DELAYS = [500, 1500, 3000];
 
 /**
  * Single, concise extraction prompt. Day abbreviation expansion is delegated to
@@ -235,27 +276,31 @@ async function callGemini(
   parts: Record<string, unknown>[],
   opts: { prompt: string; temperature?: number; maxOutputTokens?: number },
   apiKey: string,
+  model = "gemini-flash-latest",
 ): Promise<Record<string, unknown>> {
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60000);
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
   let response: Response;
   try {
-    response = await fetch(`${GEMINI_GENERATE_URL}?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: opts.prompt }] },
-        contents: [{ role: "user", parts }],
-        generationConfig: {
-          temperature: opts.temperature ?? 0.1,
-          maxOutputTokens: opts.maxOutputTokens ?? 8192,
-          responseMimeType: "application/json",
-        },
-      }),
-      signal: controller.signal,
-    });
+    response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: opts.prompt }] },
+          contents: [{ role: "user", parts }],
+          generationConfig: {
+            temperature: opts.temperature ?? 0.1,
+            maxOutputTokens: opts.maxOutputTokens ?? 8192,
+            responseMimeType: "application/json",
+          },
+        }),
+        signal: controller.signal,
+      },
+    );
   } finally {
     clearTimeout(timeoutId);
   }
@@ -297,6 +342,184 @@ async function callGemini(
 export const callOpenRouterTest = callOpenRouter;
 export const parseAiResponseTest = parseAiResponse;
 
+/**
+ * Groq (OpenAI-compatible chat completions API). Free tier is generous:
+ * 30 req/min, ~14,400 req/day per key. Vision model: `llama-3.2-90b-vision-preview`
+ * supports image inputs natively. Used as PRIMARY because it's the fastest
+ * measured provider and the free quota is per-account-per-key (so multiple
+ * keys from different accounts stack).
+ */
+async function callGroq(
+  model: string,
+  messages: unknown[],
+  temperature = 0.1,
+  apiKey: string,
+): Promise<Record<string, unknown>> {
+  if (!apiKey) throw new Error("GROQ_API_KEY is not configured");
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  let response: Response;
+  try {
+    response = await fetch(GROQ_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature,
+        max_tokens: 8192,
+        response_format: { type: "json_object" },
+      }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  void incrementUsage(groqServiceFor(apiKey));
+
+  const bodyText = await response.text();
+  let data: unknown;
+  try {
+    data = bodyText ? JSON.parse(bodyText) : null;
+  } catch {
+    throw new Error(`Groq returned a non-JSON response (status ${response.status})`);
+  }
+
+  if (!response.ok) {
+    const status = response.status;
+    const msg = (data as { error?: { message?: string } })?.error?.message || "Unknown";
+    console.error(`[AI] Groq API error: ${status}:`, msg);
+
+    if (status === 429) {
+      throw { code: "RATE_LIMITED", model, retryAfter: 5, message: msg };
+    }
+    throw new Error(`Groq API error: ${status} - ${msg}`);
+  }
+
+  const text = (data as { choices?: { message?: { content?: string } }[] })?.choices?.[0]?.message?.content;
+  if (!text) throw new Error("No response from Groq");
+
+  const jsonMatch = String(text).match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error(`No JSON in Groq response. Snippet: ${String(text).slice(0, 200)}`);
+
+  try {
+    return JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+  } catch {
+    throw new Error(`Groq response contained malformed JSON. Snippet: ${jsonMatch[0].slice(0, 200)}`);
+  }
+}
+
+/**
+ * Bytez unified API (https://api.bytez.com/models/v2/{modelId}).
+ * Auth: Bearer {key}, body: { messages, params }.
+ * Response: { error, output } — output is the result string.
+ * Free tier: $1 credits/month, open models up to 7B params.
+ * NOTE: model availability varies; uses model fallback chain per key.
+ */
+async function callBytez(
+  model: string,
+  messages: unknown[],
+  temperature = 0.1,
+  apiKey: string,
+): Promise<Record<string, unknown>> {
+  if (!apiKey) throw new Error("BYTEZ_API_KEY is not configured");
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
+  let response: Response;
+  try {
+    response = await fetch(`${BYTEZ_API_URL}/${model}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messages,
+        params: {
+          temperature,
+          max_new_tokens: 8192,
+        },
+      }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  void incrementUsage(bytezServiceFor(apiKey));
+
+  const bodyText = await response.text();
+  let data: unknown;
+  try {
+    data = bodyText ? JSON.parse(bodyText) : null;
+  } catch {
+    throw new Error(`Bytez returned a non-JSON response (status ${response.status})`);
+  }
+
+  if (!response.ok) {
+    const status = response.status;
+    const errObj = data as { error?: string };
+    const msg = errObj?.error || "Unknown";
+    console.error(`[AI] Bytez API error: ${status}:`, msg);
+
+    if (status === 429) {
+      throw { code: "RATE_LIMITED", model, retryAfter: 10, message: msg };
+    }
+    throw new Error(`Bytez API error: ${status} - ${msg}`);
+  }
+
+  const errObj = data as { error?: string | null; output?: unknown };
+  if (errObj?.error) {
+    throw new Error(`Bytez error: ${errObj.error}`);
+  }
+
+  const output = errObj?.output;
+  if (output == null) throw new Error("No response from Bytez");
+
+  const text = typeof output === "string" ? output : JSON.stringify(output);
+  const jsonMatch = String(text).match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error(`No JSON in Bytez response. Snippet: ${String(text).slice(0, 200)}`);
+
+  try {
+    return JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+  } catch {
+    throw new Error(`Bytez response contained malformed JSON. Snippet: ${jsonMatch[0].slice(0, 200)}`);
+  }
+}
+
+/**
+ * Runs `call(model, apiKey)` across every configured Bytez key (in order), and
+ * for each key rotates through the model list. Escalates to next key after all
+ * models are exhausted. Bytez has no daily cap but uses credits ($1/month free).
+ */
+async function runWithBytezKeys<T>(
+  models: string[],
+  call: (model: string, apiKey: string) => Promise<T>,
+): Promise<T> {
+  if (BYTEZ_KEYS.length === 0) throw new Error("No Bytez API key configured");
+
+  let lastError: unknown;
+  for (let i = 0; i < BYTEZ_KEYS.length; i++) {
+    const apiKey = BYTEZ_KEYS[i]!;
+    PipelineLogger.info("extract", `Trying Bytez key ${i + 1}/${BYTEZ_KEYS.length}`);
+    try {
+      return await runWithModelFallback((model) => call(model, apiKey), models);
+    } catch (err) {
+      lastError = err;
+      console.log(`[AI] Bytez key ${i + 1} exhausted, trying next key`);
+    }
+  }
+
+  const message = lastError instanceof Error ? lastError.message : "All Bytez keys failed";
+  throw new Error(message);
+}
+
 function isRateLimited(err: unknown): err is { retryAfter: number; model: string } {
   return (
     !!err &&
@@ -332,6 +555,12 @@ async function runWithModelFallback<T>(
             await sleep(delay);
             continue;
           }
+          exhausted = true;
+          break;
+        }
+        const errMsg = err instanceof Error ? err.message : String(err);
+        if (/503|500|502|504|timeout|ECONNREFUSED|ETIMEDOUT|ENOTFOUND/i.test(errMsg)) {
+          console.log(`[AI] Server-side error on ${model} (${errMsg}) — skipping retries, moving to next`);
           exhausted = true;
           break;
         }
@@ -381,12 +610,14 @@ async function runWithOpenRouterKeys<T>(
 }
 
 /**
- * Runs `call(apiKey)` across every configured Gemini key (in order), retrying
- * each key up to 3 times on a transient failure before escalating to the next
- * key. Returns the first successful result, or throws the last error.
+ * Runs `call(model, apiKey)` across every configured Gemini key (in order), and
+ * for each key rotates through the model list. Only escalates to the next key
+ * after all models for that key are exhausted. 503 (high demand) fails fast so
+ * we don't burn the 5-minute client poll.
  */
 async function runWithGeminiKeys<T>(
-  call: (apiKey: string) => Promise<T>,
+  models: string[],
+  call: (model: string, apiKey: string) => Promise<T>,
 ): Promise<T> {
   if (GEMINI_KEYS.length === 0) throw new Error("No Gemini API key configured");
 
@@ -394,21 +625,48 @@ async function runWithGeminiKeys<T>(
   for (let i = 0; i < GEMINI_KEYS.length; i++) {
     const apiKey = GEMINI_KEYS[i]!;
     PipelineLogger.info("extract", `Trying Gemini key ${i + 1}/${GEMINI_KEYS.length}`);
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        return await call(apiKey);
-      } catch (err) {
-        lastError = err;
-        console.log(
-          `[AI] Gemini key ${i + 1} attempt ${attempt} failed:`,
-          err instanceof Error ? err.message : err,
-        );
-        if (attempt < 3) await sleep(2000);
+    try {
+      return await runWithModelFallback((model) => call(model, apiKey), models);
+    } catch (err) {
+      lastError = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/503/.test(msg)) {
+        console.log(`[AI] Gemini key ${i + 1} returned 503, skipping retries on this key`);
+      } else {
+        console.log(`[AI] Gemini key ${i + 1} exhausted, trying next key`);
       }
     }
   }
 
   const message = lastError instanceof Error ? lastError.message : "All Gemini keys failed";
+  throw new Error(message);
+}
+
+/**
+ * Runs `call(model, apiKey)` across every configured Groq key (in order), and
+ * for each key rotates through the model list. Only escalates to the next key
+ * after the previous key + all models are exhausted. Groq free tier: 30 req/min
+ * per key, ~14,400 req/day.
+ */
+async function runWithGroqKeys<T>(
+  models: string[],
+  call: (model: string, apiKey: string) => Promise<T>,
+): Promise<T> {
+  if (GROQ_KEYS.length === 0) throw new Error("No Groq API key configured");
+
+  let lastError: unknown;
+  for (let i = 0; i < GROQ_KEYS.length; i++) {
+    const apiKey = GROQ_KEYS[i]!;
+    PipelineLogger.info("extract", `Trying Groq key ${i + 1}/${GROQ_KEYS.length}`);
+    try {
+      return await runWithModelFallback((model) => call(model, apiKey), models);
+    } catch (err) {
+      lastError = err;
+      console.log(`[AI] Groq key ${i + 1} exhausted, trying next key`);
+    }
+  }
+
+  const message = lastError instanceof Error ? lastError.message : "All Groq keys failed";
   throw new Error(message);
 }
 
@@ -432,39 +690,34 @@ export async function extractScheduleFromImage(
 
   const { base64, contentType } = preloaded ?? (await fetchAndPreprocessImage(imageUrl));
 
-  // Gemini FIRST with multi-key rotation (key 1 -> key 2 -> ... -> key N).
-  // Gemini free tier has a higher daily cap (~1,500 req/day per key) than
-  // OpenRouter free vision models, so it carries the common path. OpenRouter
-  // is the fallback for when Gemini errors out (rate-limit / outage) or when
-  // OPENROUTER_DISABLED is set (daily rest).
+  // Gemini PRIMARY for vision (key 1 -> key 2 -> ... -> key N).
   if (GEMINI_KEYS.length > 0) {
     try {
-      const data = await runWithGeminiKeys((apiKey) =>
-        callGemini(
-          [
-            { inline_data: { mime_type: contentType, data: base64 } },
-            { text: "Extract the classes from this image exactly as the system instructions describe. Return ONLY valid JSON." },
-          ],
-          { prompt: SCHEDULE_EXTRACTION_PROMPT },
-          apiKey,
-        ),
+      const data = await runWithGeminiKeys(
+        GEMINI_VISION_MODELS,
+        (model, apiKey) =>
+          callGemini(
+            [
+              { inline_data: { mime_type: contentType, data: base64 } },
+              { text: "Extract the classes from this image exactly as the system instructions describe. Return ONLY valid JSON." },
+            ],
+            { prompt: SCHEDULE_EXTRACTION_PROMPT },
+            apiKey,
+            model,
+          ),
       );
       PipelineLogger.info("extract", "Vision extraction complete (Gemini)", {
-        model: "gemini-flash-latest",
+        model: GEMINI_VISION_MODELS[0],
       });
-      return { data, model: "gemini-flash-latest" };
+      return { data, model: GEMINI_VISION_MODELS[0]! };
     } catch (err) {
       PipelineLogger.error("extract", "All Gemini keys failed — falling back to OpenRouter", {}, err);
     }
   } else {
-    PipelineLogger.info("extract", "No Gemini key configured — using OpenRouter");
+    PipelineLogger.info("extract", "No Gemini key configured — trying OpenRouter");
   }
 
-  // OpenRouter as the fallback chain (key 1 -> key 2 -> ... -> key N). For each
-  // key the vision models are tried in order; we only escalate to the next key
-  // after the previous one is exhausted (rate-limit / outage). When
-  // OPENROUTER_DISABLED is set, OpenRouter is skipped until its daily reset,
-  // letting its free quota rest.
+  // OpenRouter SECONDARY for vision (key 1 -> key 2 -> ... -> key N).
   if ((await isOpenRouterEnabled()) && OPENROUTER_KEYS.length > 0) {
     let usedModel = models[0]!;
     try {
@@ -495,7 +748,7 @@ export async function extractScheduleFromImage(
       PipelineLogger.info("extract", "Vision extraction complete (OpenRouter)", { model: usedModel });
       return { data, model: usedModel };
     } catch (err) {
-      PipelineLogger.error("extract", "All OpenRouter keys failed", {}, err);
+      PipelineLogger.error("extract", "All OpenRouter keys failed — falling back to Groq", {}, err);
     }
   } else {
     PipelineLogger.info(
@@ -506,7 +759,40 @@ export async function extractScheduleFromImage(
     );
   }
 
-  throw new Error("All AI providers failed (Gemini 1-N, OpenRouter 1-N)");
+  // Bytez LAST for vision — fastest free unified API for 221,000+ models.
+  // Free tier: $1/month credits (open models up to 7B).
+  if (BYTEZ_KEYS.length > 0 && BYTEZ_VISION_MODELS.length > 0) {
+    try {
+      const data = await runWithBytezKeys(
+        BYTEZ_VISION_MODELS,
+        (model, apiKey) =>
+          callBytez(
+            model,
+            [
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: SCHEDULE_EXTRACTION_PROMPT + "\n\nReturn ONLY valid JSON." },
+                  { type: "image", url: `data:${contentType};base64,${base64}` },
+                ],
+              },
+            ],
+            0.1,
+            apiKey,
+          ),
+      );
+      PipelineLogger.info("extract", "Vision extraction complete (Bytez)", {
+        model: BYTEZ_VISION_MODELS[0],
+      });
+      return { data, model: BYTEZ_VISION_MODELS[0]! };
+    } catch (err) {
+      PipelineLogger.error("extract", "All Bytez keys failed", {}, err);
+    }
+  } else {
+    PipelineLogger.info("extract", "No Bytez key configured");
+  }
+
+  throw new Error("All AI providers failed (Gemini 1-N, OpenRouter 1-N, Bytez 1-N)");
 }
 
 export async function validateExtractedData(extractedJson: Record<string, unknown>) {
@@ -522,12 +808,63 @@ export async function validateExtractedData(extractedJson: Record<string, unknow
     `normalize day tokens, fix impossible times, and return the same JSON schema with an "overallConfidence" field.\n\n` +
     JSON.stringify(extractedJson, null, 2);
 
-  // Gemini FIRST (key 1 -> ... -> key N) — same order as vision extraction.
+  // Bytez PRIMARY for validation (fast, text-only).
+  if (BYTEZ_KEYS.length > 0 && BYTEZ_TEXT_MODELS.length > 0) {
+    try {
+      const data = await runWithBytezKeys(
+        BYTEZ_TEXT_MODELS,
+        (model, apiKey) =>
+          callBytez(
+            model,
+            [{ role: "user", content: prompt }],
+            0.1,
+            apiKey,
+          ),
+      );
+      PipelineLogger.info("validate", "Re-validation complete (Bytez)", {
+        model: BYTEZ_TEXT_MODELS[0],
+      });
+      return data;
+    } catch (err) {
+      PipelineLogger.error("validate", "All Bytez keys failed — falling back to Groq", {}, err);
+    }
+  } else {
+    PipelineLogger.info("validate", "No Bytez key configured — trying Groq");
+  }
+
+  // Groq SECONDARY for validation (fast, text-only).
+  if (GROQ_KEYS.length > 0) {
+    try {
+      const data = await runWithGroqKeys(
+        GROQ_TEXT_MODELS,
+        (model, apiKey) =>
+          callGroq(
+            model,
+            [{ role: "user", content: prompt }],
+            0.1,
+            apiKey,
+          ),
+      );
+      PipelineLogger.info("validate", "Re-validation complete (Groq)", {
+        model: GROQ_TEXT_MODELS[0],
+      });
+      return data;
+    } catch (err) {
+      PipelineLogger.error("validate", "All Groq keys failed — falling back to Gemini", {}, err);
+    }
+  } else {
+    PipelineLogger.info("validate", "No Groq key configured — trying Gemini");
+  }
+
+  // Gemini SECOND (key 1 -> ... -> key N) — same order as vision extraction.
   if (GEMINI_KEYS.length > 0) {
     try {
-      const data = await runWithGeminiKeys((apiKey) => callGemini([{ text: prompt }], { prompt }, apiKey));
+      const data = await runWithGeminiKeys(
+        GEMINI_VALIDATION_MODELS,
+        (model, apiKey) => callGemini([{ text: prompt }], { prompt }, apiKey, model),
+      );
       PipelineLogger.info("validate", "Re-validation complete (Gemini)", {
-        model: "gemini-flash-latest",
+        model: GEMINI_VALIDATION_MODELS[0],
       });
       return data;
     } catch (err) {
@@ -567,7 +904,7 @@ export async function validateExtractedData(extractedJson: Record<string, unknow
     );
   }
 
-  throw new Error("All AI providers failed (Gemini 1-N, OpenRouter 1-N)");
+  throw new Error("All AI providers failed (Bytez 1-N, Groq 1-N, Gemini 1-N, OpenRouter 1-N)");
 }
 
 /* ----------------------------------------------------------------------
@@ -608,12 +945,48 @@ export async function generateScheduleSuggestions(
 ): Promise<string[]> {
   const models = VISION_MODELS;
   const fullText = `${SUGGESTIONS_PROMPT}\n\nWeekly schedule:\n${JSON.stringify(classes, null, 2)}`;
-  let data: Record<string, unknown>;
+  let data: Record<string, unknown> = {};
 
-  if (GEMINI_KEYS.length > 0) {
+  if (BYTEZ_KEYS.length > 0 && BYTEZ_TEXT_MODELS.length > 0) {
     try {
-      data = await runWithGeminiKeys((apiKey) =>
-        callGemini([{ text: fullText }], { prompt: SUGGESTIONS_PROMPT, temperature: 0.9 }, apiKey),
+      data = await runWithBytezKeys(
+        BYTEZ_TEXT_MODELS,
+        (model, apiKey) =>
+          callBytez(
+            model,
+            [{ role: "user", content: fullText }],
+            0.9,
+            apiKey,
+          ),
+      );
+    } catch (err) {
+      PipelineLogger.error("suggest", "All Bytez keys failed — falling back to Groq", {}, err);
+    }
+  }
+
+  if (!data && GROQ_KEYS.length > 0) {
+    try {
+      data = await runWithGroqKeys(
+        GROQ_TEXT_MODELS,
+        (model, apiKey) =>
+          callGroq(
+            model,
+            [{ role: "user", content: fullText }],
+            0.9,
+            apiKey,
+          ),
+      );
+    } catch (err) {
+      PipelineLogger.error("suggest", "All Groq keys failed — falling back to Gemini", {}, err);
+    }
+  }
+
+  if (!data && GEMINI_KEYS.length > 0) {
+    try {
+      data = await runWithGeminiKeys(
+        GEMINI_VALIDATION_MODELS,
+        (model, apiKey) =>
+          callGemini([{ text: fullText }], { prompt: SUGGESTIONS_PROMPT, temperature: 0.9 }, apiKey, model),
       );
     } catch (err) {
       PipelineLogger.error("suggest", "All Gemini keys failed — falling back to OpenRouter", {}, err);

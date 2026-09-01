@@ -1,8 +1,10 @@
 import { getUsage, getLimitSnapshots, todayKey } from "@/server/lib/usage-counter";
 import { OPENROUTER_KEYS, OPENROUTER_SERVICES } from "@/server/lib/openrouter-keys";
 import { GEMINI_KEYS, GEMINI_SERVICES } from "@/server/lib/gemini-keys";
+import { GROQ_KEYS, GROQ_SERVICES } from "@/server/lib/groq-keys";
+import { BYTEZ_KEYS, BYTEZ_SERVICES } from "@/server/lib/bytez-keys";
 
-export type LimitsService = "openrouter" | "gemini" | "qstash" | "b2_upload" | "b2_download";
+export type LimitsService = "openrouter" | "gemini" | "groq" | "bytez" | "qstash" | "b2_upload" | "b2_download";
 
 export type LimitsStat = {
   id: string;
@@ -28,6 +30,10 @@ type Cap = { name: string; description: string; limit: number; unit: "requests" 
 
 /** OpenRouter free-model cap per key (~50 req/day). Combined across all keys. */
 const OPENROUTER_DEFAULT_LIMIT_PER_KEY = 50;
+/** Groq free-tier cap per key (RPM-bounded, ~14,400 req/day). */
+const GROQ_DEFAULT_LIMIT_PER_KEY = 14_400;
+/** Bytez free-tier monthly credits converted to a conservative request cap. */
+const BYTEZ_DEFAULT_LIMIT_PER_KEY = 1_000;
 
 /** Request/day caps for each external service (free tier unless noted). */
 const CAPS: Record<LimitsService, Cap> = {
@@ -38,6 +44,8 @@ const CAPS: Record<LimitsService, Cap> = {
     unit: "requests",
   },
   gemini: { name: "Gemini Flash (All Keys)", description: "AI extraction — combined across every configured key", limit: 1500, unit: "requests" },
+  groq: { name: "Groq (All Keys)", description: "Text-only AI — combined across every configured key", limit: GROQ_DEFAULT_LIMIT_PER_KEY, unit: "requests" },
+  bytez: { name: "Bytez (All Keys)", description: "Unified model API — combined across every configured key", limit: BYTEZ_DEFAULT_LIMIT_PER_KEY, unit: "requests" },
   qstash: { name: "QStash Messages", description: "Scheduled class reminders + push delivery", limit: 10000, unit: "transactions" },
   b2_upload: { name: "B2 Uploads (Class C)", description: "Image uploads to Backblaze", limit: 2500, unit: "transactions" },
   b2_download: { name: "B2 Downloads (Class B)", description: "Image downloads / previews", limit: 2500, unit: "transactions" },
@@ -167,7 +175,7 @@ export async function getLimitsStats() {
   const orLabel = perKey.map((k) => k.label).filter(Boolean).join(", ");
 
   const stats: LimitsStat[] = (Object.entries(CAPS) as [LimitsService, Cap][])
-    .filter(([id]) => id !== "openrouter" && id !== "gemini")
+    .filter(([id]) => id !== "openrouter" && id !== "gemini" && id !== "groq" && id !== "bytez")
     .map(([id, cap]) => {
       const row = byService.get(id);
       const count = row?.count ?? 0;
@@ -214,6 +222,36 @@ export async function getLimitsStats() {
       limit: geminiLimit,
       unit: "requests",
       color: colorFor(geminiUsage, geminiLimit),
+    });
+  }
+
+  // Groq (All Keys): combined request count.
+  if (GROQ_KEYS.length > 0) {
+    const groqUsage = GROQ_SERVICES.reduce((sum, svc) => sum + (byService.get(svc)?.count ?? 0), 0);
+    const groqLimit = CAPS.groq.limit * GROQ_KEYS.length;
+    stats.unshift({
+      id: "groq",
+      name: CAPS.groq.name,
+      description: `${CAPS.groq.description} (${GROQ_KEYS.length} key${GROQ_KEYS.length === 1 ? "" : "s"})`,
+      usage: groqUsage,
+      limit: groqLimit,
+      unit: "requests",
+      color: colorFor(groqUsage, groqLimit),
+    });
+  }
+
+  // Bytez (All Keys): combined request count.
+  if (BYTEZ_KEYS.length > 0) {
+    const bytezUsage = BYTEZ_SERVICES.reduce((sum, svc) => sum + (byService.get(svc)?.count ?? 0), 0);
+    const bytezLimit = CAPS.bytez.limit * BYTEZ_KEYS.length;
+    stats.unshift({
+      id: "bytez",
+      name: CAPS.bytez.name,
+      description: `${CAPS.bytez.description} (${BYTEZ_KEYS.length} key${BYTEZ_KEYS.length === 1 ? "" : "s"})`,
+      usage: bytezUsage,
+      limit: bytezLimit,
+      unit: "requests",
+      color: colorFor(bytezUsage, bytezLimit),
     });
   }
 

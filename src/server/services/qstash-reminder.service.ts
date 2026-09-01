@@ -80,7 +80,7 @@ export async function scheduleQstashReminders(
     where: userId ? { isActive: true, userId } : { isActive: true },
     include: {
       class: true,
-      user: { select: { id: true, timezone: true } },
+      user: { select: { id: true, timezone: true, reminderStartDate: true } },
     },
   });
 
@@ -104,6 +104,15 @@ export async function scheduleQstashReminders(
   for (const reminder of reminders) {
     const cls = reminder.class;
     if (cls.days.length === 0) continue;
+
+    // Skip reminders if before the user's reminder start date
+    if (reminder.user.reminderStartDate) {
+      const startDate = new Date(reminder.user.reminderStartDate);
+      startDate.setHours(0, 0, 0, 0);
+      const today = new Date(now);
+      today.setHours(0, 0, 0, 0);
+      if (today < startDate) continue;
+    }
 
     const tz = reminder.user.timezone || "Asia/Manila";
     const occ = nextOccurrence(cls.startTime, cls.days as DayOfWeek[], tz, now);

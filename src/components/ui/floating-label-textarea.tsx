@@ -13,8 +13,8 @@ export function FloatingLabelTextarea({
   return (
     <div
       className={cn(
-        "relative rounded-lg border bg-background transition-colors duration-150 focus-within:border-primary",
-        invalid ? "border-destructive" : "border-input",
+        "relative rounded-lg border-2 bg-background transition-all duration-150 focus-within:border-foreground focus-within:shadow-[3px_3px_0_0_#401f32]",
+        invalid ? "border-destructive" : "border-foreground/70",
         className
       )}
     >

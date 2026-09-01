@@ -71,7 +71,7 @@ export default function SettingsPage() {
               </nav>
               <div className="min-w-0 flex-1 space-y-4">
                 <Skeleton className="h-10 w-full rounded-lg" />
-                <Card className="border-border/50">
+                <Card>
                   <CardContent className="pt-6">
                     <div className="flex flex-col items-center gap-4 sm:flex-row">
                       <Skeleton className="h-20 w-20 rounded-full shrink-0" />
@@ -87,7 +87,7 @@ export default function SettingsPage() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="border-border/50">
+                <Card>
                   <CardHeader>
                     <Skeleton className="h-5 w-32" />
                   </CardHeader>
@@ -155,7 +155,7 @@ export default function SettingsPage() {
               {u?.isAdmin && (
                 <div className="space-y-3">
                   <SettingsLinkCard href="/admin" icon={<ShieldCheck className="h-4 w-4 text-primary" />} title="Admin Dashboard" description="Manage the Schedly admin panel." />
-                  <SettingsLinkCard href="/admin/limits" icon={<Gauge className="h-4 w-4 text-primary" />} title="Service Limits" description="Check daily usage caps for AI, QStash & B2." />
+                  <SettingsLinkCard href="/admin/limits" icon={<Gauge className="h-4 w-4 text-primary" />} title="Service Limits" description="Check daily usage caps for processing, QStash & B2." />
                 </div>
               )}
               <SettingsLinkCard href="/feedback" icon={<LifeBuoy className="h-4 w-4 text-primary" />} title="Help & Feedback" description="Report issues or share your thoughts." />
@@ -182,7 +182,7 @@ function SettingsLinkCard({
 }) {
   return (
     <Link href={href} className="group block">
-      <Card className="border-border/50 transition-all duration-200 group-hover:border-primary/40 group-hover:shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
+      <Card className="transition-shadow hover:shadow-none">
         <CardContent className="flex items-center gap-3 py-2.5">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/15">
             {icon}
@@ -210,7 +210,7 @@ function ThemeCard() {
   const { activeId, setTheme } = useThemeConfig();
 
   return (
-    <Card className="border-border/50">
+    <Card>
       <CardHeader>
         <CardTitle className="text-base">Theme</CardTitle>
         <CardDescription>Pick the accent color of your app.</CardDescription>
@@ -290,9 +290,9 @@ function AccountTab({ u }: { u: UserWithExtras | null }) {
 
   return (
     <div className="space-y-4">
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle className="text-base">Personal Information</CardTitle>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Personal Information</CardTitle>
           <CardDescription>Update your name and profile details.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -443,7 +443,7 @@ function SecurityTab() {
   }
 
   return (
-    <Card className="border-border/50">
+    <Card>
       <CardHeader>
         <CardTitle className="text-base">Change Password</CardTitle>
         <CardDescription>Make sure your account stays secure.</CardDescription>

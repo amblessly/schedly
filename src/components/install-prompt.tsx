@@ -195,7 +195,7 @@ export function InstallPrompt() {
 
       {inAppBrowser ? (
         /* ===== In-app browser escape dialog (Facebook/Instagram/etc.) ===== */
-        <div className="fixed inset-x-0 bottom-0 z-[70] mx-auto w-full max-w-md rounded-t-3xl border border-border/70 bg-card p-6 pb-[calc(1.25rem+var(--sab))] shadow-[0_-8px_40px_rgba(0,0,0,0.2)]">
+        <div className="fixed inset-x-0 bottom-0 z-[70] mx-auto w-full max-w-md rounded-t-3xl border-2 border-foreground/70 bg-card p-6 pb-[calc(1.25rem+var(--sab))] shadow-[4px_4px_0_0_#401f32]">
           <div className="flex items-start justify-between gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary">
               <Smartphone className="h-5 w-5" />
@@ -294,7 +294,7 @@ export function InstallPrompt() {
         </div>
       ) : isSheet ? (
         /* ===== Install sheet (Android / desktop Chrome, Edge) ===== */
-        <div className="fixed inset-x-0 bottom-0 z-[70] mx-auto w-full max-w-md rounded-t-3xl border border-border/70 bg-card p-6 pb-[calc(1.25rem+var(--sab))] shadow-[0_-8px_40px_rgba(0,0,0,0.2)]">
+        <div className="fixed inset-x-0 bottom-0 z-[70] mx-auto w-full max-w-md rounded-t-3xl border-2 border-foreground/70 bg-card p-6 pb-[calc(1.25rem+var(--sab))] shadow-[4px_4px_0_0_#401f32]">
           <div className="flex items-start justify-between gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary">
               <Download className="h-5 w-5" />
@@ -336,7 +336,7 @@ export function InstallPrompt() {
         </div>
       ) : (
         /* ===== Instructions dialog (iPhone / unsupported browsers) ===== */
-        <div className="fixed inset-x-0 bottom-0 z-[70] mx-auto w-full max-w-md rounded-t-3xl border border-border/70 bg-card p-6 pb-[calc(1.25rem+var(--sab))] shadow-[0_-8px_40px_rgba(0,0,0,0.2)]">
+        <div className="fixed inset-x-0 bottom-0 z-[70] mx-auto w-full max-w-md rounded-t-3xl border-2 border-foreground/70 bg-card p-6 pb-[calc(1.25rem+var(--sab))] shadow-[4px_4px_0_0_#401f32]">
           <div className="flex items-start justify-between gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary">
               <Smartphone className="h-5 w-5" />
@@ -399,7 +399,7 @@ export function InstallPrompt() {
 
 function Step({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-muted/40 p-3.5">
+    <div className="flex items-center gap-3 rounded-2xl border-2 border-foreground/70 bg-muted/40 p-3.5 shadow-[3px_3px_0_0_#401f32]">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
         {icon}
       </span>
