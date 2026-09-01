@@ -83,7 +83,7 @@
     "tailwindcss": "^4",
     "tsx": "^4.20.0",
     "typescript": "^5",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
