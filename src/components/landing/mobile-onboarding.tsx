@@ -6,14 +6,12 @@ import Link from "next/link";
 import {
   Bell,
   CalendarDays,
-  Camera,
   Check,
   ChevronRight,
   Mail,
 } from "lucide-react";
 
-const LAST_SCREEN = 2;
-const STEPS = ["01", "02", "03"];
+const LAST_SCREEN = 1;
 
 export function MobileOnboarding() {
   const [screen, setScreen] = useState(0);
@@ -63,9 +61,8 @@ export function MobileOnboarding() {
         className="flex h-full transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
         style={{ transform: `translateX(-${screen * 100}%)` }}
       >
-        <WelcomeScreen active={screen === 0} onNext={() => go(1)} onSkip={() => go(2)} />
-        <FeaturesScreen active={screen === 1} onNext={() => go(2)} />
-        <AuthScreen active={screen === 2} />
+        <WelcomeScreen active={screen === 0} onNext={() => go(1)} onSkip={() => go(1)} />
+        <AuthScreen active={screen === 1} />
       </div>
     </div>
   );
@@ -109,7 +106,7 @@ function PrimaryButton({ onClick, children }: { onClick: () => void; children: R
 function ProgressDots({ current }: { current: number }) {
   return (
     <div className="mt-3 flex shrink-0 items-center justify-center gap-1.5 pb-[env(safe-area-inset-bottom)]">
-      {[0, 1, 2].map((i) => (
+      {[0, 1].map((i) => (
         <span
           key={i}
           className={`h-2 rounded-full transition-all duration-500 ease-out ${
@@ -265,79 +262,7 @@ function WelcomeScreen({
   );
 }
 
-/* ============ Screen 2 — How it works ============ */
-
-const FEATURES = [
-  {
-    icon: Camera,
-    title: "Snap",
-    description: "Take a photo of your timetable.",
-  },
-  {
-    icon: CalendarDays,
-    title: "Organize",
-    description: "Schedly turns it into a clean, editable schedule.",
-  },
-  {
-    icon: Bell,
-    title: "Remember",
-    description: "Get reminded before your class starts.",
-  },
-];
-
-function FeaturesScreen({
-  active,
-  onNext,
-}: {
-  active: boolean;
-  onNext: () => void;
-}) {
-  return (
-    <div className="flex w-full shrink-0 flex-col px-8 pb-[clamp(1.5rem,4dvh,2rem)] pt-[clamp(1rem,2dvh,1.5rem)]">
-      <BrandRow onSkip={onNext} />
-
-      <div className="flex flex-1 flex-col items-center justify-center">
-        <ScreenContent active={active} delay={100} className="flex flex-col items-center text-center">
-          <h2 className="text-[clamp(1.75rem,8vw,2.125rem)] font-semibold leading-[1.1] tracking-tight text-foreground">
-            Your schedule,
-            <br />
-            handled.
-          </h2>
-          <p className="mt-3 text-[clamp(0.9375rem,4vw,1rem)] text-muted-foreground">Three simple steps. No stress.</p>
-        </ScreenContent>
-
-        <div className="mt-[clamp(1.75rem,5dvh,2.5rem)] w-full space-y-3">
-          {FEATURES.map((f, i) => (
-            <ScreenContent key={f.title} active={active} delay={180 + i * 120}>
-              <div className="flex items-center gap-3.5 rounded-xl border-2 border-foreground/70 bg-card p-3.5 shadow-[3px_3px_0_0_#401f32]">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-foreground/70 bg-primary/10 text-primary shadow-[2px_2px_0_0_#401f32]">
-                  <f.icon className="h-5 w-5" strokeWidth={1.75} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="flex items-baseline gap-2 text-[0.9375rem] font-bold text-foreground">
-                    <span className="text-xs font-bold tracking-widest text-primary/50">{STEPS[i]}</span>
-                    {f.title}
-                  </h3>
-                  <p className="mt-0.5 text-[0.875rem] leading-snug text-muted-foreground">{f.description}</p>
-                </div>
-              </div>
-            </ScreenContent>
-          ))}
-        </div>
-      </div>
-
-      <ScreenContent active={active} delay={540}>
-        <PrimaryButton onClick={onNext}>
-          Continue
-          <ChevronRight className="h-5 w-5" />
-        </PrimaryButton>
-      </ScreenContent>
-      <ProgressDots current={1} />
-    </div>
-  );
-}
-
-/* ============ Screen 3 — Get started ============ */
+/* ============ Screen 2 — Get started ============ */
 
 function AuthScreen({ active }: { active: boolean }) {
   return (
