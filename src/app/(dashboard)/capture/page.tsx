@@ -229,7 +229,7 @@ export default function CapturePage() {
     const origin = getProcessingStarted(userId);
     if (!origin) return 0;
     const elapsedSec = (Date.now() - origin) / 1000;
-    return Math.round(95 * (1 - Math.exp(-elapsedSec / 20)));
+    return Math.round(98 * (1 - Math.exp(-elapsedSec / 15)));
   });
 
   const handleSave = async (validClasses: ExtractedClass[]) => {
@@ -275,9 +275,9 @@ export default function CapturePage() {
 
   // Extraction continues in the background and the client polls for status
   // (see use-upload). Real upload progress maps onto the first ~10%. While the
-  // AI reads the image there is no true percentage, so we show a slow
-  // Fast asymptotic climb from ~1% toward ~95% — matches real extraction time
-  // (30-60s typical). Only hits 100% once extraction actually finishes.
+  // AI reads the image there is no true percentage, so we show a steady
+  // climb from ~1% toward ~98% that matches typical extraction time
+  // (20-50s). Only hits 100% once extraction actually finishes.
   const isAiWorking = isProcessing || (isUploading && progress >= 100);
 
   useEffect(() => {
@@ -286,9 +286,9 @@ export default function CapturePage() {
     saveProcessingStarted(userId, origin);
     const tick = () => {
       const elapsedSec = (Date.now() - origin) / 1000;
-      // Fast, steady climb: ~50% after 14s, ~80% after 32s, ~95% after ~60s.
-      // Real extractions usually finish in 30-60s, so this matches reality.
-      setFakeProgress(Math.round(95 * (1 - Math.exp(-elapsedSec / 20))));
+      // Smooth climb that saturates near 98% rather than 95% — extracts the
+      // full range so the user can see progress during the long wait.
+      setFakeProgress(Math.round(98 * (1 - Math.exp(-elapsedSec / 15))));
     };
     tick();
     const timer = setInterval(tick, 150);
@@ -299,7 +299,7 @@ export default function CapturePage() {
     upload?.status === "completed"
       ? 100
       : isAiWorking
-        ? Math.min(95, Math.max(1, fakeProgress))
+        ? Math.min(98, Math.max(1, fakeProgress))
         : Math.max(1, Math.min(10, Math.round((progress / 100) * 10)));
 
   return (

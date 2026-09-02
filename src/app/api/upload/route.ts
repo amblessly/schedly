@@ -1,13 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { waitUntil } from "@vercel/functions";
 import { auth } from "@/server/lib/auth";
 import { db } from "@/server/db/client";
-import { uploadService } from "@/server/services/upload.service";
+import { uploadRepository } from "@/server/repositories/upload.repository";
 import { detectImageMime, checkRateLimitDb, validateCsrf } from "@/server/lib/security";
 import { auditLog } from "@/server/lib/audit";
 import { storeImage } from "@/server/services/file-store.service";
+import { enqueueScheduleJob } from "@/server/lib/queue-service";
 
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   const session = await auth.api.getSession({ headers: request.headers });
@@ -82,32 +82,40 @@ export async function POST(request: NextRequest) {
 
     auditLog("upload.create", { userId: session.user.id, uploadId: stored.uploadId, fileName: file.name });
 
-    // Kick off AI extraction in the background so this request returns fast.
-    // The client polls GET /api/upload/[id] until the status flips to
-    // "completed"/"failed". On Vercel, waitUntil keeps this invocation alive
-    // until extraction finishes (bounded by maxDuration). Locally the promise
-    // keeps running in the Node process after the response is sent.
+    // Enqueue extraction as a background job so the upload request returns
+    // immediately. The worker (src/server/workers/schedule-worker.ts) handles
+    // OCR/AI extraction independently of this serverless function's lifetime,
+    // which means the upload no longer races against maxDuration.
+    //
+    // Failures during enqueue are still surfaced — if we can't queue the work
+    // we mark the upload as failed so the client doesn't poll forever.
     const origin = new URL(request.url).origin;
     const absoluteUrl = stored.url.startsWith("http")
       ? stored.url
       : `${origin}${stored.url}`;
 
-    // Run OCR-based extraction by default (free, no paid API required).
-    // AI is only used as an explicit fallback when OPENROUTER_AI_FALLBACK=true.
-    // The OCR pipeline uses tesseract.js + position-based parsing — it works
-    // offline and doesn't require any API key configuration.
-    const task = uploadService.processUpload(stored.uploadId, absoluteUrl, {
-      data: buffer,
-      mimeType: detectedMime,
-    });
-    void waitUntil(task);
-    void task.catch((err) => {
-      console.error("[UPLOAD_API] Background extraction failed:", err);
-    });
+    let jobId: string;
+    try {
+      jobId = await enqueueScheduleJob({
+        uploadId: stored.uploadId,
+        userId: session.user.id,
+        imageUrl: absoluteUrl,
+        preloaded: { data: buffer, mimeType: detectedMime },
+      });
+    } catch (queueErr) {
+      console.error("[UPLOAD_API] Failed to enqueue extraction:", queueErr);
+      const message = queueErr instanceof Error ? queueErr.message : "Failed to start extraction";
+      await uploadRepository.updateStatus(stored.uploadId, "failed", message);
+      return NextResponse.json(
+        { error: "We couldn't start reading your schedule. Please try again." },
+        { status: 500 },
+      );
+    }
 
     return NextResponse.json({
       uploadId: stored.uploadId,
       fileUrl: stored.url,
+      jobId,
       status: "processing",
     });
   } catch (error) {

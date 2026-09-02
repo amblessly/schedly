@@ -23,18 +23,20 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Background extraction runs after the POST response was sent. If the
-  // serverless invocation was killed (maxDuration exceeded) the record can be
-  // stuck in "processing" forever — mark it failed so the client and the
-  // upload history don't hang indefinitely.
+  // Extraction runs as a background job. The worker can crash, lose connection
+  // to Redis, or simply get stuck — guard against any of those by checking
+  // the upload's age and (when possible) the queue's reported state.
   if (upload.status === "processing") {
     const ageMs = Date.now() - upload.createdAt.getTime();
-    if (ageMs > 10 * 60_000) {
-      console.warn(`[UPLOAD_STATUS] Marking stale upload ${upload.id} as failed`);
+    // Allow a generous window for slow OCR/AI runs plus cold starts.
+    // If the upload is still "processing" after 15 minutes, something is
+    // genuinely wrong — fail it so the user isn't stuck polling forever.
+    if (ageMs > 15 * 60_000) {
+      console.warn(`[UPLOAD_STATUS] Marking stale upload ${upload.id} as failed (age=${ageMs}ms)`);
       upload = await uploadRepository.updateStatus(
         upload.id,
         "failed",
-        friendlyError("Processing timed out", "schedule")
+        friendlyError("Processing timed out", "schedule"),
       );
     }
   }

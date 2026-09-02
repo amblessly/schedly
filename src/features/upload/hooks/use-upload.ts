@@ -80,7 +80,7 @@ export function useUpload() {
       // processing upload — the server may be cold-starting or scaling.
       // Only definitive errors (401/403/404) stop the poll right away.
       let transientFails = 0;
-      const MAX_TRANSIENT = 5;
+      const MAX_TRANSIENT = 10;
       const interval = setInterval(async () => {
         try {
           const res = await authFetch(`/api/upload/${uploadId}`, {
@@ -129,12 +129,15 @@ export function useUpload() {
             reject(err);
           }
         }
-      }, 3000);
+      }, 2500);
 
+      // The extraction now runs in a background queue, so it can outlive the
+      // upload HTTP request. Give it up to 10 minutes before timing out —
+      // long enough for slow OCR/AI runs plus cold starts.
       setTimeout(() => {
         clearInterval(interval);
-        reject(new Error("Processing timed out. Please try again."));
-      }, 300_000);
+        reject(new Error("Processing is taking longer than expected. Please try again."));
+      }, 600_000);
     });
 
   const uploadFile = (file: File, ocrText?: string): Promise<Record<string, unknown>> => {
