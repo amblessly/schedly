@@ -17,8 +17,14 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { uploadAvatar } from "@/app/(dashboard)/settings/actions";
+import { authClient } from "@/lib/auth-client";
+import { useAuth } from "@/features/auth/hooks/use-auth";
+import { TextField } from "@/components/ui/text-field";
+import { toast } from "sonner";
 
 type UserWithExtras = {
   firstName?: string;
@@ -133,6 +139,66 @@ export default function ProfileSheetContent({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [activeTab, setActiveTab] = useState("overview");
+  const { refetchSession } = useAuth();
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [editForm, setEditForm] = useState({
+    firstName: (u?.firstName as string) || "",
+    lastName: (u?.lastName as string) || "",
+    username: (u?.username as string) || "",
+    school: (u?.school as string) || "",
+    course: (u?.course as string) || "",
+    year: u?.year != null ? String(u.year) : "",
+    city: (u?.city as string) || "",
+  });
+
+  function openEdit() {
+    setEditForm({
+      firstName: (u?.firstName as string) || "",
+      lastName: (u?.lastName as string) || "",
+      username: (u?.username as string) || "",
+      school: (u?.school as string) || "",
+      course: (u?.course as string) || "",
+      year: u?.year != null ? String(u.year) : "",
+      city: (u?.city as string) || "",
+    });
+    setEditError("");
+    setEditOpen(true);
+  }
+
+  async function saveEdit() {
+    setEditError("");
+    const trimmedUsername = editForm.username.trim();
+    if (!trimmedUsername) {
+      setEditError("Don't forget your username.");
+      return;
+    }
+    setEditSaving(true);
+    try {
+      const result = await authClient.updateUser({
+        name: editForm.lastName ? `${editForm.firstName} ${editForm.lastName}` : editForm.firstName,
+        firstName: editForm.firstName,
+        lastName: editForm.lastName,
+        username: trimmedUsername,
+        school: editForm.school.trim(),
+        course: editForm.course.trim(),
+        year: editForm.year.trim() ? Number(editForm.year.trim()) : undefined,
+        city: editForm.city.trim(),
+      } as Parameters<typeof authClient.updateUser>[0]);
+
+      if (result.error) {
+        setEditError(result.error.message || "Failed to update profile.");
+      } else {
+        refetchSession();
+        setEditOpen(false);
+      }
+    } catch {
+      setEditError("Something went wrong. Please try again.");
+    }
+    setEditSaving(false);
+  }
 
   // Get all unique subjects from all schedules
   const allSubjects = (() => {
@@ -316,7 +382,7 @@ export default function ProfileSheetContent({
               variant="default" 
               size="sm" 
               className="h-9 px-4"
-              onClick={() => window.location.href = '/settings?tab=account'}
+              onClick={openEdit}
             >
               <Edit3 className="h-4 w-4 mr-1.5" />
               Edit Profile
@@ -325,15 +391,28 @@ export default function ProfileSheetContent({
               variant="outline" 
               size="sm" 
               className="h-9 px-4"
-              onClick={() => {
+              onClick={async () => {
+                const shareUrl = u?.username
+                  ? `${window.location.origin}/u/${encodeURIComponent(u.username)}`
+                  : window.location.href;
+                const shareData = {
+                  title: `${displayName}'s Profile`,
+                  text: `Check out ${displayName}'s profile on Schedly!`,
+                  url: shareUrl,
+                };
                 if (navigator.share) {
-                  navigator.share({
-                    title: `${displayName}'s Profile`,
-                    text: `Check out ${displayName}'s profile on Schedly!`,
-                    url: window.location.href,
-                  });
-                } else {
-                  navigator.clipboard.writeText(window.location.href);
+                  try {
+                    await navigator.share(shareData);
+                    return;
+                  } catch (err) {
+                    if ((err as Error)?.name === "AbortError") return;
+                  }
+                }
+                try {
+                  await navigator.clipboard.writeText(shareUrl);
+                  toast.success("Profile link copied to clipboard!");
+                } catch {
+                  toast.error("Couldn't share your profile. Try again.");
                 }
               }}
             >
@@ -342,6 +421,65 @@ export default function ProfileSheetContent({
             </Button>
           </div>
         </div>
+
+        {/* Edit Profile Dialog */}
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Profile</DialogTitle>
+              <DialogDescription>
+                Update your personal details and info.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
+              <TextField
+                label="First name"
+                value={editForm.firstName}
+                onChange={(e) => setEditForm((p) => ({ ...p, firstName: e.target.value }))}
+              />
+              <TextField
+                label="Last name"
+                value={editForm.lastName}
+                onChange={(e) => setEditForm((p) => ({ ...p, lastName: e.target.value }))}
+              />
+              <TextField
+                label="Username"
+                className="sm:col-span-2"
+                value={editForm.username}
+                onChange={(e) => setEditForm((p) => ({ ...p, username: e.target.value }))}
+              />
+              <TextField
+                label="University / School"
+                className="sm:col-span-2"
+                value={editForm.school}
+                onChange={(e) => setEditForm((p) => ({ ...p, school: e.target.value }))}
+              />
+              <TextField
+                label="Course"
+                className="sm:col-span-2"
+                value={editForm.course}
+                onChange={(e) => setEditForm((p) => ({ ...p, course: e.target.value }))}
+              />
+              <TextField
+                label="Year level"
+                value={editForm.year}
+                inputMode="numeric"
+                onChange={(e) => setEditForm((p) => ({ ...p, year: e.target.value }))}
+              />
+            </div>
+            {editError && (
+              <p className="text-sm text-destructive">{editError}</p>
+            )}
+            <DialogFooter className="gap-2 sm:justify-end">
+              <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editSaving}>
+                Cancel
+              </Button>
+              <Button onClick={saveEdit} disabled={editSaving}>
+                {editSaving ? "Saving..." : "Save changes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Tabs Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>

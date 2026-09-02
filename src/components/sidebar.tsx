@@ -76,23 +76,35 @@ function NavItemLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => v
       prefetch
       onClick={() => onNavigate?.()}
       className={cn(
-        "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-200",
+        "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
         isActive
-          ? "bg-sidebar-primary/15 text-sidebar-primary"
+          ? "bg-sidebar-primary font-semibold text-sidebar-primary-foreground shadow-[0_4px_14px_-4px_var(--sidebar-primary)]"
           : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
       )}
     >
       {isActive && (
-        <div className="absolute right-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-l-full bg-sidebar-primary" />
+        <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-sidebar-primary-foreground/80" />
       )}
-      <Icon className={cn("h-[18px] w-[18px] shrink-0", isActive && "text-sidebar-primary")} />
+      <Icon className={cn("h-[18px] w-[18px] shrink-0", isActive && "text-sidebar-primary-foreground")} />
       <span className="flex-1 truncate">{item.label}</span>
       {item.badge && item.badge > 0 && (
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-sidebar-primary px-1.5 text-[10px] font-bold text-sidebar-primary-foreground">
+        <span
+          className={cn(
+            "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+            isActive
+              ? "bg-sidebar-primary-foreground/90 text-sidebar-primary"
+              : "bg-sidebar-primary text-sidebar-primary-foreground"
+          )}
+        >
           {item.badge > 99 ? "99+" : item.badge}
         </span>
       )}
-      <ChevronRight className="h-4 w-4 shrink-0 text-sidebar-foreground/30 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-sidebar-foreground/60" />
+      <ChevronRight
+        className={cn(
+          "h-4 w-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5",
+          isActive ? "text-sidebar-primary-foreground/60" : "text-sidebar-foreground/30 group-hover:text-sidebar-foreground/60"
+        )}
+      />
     </Link>
   );
 }
@@ -139,17 +151,17 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       );
 
   return (
-    <aside className="flex h-full w-full flex-col overflow-hidden rounded-2xl border-2 border-foreground/80 bg-sidebar/95 shadow-[3px_3px_0_0_#401f32]">
+    <aside className="flex h-full w-full flex-col overflow-hidden rounded-2xl border-2 border-foreground/80 bg-sidebar/95 shadow-[3px_3px_0_0_#401f32] backdrop-blur-xl">
       {/* Brand */}
-      <div className="flex h-16 items-center gap-2.5 px-5">
-        <Image src="/images/logo.jpg" alt="" aria-hidden width={36} height={36} className="h-9 w-9 shrink-0 rounded-xl object-cover" />
+      <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border/70 px-5">
+        <Image src="/images/logo.jpg" alt="" aria-hidden width={36} height={36} className="h-9 w-9 shrink-0 rounded-xl object-cover ring-1 ring-sidebar-border" />
         <span className="text-lg font-bold tracking-tight text-sidebar-foreground">
           Schedly
         </span>
         {onClose && (
           <button
             onClick={onClose}
-            className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/50 transition-colors hover:bg-white/10 hover:text-sidebar-foreground"
+            className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
             aria-label="Hide sidebar"
           >
             <ArrowUp className="h-5 w-5" />
@@ -192,8 +204,8 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           prefetch
           onClick={() => onClose?.()}
           className={cn(
-            "flex w-full items-center gap-3 rounded-xl bg-white/5 px-3 py-2.5 transition-colors hover:bg-white/10",
-            isSettings && "bg-white/10 text-sidebar-primary"
+            "flex w-full items-center gap-3 rounded-xl border-2 border-foreground/80 bg-sidebar-accent/60 px-3 py-2.5 shadow-[3px_3px_0_0_#401f32] transition-all hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 hover:bg-sidebar-accent",
+            isSettings && "bg-sidebar-accent text-sidebar-primary"
           )}
         >
           <Settings className="h-[18px] w-[18px] shrink-0 text-sidebar-foreground/70" />
@@ -204,9 +216,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         <button
           type="button"
           onClick={() => signOut()}
-          className="flex w-full items-center gap-3 rounded-xl bg-white/5 px-3 py-2.5 text-left transition-colors hover:bg-white/10"
+          className="group flex w-full items-center gap-3 rounded-xl border-2 border-foreground/80 bg-sidebar-accent/60 px-3 py-2.5 text-left shadow-[3px_3px_0_0_#401f32] transition-all hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 hover:bg-sidebar-accent"
         >
-          <LogOut className="h-[18px] w-[18px] shrink-0 text-sidebar-foreground/70" />
+          <LogOut className="h-[18px] w-[18px] shrink-0 text-sidebar-foreground/70 transition-colors group-hover:text-destructive" />
           <span className="flex-1 truncate text-left text-sm font-medium text-sidebar-foreground">
             Sign out
           </span>
@@ -214,7 +226,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       </div>
 
       {/* Footer */}
-      <div className="px-5 py-3">
+      <div className="border-t border-sidebar-border/70 px-5 py-3">
         <p className="text-[11px] text-sidebar-foreground/30">Schedly v0.1.0</p>
       </div>
     </aside>

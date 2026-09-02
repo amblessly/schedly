@@ -271,7 +271,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   // own skeletons instead of a full-screen loading state, so a refresh feels
   // like the cards are simply refreshing in place.
   const sidebarWrap = [
-    "sidebar-slide fixed right-3 top-16 z-40 w-[260px] max-w-[calc(100vw-1.5rem)] max-h-[80vh] will-change-transform md:hidden",
+    "sidebar-slide fixed right-3 top-16 z-40 w-[262px] max-w-[calc(100vw-1.5rem)] max-h-[80vh] will-change-transform md:hidden",
     open ? "translate-y-0 opacity-100" : "-translate-y-[130%] opacity-0",
   ].join(" ");
 

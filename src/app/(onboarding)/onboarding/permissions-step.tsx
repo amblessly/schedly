@@ -397,10 +397,10 @@ export function PermissionsStep({
         </p>
       )}
       {loc === "requesting" ? (
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Spinner size={14} color="var(--muted-foreground)" />
           Waiting for permission…
-        </p>
+        </div>
       ) : null}
 
       <Button
