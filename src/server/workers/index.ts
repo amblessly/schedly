@@ -29,10 +29,7 @@ export const syllabusWorker = new Worker<SyllabusJobData, SyllabusJobResult>(
 export const scheduleWorker = new Worker<ScheduleJobData, ScheduleJobResult>(
   "schedule-generation",
   async (job: Job<ScheduleJobData>) => processScheduleData(job.data, job.id),
-  {
-    ...WORKER_OPTIONS,
-    concurrency: 3,
-  }
+  WORKER_OPTIONS
 );
 
 memFlashcardQueue.process("generate-flashcards", async (data: FlashcardJobData) => {

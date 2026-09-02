@@ -131,9 +131,8 @@ export function useUpload() {
         }
       }, 2500);
 
-      // The extraction now runs in a background queue, so it can outlive the
-      // upload HTTP request. Give it up to 10 minutes before timing out —
-      // long enough for slow OCR/AI runs plus cold starts.
+      // Give extraction up to 10 minutes — long enough for slow OCR/AI runs
+      // plus cold starts on serverless functions.
       setTimeout(() => {
         clearInterval(interval);
         reject(new Error("Processing is taking longer than expected. Please try again."));

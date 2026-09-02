@@ -1,13 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { auth } from "@/server/lib/auth";
 import { db } from "@/server/db/client";
-import { uploadRepository } from "@/server/repositories/upload.repository";
+import { uploadService } from "@/server/services/upload.service";
 import { detectImageMime, checkRateLimitDb, validateCsrf } from "@/server/lib/security";
 import { auditLog } from "@/server/lib/audit";
 import { storeImage } from "@/server/services/file-store.service";
-import { enqueueScheduleJob } from "@/server/lib/queue-service";
+import { warmupOcr } from "@/server/lib/ocr-warmup";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   const session = await auth.api.getSession({ headers: request.headers });
@@ -82,40 +84,29 @@ export async function POST(request: NextRequest) {
 
     auditLog("upload.create", { userId: session.user.id, uploadId: stored.uploadId, fileName: file.name });
 
-    // Enqueue extraction as a background job so the upload request returns
-    // immediately. The worker (src/server/workers/schedule-worker.ts) handles
-    // OCR/AI extraction independently of this serverless function's lifetime,
-    // which means the upload no longer races against maxDuration.
-    //
-    // Failures during enqueue are still surfaced — if we can't queue the work
-    // we mark the upload as failed so the client doesn't poll forever.
+    // Pre-warm tesseract.js worker on first upload to eliminate cold start latency.
+    void warmupOcr().catch(() => {});
+
+    // Kick off extraction in the background so the upload response returns fast.
+    // The client polls GET /api/upload/[id] until status flips to "completed"/"failed".
+    // On Vercel, waitUntil keeps this invocation alive until extraction finishes.
     const origin = new URL(request.url).origin;
     const absoluteUrl = stored.url.startsWith("http")
       ? stored.url
       : `${origin}${stored.url}`;
 
-    let jobId: string;
-    try {
-      jobId = await enqueueScheduleJob({
-        uploadId: stored.uploadId,
-        userId: session.user.id,
-        imageUrl: absoluteUrl,
-        preloaded: { data: buffer, mimeType: detectedMime },
-      });
-    } catch (queueErr) {
-      console.error("[UPLOAD_API] Failed to enqueue extraction:", queueErr);
-      const message = queueErr instanceof Error ? queueErr.message : "Failed to start extraction";
-      await uploadRepository.updateStatus(stored.uploadId, "failed", message);
-      return NextResponse.json(
-        { error: "We couldn't start reading your schedule. Please try again." },
-        { status: 500 },
-      );
-    }
+    const task = uploadService.processUpload(stored.uploadId, absoluteUrl, {
+      data: buffer,
+      mimeType: detectedMime,
+    });
+    void waitUntil(task);
+    void task.catch((err) => {
+      console.error("[UPLOAD_API] Background extraction failed:", err);
+    });
 
     return NextResponse.json({
       uploadId: stored.uploadId,
       fileUrl: stored.url,
-      jobId,
       status: "processing",
     });
   } catch (error) {

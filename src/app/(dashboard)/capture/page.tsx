@@ -124,6 +124,13 @@ export default function CapturePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, userId]);
 
+  // Pre-warm tesseract.js as soon as the page loads. Runs in parallel with
+  // everything else so it never blocks the UI. Worker stays warm for 10 min.
+  useEffect(() => {
+    if (authLoading) return;
+    fetch("/api/upload/warmup", { method: "POST" }).catch(() => {});
+  }, [authLoading]);
+
   // While the AI reads the photo, keep the upload id + preview in
   // localStorage so a tab switch doesn't lose the progress.
   useEffect(() => {
@@ -229,7 +236,7 @@ export default function CapturePage() {
     const origin = getProcessingStarted(userId);
     if (!origin) return 0;
     const elapsedSec = (Date.now() - origin) / 1000;
-    return Math.round(98 * (1 - Math.exp(-elapsedSec / 15)));
+    return Math.round(90 * (1 - Math.exp(-elapsedSec / 18)));
   });
 
   const handleSave = async (validClasses: ExtractedClass[]) => {
@@ -275,9 +282,9 @@ export default function CapturePage() {
 
   // Extraction continues in the background and the client polls for status
   // (see use-upload). Real upload progress maps onto the first ~10%. While the
-  // AI reads the image there is no true percentage, so we show a steady
-  // climb from ~1% toward ~98% that matches typical extraction time
-  // (20-50s). Only hits 100% once extraction actually finishes.
+  // AI/OCR reads the image there is no true percentage, so we show a smooth
+  // climb from ~1% toward ~90% that feels natural. It hits 100% once the
+  // server sends "completed" status.
   const isAiWorking = isProcessing || (isUploading && progress >= 100);
 
   useEffect(() => {
@@ -286,12 +293,11 @@ export default function CapturePage() {
     saveProcessingStarted(userId, origin);
     const tick = () => {
       const elapsedSec = (Date.now() - origin) / 1000;
-      // Smooth climb that saturates near 98% rather than 95% — extracts the
-      // full range so the user can see progress during the long wait.
-      setFakeProgress(Math.round(98 * (1 - Math.exp(-elapsedSec / 15))));
+      // Climb toward 90% over ~40s, then smoothly transition to 100% when done.
+      setFakeProgress(Math.round(90 * (1 - Math.exp(-elapsedSec / 18))));
     };
     tick();
-    const timer = setInterval(tick, 150);
+    const timer = setInterval(tick, 200);
     return () => clearInterval(timer);
   }, [isAiWorking, userId]);
 
@@ -299,7 +305,7 @@ export default function CapturePage() {
     upload?.status === "completed"
       ? 100
       : isAiWorking
-        ? Math.min(98, Math.max(1, fakeProgress))
+        ? Math.min(90, Math.max(1, fakeProgress))
         : Math.max(1, Math.min(10, Math.round((progress / 100) * 10)));
 
   return (
